@@ -36,7 +36,9 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
                 }
               </ul>
             </div>
-            <a class="btn btn--navy" [routerLink]="service.path">{{ service.overviewLinkLabel }}</a>
+            <a class="btn btn--navy cta" [routerLink]="service.path">{{
+              service.overviewLinkLabel
+            }}</a>
           </article>
         }
       </div>
@@ -47,7 +49,7 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
   styles: `
     .grid {
       display: grid;
-      gap: 1.5rem;
+      gap: var(--grid-gap);
     }
     .item {
       display: flex;
@@ -79,6 +81,9 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
       text-transform: uppercase;
       color: var(--color-text-muted);
     }
+    .cta {
+      min-height: 3.5rem;
+    }
     .summary {
       color: var(--color-text-muted);
     }
@@ -106,6 +111,14 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
     @media (min-width: 768px) {
       .grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    @media (min-width: 1200px) {
+      .grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      h2 {
+        font-size: 1.375rem;
       }
     }
   `,

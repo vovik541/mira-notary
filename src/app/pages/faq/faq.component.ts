@@ -17,7 +17,7 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
     </app-page-hero>
 
     <section class="section">
-      <div class="container narrow">
+      <div class="container container--narrow">
         <app-faq-accordion [items]="items" />
       </div>
     </section>
@@ -25,10 +25,6 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
     <app-cta-band />
   `,
   styles: `
-    .narrow {
-      max-width: calc(52rem + var(--gutter) * 2);
-      margin-inline: 0;
-    }
     a {
       font-weight: 600;
       color: var(--color-navy);

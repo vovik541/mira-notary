@@ -4,11 +4,18 @@ import { APOSTILLE_FEES, APOSTILLE_NOTE } from '../../data/pricing.data';
 import { APOSTILLE_STEPS } from '../../data/services.data';
 import { CtaBandComponent } from '../../shared/components/cta-band/cta-band.component';
 import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.component';
+import { PriceListComponent } from '../../shared/components/price-list/price-list.component';
 import { SectionHeaderComponent } from '../../shared/components/section-header/section-header.component';
 
 @Component({
   selector: 'app-apostille',
-  imports: [RouterLink, CtaBandComponent, PageHeroComponent, SectionHeaderComponent],
+  imports: [
+    RouterLink,
+    CtaBandComponent,
+    PageHeroComponent,
+    PriceListComponent,
+    SectionHeaderComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-hero heading="California Apostille Services" eyebrow="Apostille">
@@ -35,17 +42,15 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
     </section>
 
     <section class="section section--alt" aria-labelledby="price-heading">
-      <div class="container narrow">
-        <app-section-header headingId="price-heading" heading="Apostille Pricing" />
-        <dl class="card prices">
-          @for (row of fees; track row.label) {
-            <div class="row">
-              <dt>{{ row.label }}</dt>
-              <dd>{{ row.price }}</dd>
-            </div>
-          }
-        </dl>
-        <p class="note">{{ note }}</p>
+      <div class="container split split--even">
+        <div>
+          <h2 id="price-heading">Apostille Pricing</h2>
+          <div class="prices"><app-price-list [rows]="fees" /></div>
+        </div>
+        <aside class="card panel" aria-label="Rush service and requests">
+          <p class="note">{{ note }}</p>
+          <p><a class="btn btn--gold" routerLink="/contact">Request Apostille Service</a></p>
+        </aside>
       </div>
     </section>
 
@@ -54,18 +59,18 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
   styles: `
     .steps {
       display: grid;
-      gap: 1rem;
+      gap: var(--grid-gap);
     }
     .step {
-      padding: 1.25rem;
+      padding: 1.5rem;
     }
     .num {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 2rem;
-      height: 2rem;
-      margin-bottom: 0.75rem;
+      width: 2.25rem;
+      height: 2.25rem;
+      margin-bottom: 1rem;
       font-family: var(--font-heading);
       font-weight: 700;
       color: var(--color-navy-dark);
@@ -73,44 +78,30 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
       border-radius: 50%;
     }
     .step h3 {
-      margin-bottom: 0.375rem;
-      font-size: 1rem;
+      margin-bottom: 0.5rem;
+      font-size: 1.0625rem;
     }
     .step p {
-      font-size: 0.875rem;
+      font-size: 0.9375rem;
       color: var(--color-text-muted);
     }
-    .narrow {
-      max-width: calc(40rem + var(--gutter) * 2);
-      margin-inline: 0;
+    h2 {
+      font-size: 1.5rem;
     }
     .prices {
-      margin: 0;
+      margin-top: 1.25rem;
     }
-    .row {
+    .panel {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 1rem 1.25rem;
-    }
-    .row + .row {
-      border-top: 1px solid var(--color-border);
-    }
-    dt {
-      font-weight: 600;
-    }
-    dd {
-      margin: 0;
-      font-family: var(--font-heading);
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: var(--color-navy);
+      flex-direction: column;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 1.75rem;
+      border-left: 4px solid var(--color-gold);
     }
     .note {
-      margin-top: 1rem;
-      font-size: 0.875rem;
-      color: var(--color-text-muted);
+      font-size: 1.0625rem;
+      color: var(--color-text);
     }
     @media (min-width: 640px) {
       .steps {
@@ -120,6 +111,9 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
     @media (min-width: 1024px) {
       .steps {
         grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .split {
+        align-items: stretch;
       }
     }
   `,

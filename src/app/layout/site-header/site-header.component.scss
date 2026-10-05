@@ -222,9 +222,16 @@
 
 /* ---- Breakpoints ---- */
 @media (min-width: 640px) {
-  .phone-link,
   .book {
     display: inline-flex;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 900px) {
+  .phone-link {
+    display: inline-flex;
+    white-space: nowrap;
   }
 
   .call-icon {

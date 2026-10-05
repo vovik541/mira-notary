@@ -33,6 +33,12 @@
   --header-height: 4.5rem;
   --mobile-cta-height: 4.25rem;
 
+  /* Vertical rhythm: section / hero / gap tokens, bumped per breakpoint below */
+  --section-y: 3rem;
+  --hero-y: 2.5rem;
+  --grid-gap: 1.5rem;
+  --block-gap: 2.5rem;
+
   @media (min-width: 640px) {
     --gutter: 1.5rem;
   }
@@ -41,6 +47,14 @@
   }
   @media (min-width: 768px) {
     --header-height: 5rem;
+    --section-y: 4.5rem;
+    --hero-y: 3.5rem;
+  }
+  @media (min-width: 1200px) {
+    --section-y: 5rem;
+    --hero-y: 4rem;
+    --grid-gap: 2rem;
+    --block-gap: 3rem;
   }
 }
 
@@ -163,11 +177,7 @@ button {
 }
 
 .section {
-  padding-block: 3rem;
-
-  @media (min-width: 768px) {
-    padding-block: 4.5rem;
-  }
+  padding-block: var(--section-y);
 
   &--alt {
     background: var(--color-bg-light);
@@ -175,10 +185,26 @@ button {
   }
 
   &--tight {
-    padding-block: 2rem;
+    padding-block: calc(var(--section-y) * 0.6);
+  }
+}
 
-    @media (min-width: 768px) {
-      padding-block: 3rem;
+/* Readable single column centred inside the page container (FAQ, long-form text) */
+.container--narrow {
+  max-width: calc(54rem + var(--gutter) * 2);
+}
+
+/* Two-column desktop split used by most inner pages: main + supporting column */
+.split {
+  display: grid;
+  gap: var(--block-gap);
+
+  @media (min-width: 1024px) {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: start;
+
+    &--even {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 }

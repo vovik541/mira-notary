@@ -12,6 +12,8 @@ support future local SEO.
 - Angular SSR (`@angular/ssr` + Express) with hydration and per-route render modes
 - Vitest (via `ng test`) for unit tests
 - No UI framework, no Tailwind, no carousel/icon libraries — plain SCSS with design tokens
+- Fonts (Inter, Manrope) are self-hosted via `@fontsource` (latin subset) and bundled by the build —
+  no requests to Google Fonts or any other third party at runtime
 
 ## Prerequisites
 
@@ -63,7 +65,9 @@ src/app/
 └── app.routes.server.ts   render modes (all pages prerendered, wildcard server-rendered → real 404)
 src/styles.scss            design tokens (CSS custom properties) + layout/button primitives
 public/                    favicons, robots.txt, site.webmanifest, assets/
-docs/reference/            Stitch export (code.html), DESIGN.md, PRD brief, screen.png, original assets
+docs/reference/stitch/     OFFLINE design reference only (Stitch export code.html, DESIGN.md, PRD brief,
+                           screen.png) — not served, not bundled, not used at runtime
+docs/reference/source-assets/  original, unmodified client asset files
 ```
 
 ### Routes
@@ -82,7 +86,9 @@ docs/reference/            Stitch export (code.html), DESIGN.md, PRD brief, scre
 | `public/assets/credentials/nna-certified-2026.webp` | home credential panel, Loan Signing, About |
 | `public/*.png`, `favicon.ico`, `site.webmanifest` | favicons / app icons |
 
-Original, unmodified source files are kept in `docs/reference/source-assets/`.
+Original, unmodified source files are kept in `docs/reference/source-assets/`. The app makes no
+third-party requests: every image, font and icon is local (icons are inline SVG paths in
+`shared/components/icon`).
 
 ## SEO architecture
 

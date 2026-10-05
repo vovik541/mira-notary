@@ -28,7 +28,6 @@ import { IconComponent } from '../icon/icon.component';
     .card {
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
       height: 100%;
       margin: 0;
       padding: 1.25rem;
@@ -40,7 +39,7 @@ import { IconComponent } from '../icon/icon.component';
       color: var(--color-gold);
     }
     blockquote {
-      margin: 0;
+      margin: 0 0 1.5rem;
       font-size: 0.9375rem;
       line-height: 1.65;
     }
@@ -49,7 +48,7 @@ import { IconComponent } from '../icon/icon.component';
       align-items: center;
       justify-content: space-between;
       gap: 0.75rem;
-      margin-top: 1.5rem;
+      margin-top: auto;
       padding-top: 1rem;
       border-top: 1px solid var(--color-border);
       font-size: 0.75rem;

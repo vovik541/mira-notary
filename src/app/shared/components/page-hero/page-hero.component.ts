@@ -1,17 +1,23 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
-/** Standard inner-page intro: eyebrow, the page's single H1, lead copy and an actions slot. */
+/**
+ * Standard inner-page intro band: eyebrow, the page's single H1, lead copy and actions, with an
+ * optional `[aside]` slot that sits to the right on desktop (e.g. credentials).
+ */
 @Component({
   selector: 'app-page-hero',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="container inner">
-      @if (eyebrow(); as eyebrowText) {
-        <p class="eyebrow">{{ eyebrowText }}</p>
-      }
-      <h1>{{ heading() }}</h1>
-      <div class="lead copy"><ng-content /></div>
-      <div class="actions"><ng-content select="[actions]" /></div>
+      <div class="main">
+        @if (eyebrow(); as eyebrowText) {
+          <p class="eyebrow">{{ eyebrowText }}</p>
+        }
+        <h1>{{ heading() }}</h1>
+        <div class="lead copy"><ng-content /></div>
+        <div class="actions"><ng-content select="[actions]" /></div>
+      </div>
+      <div class="aside"><ng-content select="[aside]" /></div>
     </div>
   `,
   styles: `
@@ -19,14 +25,15 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       display: block;
       background: var(--color-bg-light);
       border-bottom: 1px solid var(--color-border);
-      padding-block: 2.5rem;
+      padding-block: var(--hero-y);
     }
     .inner {
-      max-width: calc(48rem + var(--gutter) * 2);
-      margin-inline: 0;
+      display: grid;
+      gap: 2rem;
+      align-items: center;
     }
-    :host-context(.center) .inner {
-      text-align: center;
+    .main {
+      max-width: 50rem;
     }
     .eyebrow {
       margin-bottom: 0.75rem;
@@ -34,27 +41,21 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     .copy {
       margin-top: 1rem;
     }
-    .copy:empty {
+    .copy:empty,
+    .actions:empty,
+    .aside:empty {
       display: none;
     }
     .copy > :not(:first-child) {
       margin-top: 0.75rem;
     }
     .actions {
-      margin-top: 1.5rem;
-    }
-    .actions:empty {
-      display: none;
-    }
-    @media (min-width: 768px) {
-      :host {
-        padding-block: 4rem;
-      }
+      margin-top: 1.75rem;
     }
     @media (min-width: 1024px) {
-      .inner {
-        max-width: var(--container-max);
-        padding-right: 30%;
+      .inner:has(.aside:not(:empty)) {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
+        gap: 4rem;
       }
     }
   `,

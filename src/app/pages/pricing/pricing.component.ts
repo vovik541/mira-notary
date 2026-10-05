@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { BUSINESS } from '../../core/config/business.config';
 import {
   APOSTILLE_FEES,
   APOSTILLE_NOTE,
@@ -12,54 +14,58 @@ import { PriceListComponent } from '../../shared/components/price-list/price-lis
 
 @Component({
   selector: 'app-pricing',
-  imports: [CtaBandComponent, PageHeroComponent, PriceListComponent],
+  imports: [RouterLink, CtaBandComponent, PageHeroComponent, PriceListComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-hero heading="Clear Notary Pricing" eyebrow="Pricing">
       Clear pricing for common notary services. Final pricing is confirmed before service.
+      <div actions class="page-actions">
+        <a class="btn btn--gold" routerLink="/contact">Book an Appointment</a>
+        <a class="btn btn--outline" [href]="phone.href">Call {{ phone.display }}</a>
+      </div>
     </app-page-hero>
 
     <section class="section">
-      <div class="container groups">
-        <section aria-labelledby="travel-heading">
-          <h2 id="travel-heading">Mobile Travel</h2>
-          <app-price-list [rows]="travel" />
-        </section>
-
-        <section aria-labelledby="notarial-heading">
+      <div class="container split">
+        <section class="main" aria-labelledby="notarial-heading">
           <h2 id="notarial-heading">Notarial Services</h2>
           <app-price-list [rows]="notarial" />
         </section>
 
-        <section aria-labelledby="apostille-heading">
-          <h2 id="apostille-heading">California Apostille</h2>
-          <app-price-list [rows]="apostille" />
-          <p class="note">{{ apostilleNote }}</p>
-        </section>
+        <div class="side">
+          <section aria-labelledby="travel-heading">
+            <h2 id="travel-heading">Mobile Travel</h2>
+            <app-price-list [rows]="travel" />
+          </section>
 
-        <section aria-labelledby="payment-heading">
-          <h2 id="payment-heading">Payment Methods</h2>
-          <ul class="methods">
-            @for (method of payments; track method) {
-              <li>{{ method }}</li>
-            }
-          </ul>
-        </section>
+          <section aria-labelledby="apostille-heading">
+            <h2 id="apostille-heading">California Apostille</h2>
+            <app-price-list [rows]="apostille" />
+            <p class="note">{{ apostilleNote }}</p>
+          </section>
+
+          <section aria-labelledby="payment-heading">
+            <h2 id="payment-heading">Payment Methods</h2>
+            <ul class="methods">
+              @for (method of payments; track method) {
+                <li>{{ method }}</li>
+              }
+            </ul>
+          </section>
+        </div>
       </div>
     </section>
 
     <app-cta-band />
   `,
   styles: `
-    .groups {
-      display: grid;
-      gap: 2.5rem;
-      max-width: calc(48rem + var(--gutter) * 2);
-      margin-inline: 0;
-    }
     h2 {
       margin-bottom: 1rem;
       font-size: 1.375rem;
+    }
+    .side {
+      display: grid;
+      gap: 2.25rem;
     }
     .note {
       margin-top: 0.75rem;
@@ -84,6 +90,7 @@ import { PriceListComponent } from '../../shared/components/price-list/price-lis
   `,
 })
 export class PricingComponent {
+  protected readonly phone = BUSINESS.phones.primary;
   protected readonly travel = TRAVEL_FEES;
   protected readonly notarial = NOTARIAL_FEES;
   protected readonly apostille = APOSTILLE_FEES;

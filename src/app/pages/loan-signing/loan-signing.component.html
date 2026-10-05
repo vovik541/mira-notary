@@ -7,13 +7,8 @@
     <a class="btn btn--gold" routerLink="/contact">Schedule a Loan Signing</a>
     <a class="btn btn--outline" [href]="phone.href">Call Mira: {{ phone.display }}</a>
   </div>
+  <app-credential-list aside [items]="credentialItems" />
 </app-page-hero>
-
-<section class="section section--tight" aria-label="Credentials">
-  <div class="container credentials">
-    <app-credential-list [items]="credentialItems" />
-  </div>
-</section>
 
 <section class="section" aria-labelledby="loan-heading">
   <div class="container">
@@ -52,17 +47,13 @@
         }
       </ul>
     </div>
-
-    <p class="schedule">
-      <a class="btn btn--gold" routerLink="/contact">Schedule a Loan Signing</a>
-    </p>
   </div>
 </section>
 
-<section class="section section--alt" aria-label="Background and mobile office">
-  <div class="container two-col">
+<section class="section section--alt" aria-labelledby="background-heading">
+  <div class="container split split--even">
     <div class="background">
-      <h2>Professional Background</h2>
+      <h2 id="background-heading">Professional Background</h2>
       <p>
         Mira has worked as a Notary Signing Agent since 2016 and transitioned to full-time signing
         work in 2020.
@@ -71,19 +62,18 @@
         Her experience also includes more than 16 years in banking and consumer lending and real
         estate experience since 2010.
       </p>
-      <p class="history">
-        <strong>Professional History:</strong> Includes experience handling approximately 100
-        signings per month during full-time signing work.
-      </p>
     </div>
+    <p class="history card">
+      <strong>Professional History:</strong> Includes experience handling approximately 100 signings
+      per month during full-time signing work.
+    </p>
+  </div>
+</section>
 
+<section class="section" aria-labelledby="office-heading">
+  <div class="container">
     <div class="office card">
-      <h2>Fully Equipped Mobile Office</h2>
-      <p>
-        Mira travels with mobile printing and scanning equipment to support professional loan
-        signings when required.
-      </p>
-      <figure>
+      <figure class="photo">
         <img
           src="assets/images/mira-mobile-office.webp"
           width="765"
@@ -94,7 +84,15 @@
         />
         <figcaption>Mira’s mobile signing setup.</figcaption>
       </figure>
-      <app-check-list [items]="officeItems" />
+      <div class="office-copy">
+        <h2 id="office-heading">Fully Equipped Mobile Office</h2>
+        <p>
+          Mira travels with mobile printing and scanning equipment to support professional loan
+          signings when required.
+        </p>
+        <app-check-list [items]="officeItems" />
+        <p><a class="btn btn--gold" routerLink="/contact">Schedule a Loan Signing</a></p>
+      </div>
     </div>
   </div>
 </section>

@@ -20,7 +20,30 @@
       Today, she brings that experience to mobile notarizations and loan signings with a focus on
       careful document handling, clear communication, punctuality, and respectful service.
     </p>
+    <p><a class="btn btn--gold" routerLink="/contact">Book an Appointment with Mira</a></p>
+  </div>
 
+  <aside class="portrait-col" aria-label="Mira Derkach">
+    <div class="portrait">
+      <img
+        src="assets/images/mira-portrait.webp"
+        width="1122"
+        height="1402"
+        alt="Portrait of Mira Derkach"
+        fetchpriority="high"
+        decoding="async"
+      />
+    </div>
+    <div class="card caption-card">
+      <p class="name">{{ business.ownerName }}</p>
+      <p class="role">{{ business.roleTitle }}</p>
+      <p class="commission">Commission #{{ business.commissionNumber }}</p>
+    </div>
+  </aside>
+</section>
+
+<section class="section section--alt" aria-label="Credentials and mobile setup">
+  <div class="container details">
     <section class="card credentials" aria-labelledby="credentials-heading">
       <h2 id="credentials-heading">Professional Credentials</h2>
       <div class="credentials-body">
@@ -67,25 +90,5 @@
         <p class="caption">Mira’s mobile signing setup.</p>
       </div>
     </section>
-
-    <p><a class="btn btn--gold" routerLink="/contact">Book an Appointment with Mira</a></p>
   </div>
-
-  <aside class="portrait-col" aria-label="Mira Derkach">
-    <div class="portrait">
-      <img
-        src="assets/images/mira-portrait.webp"
-        width="1122"
-        height="1402"
-        alt="Portrait of Mira Derkach"
-        fetchpriority="high"
-        decoding="async"
-      />
-    </div>
-    <div class="card caption-card">
-      <p class="name">{{ business.ownerName }}</p>
-      <p class="role">{{ business.roleTitle }}</p>
-      <p class="commission">Commission #{{ business.commissionNumber }}</p>
-    </div>
-  </aside>
 </section>

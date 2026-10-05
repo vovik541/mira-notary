@@ -7,7 +7,7 @@ import { BUSINESS } from '../../core/config/business.config';
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="container nf">
+    <section class="container container--narrow nf">
       <p class="eyebrow">404</p>
       <h1>Page Not Found</h1>
       <p class="lead">
@@ -23,14 +23,14 @@ import { BUSINESS } from '../../core/config/business.config';
   `,
   styles: `
     .nf {
-      max-width: calc(44rem + var(--gutter) * 2);
-      margin-inline: 0;
-      padding-block: 4rem 5rem;
+      padding-block: calc(var(--section-y) * 1.2);
+      text-align: center;
     }
     .nf > * + * {
       margin-top: 1rem;
     }
     .page-actions {
+      justify-content: center;
       margin-top: 2rem;
     }
   `,

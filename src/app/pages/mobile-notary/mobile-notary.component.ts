@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BUSINESS } from '../../core/config/business.config';
+import { TRAVEL_FEES } from '../../data/pricing.data';
 import { COMMON_NOTARY_SERVICES } from '../../data/services.data';
 import { CheckListComponent } from '../../shared/components/check-list/check-list.component';
 import { CtaBandComponent } from '../../shared/components/cta-band/cta-band.component';
 import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.component';
+import { PriceListComponent } from '../../shared/components/price-list/price-list.component';
 import { SectionHeaderComponent } from '../../shared/components/section-header/section-header.component';
 
 @Component({
@@ -14,6 +16,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
     CheckListComponent,
     CtaBandComponent,
     PageHeroComponent,
+    PriceListComponent,
     SectionHeaderComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,28 +38,35 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
           text="Common notarization services Mira provides for individuals and families."
         />
         <app-check-list [items]="services" columns="auto" />
-        <p class="pricing-link">
-          See current fees on the <a routerLink="/pricing">Pricing page</a>. Final pricing is
-          confirmed before service.
-        </p>
+      </div>
+    </section>
+
+    <section class="section section--alt" aria-labelledby="travel-heading">
+      <div class="container split split--even">
+        <div class="intro">
+          <h2 id="travel-heading">Mobile Travel</h2>
+          <p class="muted">Final pricing is confirmed before service.</p>
+          <p>
+            <a class="btn btn--navy" routerLink="/pricing">See Full Pricing</a>
+          </p>
+        </div>
+        <app-price-list [rows]="travel" />
       </div>
     </section>
 
     <app-cta-band />
   `,
   styles: `
-    .pricing-link {
-      margin-top: 1.5rem;
-      font-size: 0.9375rem;
-      color: var(--color-text-muted);
+    .intro > * + * {
+      margin-top: 1rem;
     }
-    .pricing-link a {
-      font-weight: 600;
-      color: var(--color-navy);
+    h2 {
+      font-size: 1.5rem;
     }
   `,
 })
 export class MobileNotaryComponent {
   protected readonly phone = BUSINESS.phones.primary;
   protected readonly services = COMMON_NOTARY_SERVICES;
+  protected readonly travel = TRAVEL_FEES;
 }
