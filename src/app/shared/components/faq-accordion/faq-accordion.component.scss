@@ -1,0 +1,49 @@
+:host {
+  display: block;
+}
+
+.list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.item h3 {
+  font-size: 1rem;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.75rem 1.25rem;
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: left;
+  color: var(--color-navy);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-lg);
+}
+
+.chevron {
+  transition: transform 0.2s ease;
+}
+
+.open .chevron {
+  transform: rotate(180deg);
+}
+
+.panel {
+  padding: 0 1.25rem 1.25rem;
+  color: var(--color-text-muted);
+  max-width: 48rem;
+
+  &[hidden] {
+    display: none;
+  }
+}

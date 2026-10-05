@@ -1,0 +1,82 @@
+:host {
+  display: block;
+}
+
+.track {
+  display: flex;
+  gap: 1rem;
+  margin-inline: calc(var(--gutter) * -1);
+  padding: 0.25rem var(--gutter) 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--gutter);
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.slide {
+  flex: 0 0 86%;
+  scroll-snap-align: start;
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+/* 44px touch target around a small visual dot */
+.dot {
+  position: relative;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  background: none;
+  border: 0;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--color-border-strong);
+    transform: translate(-50%, -50%);
+    transition:
+      width 0.2s ease,
+      background-color 0.2s ease;
+  }
+
+  &.active::after {
+    width: 1.5rem;
+    background: var(--color-navy);
+  }
+}
+
+@media (min-width: 640px) {
+  .slide {
+    flex-basis: 70%;
+  }
+}
+
+@media (min-width: 768px) {
+  .track {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+    margin-inline: 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .dots {
+    display: none;
+  }
+}

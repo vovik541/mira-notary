@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+# TODO(production): once the real domain is known, add the sitemap location, e.g.
+# Sitemap: https://<production-domain>/sitemap.xml
+# (see README → "SEO architecture" for how to generate the sitemap)

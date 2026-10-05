@@ -1,0 +1,127 @@
+<section class="container hero" aria-labelledby="hero-heading">
+  <div class="hero-copy">
+    <p class="chip">
+      <span>Mobile Notary</span>
+      <span class="dot" aria-hidden="true"></span>
+      <span>Loan Signing Agent</span>
+    </p>
+    <h1 id="hero-heading">Professional Mobile Notary Service — Wherever You Need It</h1>
+    <p class="lead">
+      Reliable mobile notarization and loan signing services at your home, office, hospital, or
+      another convenient location throughout Sacramento and surrounding communities.
+    </p>
+    <p class="languages">
+      <app-icon name="translate" style="--icon-size: 1rem" />
+      <span>{{ languages }}</span>
+    </p>
+    <div class="page-actions">
+      <a class="btn btn--gold" routerLink="/contact">Book an Appointment</a>
+      <a class="btn btn--outline" [href]="phone.href">
+        <app-icon name="phone" style="--icon-size: 1rem" />
+        Call {{ phone.display }}
+      </a>
+    </div>
+    <p class="microcopy">Same-day and short-notice appointments may be available.</p>
+  </div>
+
+  <div class="hero-visual">
+    <div class="portrait">
+      <img
+        src="assets/images/mira-portrait.webp"
+        width="1122"
+        height="1402"
+        alt="Portrait of Mira Derkach"
+        fetchpriority="high"
+        loading="eager"
+        decoding="async"
+      />
+    </div>
+    <app-credential-list [items]="credentialItems" />
+  </div>
+</section>
+
+<section class="section" aria-labelledby="services-heading">
+  <div class="container">
+    <app-section-header
+      headingId="services-heading"
+      heading="Notary Services That Come to You"
+      text="Professional mobile service for individuals, families, businesses, borrowers, lenders, title companies, and escrow professionals."
+      align="center"
+    />
+    <div class="grid grid--4">
+      @for (service of services; track service.slug) {
+        <app-service-card [service]="service" />
+      }
+    </div>
+  </div>
+</section>
+
+<section class="section section--alt" aria-labelledby="why-heading">
+  <div class="container">
+    <app-section-header
+      headingId="why-heading"
+      heading="Experience That Goes Beyond a Notary Stamp"
+      text="Mira is an experienced mobile notary who comes to you and understands the documents involved."
+    />
+    <ol class="grid grid--4 why">
+      @for (item of whyMira; track item.title; let i = $index) {
+        <li class="card why-card">
+          <span class="why-number" aria-hidden="true">0{{ i + 1 }}</span>
+          <h3>{{ item.title }}</h3>
+          <p>{{ item.description }}</p>
+        </li>
+      }
+    </ol>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="reviews-heading">
+  <div class="container">
+    <div class="split-header">
+      <app-section-header
+        headingId="reviews-heading"
+        heading="What Clients Say About Mira"
+        text="Reviews from local clients and industry partners."
+      />
+      <a class="text-link" routerLink="/reviews">
+        Read Reviews <app-icon name="chevron-right" style="--icon-size: 1rem" />
+      </a>
+    </div>
+    <app-review-carousel [reviews]="reviews" />
+  </div>
+</section>
+
+<section class="section section--alt area" aria-labelledby="area-heading">
+  <div class="container">
+    <app-section-header
+      headingId="area-heading"
+      heading="Mobile Notary Service Near You"
+      [text]="areaSummary"
+      align="center"
+    />
+    <ul class="chips" aria-label="Communities served">
+      @for (community of communities; track community) {
+        <li class="chip-item">{{ community }}</li>
+      }
+    </ul>
+    <p class="center">
+      <a class="text-link" routerLink="/service-area">
+        View Service Area Details <app-icon name="chevron-right" style="--icon-size: 1rem" />
+      </a>
+    </p>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="faq-heading">
+  <div class="container narrow">
+    <app-section-header headingId="faq-heading" heading="Common Questions" />
+    <app-faq-accordion [items]="faqPreview" />
+    <p class="more">
+      <a class="text-link" routerLink="/faq">
+        View All Questions <app-icon name="chevron-right" style="--icon-size: 1rem" />
+      </a>
+    </p>
+  </div>
+</section>
+
+<app-cta-band />

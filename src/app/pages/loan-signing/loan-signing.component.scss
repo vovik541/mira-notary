@@ -1,0 +1,207 @@
+:host {
+  display: block;
+}
+
+.credentials app-credential-list {
+  display: block;
+  max-width: 28rem;
+}
+
+/* ---- Loan signing items: accordion on phones, 3 x 2 cards from 768px ---- */
+.loan-grid {
+  display: grid;
+  gap: 0.5rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.loan-item {
+  padding: 0;
+}
+
+.loan-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.625rem 1rem;
+
+  h3 {
+    flex: 1;
+    font-size: 1rem;
+  }
+}
+
+.icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--color-navy);
+  background: var(--color-bg-light);
+  border-radius: var(--radius-md);
+}
+
+/* The button's pseudo-element stretches over the whole row so the entire header is tappable. */
+.loan-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  color: var(--color-navy);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  app-icon {
+    transition: transform 0.2s ease;
+  }
+}
+
+.open .loan-toggle app-icon {
+  transform: rotate(180deg);
+}
+
+.loan-desc {
+  display: none;
+  padding: 0 1rem 1rem 4rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.open .loan-desc {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .loan-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.25rem 1.25rem 0;
+  }
+
+  .loan-toggle {
+    display: none;
+  }
+
+  .loan-desc {
+    display: block;
+    padding: 0.5rem 1.25rem 1.25rem;
+  }
+}
+
+/* ---- Additional support ---- */
+.support {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+
+  h3 {
+    font-size: 0.9375rem;
+  }
+
+  @media (min-width: 640px) {
+    flex-direction: row;
+    align-items: center;
+    gap: 2rem;
+  }
+}
+
+.support-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-navy);
+  }
+}
+
+.schedule {
+  margin-top: 2rem;
+}
+
+/* ---- Background + mobile office ---- */
+.two-col {
+  display: grid;
+  gap: 2rem;
+
+  @media (min-width: 1024px) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 3rem;
+    align-items: start;
+  }
+}
+
+.background > * + * {
+  margin-top: 1rem;
+}
+
+.history {
+  padding: 1rem;
+  font-size: 0.9375rem;
+  background: var(--color-surface);
+  border-left: 3px solid var(--color-gold);
+  border-radius: var(--radius-sm);
+}
+
+.office {
+  padding: 1.5rem;
+
+  > p {
+    margin-top: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  figure {
+    margin: 1.25rem 0;
+  }
+
+  img {
+    width: 100%;
+    max-height: 26rem;
+    object-fit: cover;
+    object-position: center;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+  }
+
+  figcaption {
+    margin-top: 0.5rem;
+    font-size: 0.8125rem;
+    font-style: italic;
+    color: var(--color-text-muted);
+  }
+}
+
+h2 {
+  font-size: 1.5rem;
+}

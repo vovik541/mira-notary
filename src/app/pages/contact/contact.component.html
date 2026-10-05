@@ -1,0 +1,233 @@
+<section class="container layout">
+  <div class="form-col">
+    <h1>Request an Appointment</h1>
+    <p class="lead">
+      Tell Mira what you need and where you are located. She will contact you to confirm
+      availability and final pricing.
+    </p>
+
+    @if (submission(); as result) {
+      <div class="notice card" role="status">
+        <h2>Request ready — please send it to Mira</h2>
+        <p>
+          This website form is not connected to an inbox yet, so your request has
+          <strong>not been delivered</strong>. To make sure Mira receives it, use one of the options
+          below.
+        </p>
+        <div class="page-actions">
+          <a class="btn btn--gold" [href]="result.mailtoUrl">Email This Request to Mira</a>
+          <a class="btn btn--outline" [href]="phone.href">
+            <app-icon name="phone" style="--icon-size: 1rem" />
+            Call {{ phone.display }}
+          </a>
+          <button class="btn btn--outline" type="button" (click)="editRequest()">
+            Edit Request
+          </button>
+        </div>
+      </div>
+    } @else {
+      <form class="form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="row two">
+          <div class="field">
+            <label for="fullName">Full Name <span aria-hidden="true">*</span></label>
+            <input
+              id="fullName"
+              type="text"
+              autocomplete="name"
+              formControlName="fullName"
+              required
+              [attr.aria-invalid]="showError(form.controls.fullName)"
+              [attr.aria-describedby]="showError(form.controls.fullName) ? 'fullName-error' : null"
+            />
+            @if (showError(form.controls.fullName)) {
+              <p class="error" id="fullName-error" role="alert">Please enter your full name.</p>
+            }
+          </div>
+          <div class="field">
+            <label for="phone">Phone Number <span aria-hidden="true">*</span></label>
+            <input
+              id="phone"
+              type="tel"
+              autocomplete="tel"
+              inputmode="tel"
+              formControlName="phone"
+              required
+              [attr.aria-invalid]="showError(form.controls.phone)"
+              [attr.aria-describedby]="showError(form.controls.phone) ? 'phone-error' : null"
+            />
+            @if (showError(form.controls.phone)) {
+              <p class="error" id="phone-error" role="alert">
+                Please enter a valid phone number, including area code.
+              </p>
+            }
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            autocomplete="email"
+            formControlName="email"
+            [attr.aria-invalid]="showError(form.controls.email)"
+            [attr.aria-describedby]="showError(form.controls.email) ? 'email-error' : null"
+          />
+          @if (showError(form.controls.email)) {
+            <p class="error" id="email-error" role="alert">Please enter a valid email address.</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="service">Service Needed <span aria-hidden="true">*</span></label>
+          <select
+            id="service"
+            formControlName="service"
+            required
+            [attr.aria-invalid]="showError(form.controls.service)"
+            [attr.aria-describedby]="showError(form.controls.service) ? 'service-error' : null"
+          >
+            <option value="">Select a service…</option>
+            @for (option of serviceOptions; track option) {
+              <option [value]="option">{{ option }}</option>
+            }
+          </select>
+          @if (showError(form.controls.service)) {
+            <p class="error" id="service-error" role="alert">Please choose a service.</p>
+          }
+        </div>
+
+        <div class="row three">
+          <div class="field">
+            <label for="location">Location / ZIP Code <span aria-hidden="true">*</span></label>
+            <input
+              id="location"
+              type="text"
+              autocomplete="postal-code"
+              placeholder="e.g. 95814"
+              formControlName="location"
+              required
+              [attr.aria-invalid]="showError(form.controls.location)"
+              [attr.aria-describedby]="showError(form.controls.location) ? 'location-error' : null"
+            />
+            @if (showError(form.controls.location)) {
+              <p class="error" id="location-error" role="alert">
+                Please enter the appointment location or ZIP code.
+              </p>
+            }
+          </div>
+          <div class="field">
+            <label for="preferredDate">Preferred Date <span aria-hidden="true">*</span></label>
+            <input
+              id="preferredDate"
+              type="date"
+              formControlName="preferredDate"
+              required
+              [attr.aria-invalid]="showError(form.controls.preferredDate)"
+              [attr.aria-describedby]="
+                showError(form.controls.preferredDate) ? 'preferredDate-error' : null
+              "
+            />
+            @if (showError(form.controls.preferredDate)) {
+              <p class="error" id="preferredDate-error" role="alert">
+                @if (form.controls.preferredDate.hasError('pastDate')) {
+                  Please choose today or a future date.
+                } @else {
+                  Please choose a preferred date.
+                }
+              </p>
+            }
+          </div>
+          <div class="field">
+            <label for="preferredTime">Preferred Time <span aria-hidden="true">*</span></label>
+            <input
+              id="preferredTime"
+              type="text"
+              placeholder="e.g. Morning, 2:00 PM"
+              formControlName="preferredTime"
+              required
+              [attr.aria-invalid]="showError(form.controls.preferredTime)"
+              [attr.aria-describedby]="
+                showError(form.controls.preferredTime) ? 'preferredTime-error' : null
+              "
+            />
+            @if (showError(form.controls.preferredTime)) {
+              <p class="error" id="preferredTime-error" role="alert">
+                Please tell us your preferred time.
+              </p>
+            }
+          </div>
+        </div>
+
+        <div class="row two">
+          <div class="field">
+            <label for="signers">Number of Signers</label>
+            <input
+              id="signers"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              placeholder="e.g. 1"
+              formControlName="signers"
+              [attr.aria-invalid]="showError(form.controls.signers)"
+              [attr.aria-describedby]="showError(form.controls.signers) ? 'signers-error' : null"
+            />
+            @if (showError(form.controls.signers)) {
+              <p class="error" id="signers-error" role="alert">Enter a number from 1 to 50.</p>
+            }
+          </div>
+          <div class="field">
+            <label for="documents">Number of Documents Requiring Notarization</label>
+            <input
+              id="documents"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              placeholder="e.g. 2"
+              formControlName="documents"
+              [attr.aria-invalid]="showError(form.controls.documents)"
+              [attr.aria-describedby]="
+                showError(form.controls.documents) ? 'documents-error' : null
+              "
+            />
+            @if (showError(form.controls.documents)) {
+              <p class="error" id="documents-error" role="alert">Enter a number from 1 to 500.</p>
+            }
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="language">Preferred Language</label>
+          <select id="language" formControlName="language">
+            @for (language of languageOptions; track language) {
+              <option [value]="language">{{ language }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="details">Additional Details</label>
+          <textarea
+            id="details"
+            rows="4"
+            maxlength="2000"
+            placeholder="Provide any details about your documents or location…"
+            formControlName="details"
+          ></textarea>
+        </div>
+
+        <div class="check">
+          <input id="urgent" type="checkbox" formControlName="urgent" />
+          <label for="urgent">Same-Day / Urgent Request</label>
+        </div>
+
+        <button class="btn btn--gold btn--block" type="submit">Request Appointment</button>
+        <p class="hint">Fields marked * are required.</p>
+      </form>
+    }
+  </div>
+
+  <aside class="side">
+    <app-contact-card />
+  </aside>
+</section>

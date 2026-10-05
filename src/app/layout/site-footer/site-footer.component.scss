@@ -1,0 +1,102 @@
+:host {
+  display: block;
+}
+
+.footer {
+  padding-block: 3rem 2rem;
+  color: rgba(255, 255, 255, 0.85);
+  background: var(--color-navy-dark);
+  /* Keeps the last lines clear of the fixed mobile call/book bar */
+  padding-bottom: calc(2rem + var(--mobile-cta-height) + env(safe-area-inset-bottom, 0px));
+
+  @media (min-width: 768px) {
+    padding-bottom: 2rem;
+  }
+}
+
+.grid {
+  display: grid;
+  gap: 2rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (min-width: 1024px) {
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    gap: 3rem;
+  }
+}
+
+.logo-plate {
+  display: inline-flex;
+  padding: 0.5rem 0.75rem;
+  background: #fff;
+  border-radius: var(--radius-md);
+
+  img {
+    width: auto;
+    height: 2.75rem;
+  }
+}
+
+.owner {
+  margin-top: 1rem;
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.role {
+  font-size: 0.875rem;
+}
+
+.commission {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-gold);
+}
+
+h2 {
+  margin-bottom: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+li {
+  font-size: 0.875rem;
+}
+
+li a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  text-decoration: none;
+
+  &:hover {
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+li.plain {
+  padding-block: 0.4rem;
+}
+
+a:focus-visible {
+  outline-color: var(--color-gold);
+}
+
+.disclaimer {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  font-size: 0.75rem;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}

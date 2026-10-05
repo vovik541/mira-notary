@@ -1,0 +1,248 @@
+:host {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: block;
+}
+
+.header {
+  background: rgba(255, 255, 255, 0.97);
+  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(8px);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  height: var(--header-height);
+}
+
+/* ---- Desktop navigation (>= 1200px) ---- */
+.desktop-nav {
+  display: none;
+  align-items: center;
+  gap: 1.75rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.nav-link,
+.dropdown-menu a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+
+  &:hover,
+  &.active {
+    color: var(--color-navy);
+  }
+}
+
+.nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+
+  &.active {
+    font-weight: 700;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0.25rem;
+      height: 2px;
+      background: var(--color-gold);
+      border-radius: 2px;
+    }
+  }
+}
+
+.dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2.75rem;
+  padding: 0;
+  color: var(--color-text-muted);
+  background: none;
+  border: 0;
+
+  &:hover {
+    color: var(--color-navy);
+  }
+
+  app-icon {
+    transition: transform 0.2s ease;
+  }
+
+  &[aria-expanded='true'] app-icon {
+    transform: rotate(180deg);
+  }
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 60;
+  display: none;
+  width: 16rem;
+  padding: 0.5rem 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+
+  &.open {
+    display: block;
+  }
+
+  a {
+    display: block;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text);
+
+    &:hover,
+    &.active {
+      background: var(--color-bg-light);
+    }
+  }
+}
+
+/* ---- Right-hand actions ---- */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.phone-link {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-navy);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+
+  &:hover {
+    background: var(--color-bg-light);
+  }
+}
+
+.book {
+  display: none;
+}
+
+.call-icon,
+.menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  color: var(--color-navy);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+
+  &:hover {
+    background: var(--color-bg-light);
+  }
+}
+
+/* ---- Mobile menu ---- */
+.mobile-menu {
+  display: none;
+  max-height: calc(100vh - var(--header-height));
+  max-height: calc(100dvh - var(--header-height));
+  padding-block: 0.75rem 1.5rem;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+
+  &.open {
+    display: block;
+  }
+}
+
+.mobile-list {
+  display: grid;
+  gap: 0.125rem;
+  margin-bottom: 1rem;
+}
+
+.mobile-sub {
+  display: grid;
+  padding-left: 1rem;
+}
+
+.mobile-link {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  font-weight: 500;
+  color: var(--color-text);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+
+  &:hover,
+  &.active {
+    color: var(--color-navy);
+    background: var(--color-bg-light);
+  }
+
+  &.active {
+    font-weight: 700;
+  }
+
+  &.sub {
+    font-size: 0.9375rem;
+    color: var(--color-text-muted);
+  }
+}
+
+/* ---- Breakpoints ---- */
+@media (min-width: 640px) {
+  .phone-link,
+  .book {
+    display: inline-flex;
+  }
+
+  .call-icon {
+    display: none;
+  }
+}
+
+@media (min-width: 1200px) {
+  .desktop-nav {
+    display: flex;
+  }
+
+  .menu-button,
+  .mobile-menu {
+    display: none !important;
+  }
+
+  .actions {
+    gap: 1rem;
+  }
+}

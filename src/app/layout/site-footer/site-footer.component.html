@@ -1,0 +1,62 @@
+<footer class="footer">
+  <div class="container">
+    <div class="grid">
+      <div class="brand">
+        <a class="logo-plate" routerLink="/" aria-label="Local Notary Signings — home">
+          <img
+            [src]="business.logo.src"
+            [width]="business.logo.width"
+            [height]="business.logo.height"
+            [alt]="business.logo.alt"
+            loading="lazy"
+            decoding="async"
+          />
+        </a>
+        <p class="owner">{{ business.ownerName }}</p>
+        <p class="role">{{ business.roleTitle }}</p>
+        <p class="commission">California Notary Commission #{{ business.commissionNumber }}</p>
+      </div>
+
+      <section aria-labelledby="footer-contact">
+        <h2 id="footer-contact">Contact</h2>
+        <ul>
+          <li>
+            <a [href]="business.phones.primary.href">{{ business.phones.primary.display }}</a>
+          </li>
+          <li>
+            <a [href]="business.phones.secondary.href">{{ business.phones.secondary.display }}</a>
+          </li>
+          <li>
+            <a [href]="emailHref">{{ business.email }}</a>
+          </li>
+          <li class="plain">{{ languages }}</li>
+        </ul>
+      </section>
+
+      <nav aria-labelledby="footer-services">
+        <h2 id="footer-services">Services</h2>
+        <ul>
+          @for (link of serviceLinks; track link.path) {
+            <li>
+              <a [routerLink]="link.path">{{ link.label }}</a>
+            </li>
+          }
+        </ul>
+      </nav>
+
+      <section aria-labelledby="footer-credentials">
+        <h2 id="footer-credentials">Credentials</h2>
+        <ul>
+          @for (credential of business.credentials; track credential) {
+            <li class="plain">{{ credential }}</li>
+          }
+          <li>
+            <a routerLink="/faq">FAQ</a>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+    <p class="disclaimer">{{ business.disclaimer }}</p>
+  </div>
+</footer>

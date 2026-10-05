@@ -1,0 +1,102 @@
+<app-page-hero
+  heading="Professional Loan Signing Agent in the Sacramento Area"
+  eyebrow="Loan Signing"
+>
+  Experienced mobile signing support for real estate and lending transactions.
+  <div actions class="page-actions">
+    <a class="btn btn--gold" routerLink="/contact">Schedule a Loan Signing</a>
+    <a class="btn btn--outline" [href]="phone.href">Call Mira: {{ phone.display }}</a>
+  </div>
+</app-page-hero>
+
+<section class="section section--tight" aria-label="Credentials">
+  <div class="container credentials">
+    <app-credential-list [items]="credentialItems" />
+  </div>
+</section>
+
+<section class="section" aria-labelledby="loan-heading">
+  <div class="container">
+    <app-section-header
+      headingId="loan-heading"
+      heading="Loan Signing Services"
+      text="Professional signing support for common real estate and lending transactions."
+    />
+    <ul class="loan-grid">
+      @for (item of items; track item.title; let i = $index) {
+        <li class="loan-item card" [class.open]="openIndex() === i">
+          <div class="loan-head">
+            <span class="icon-box"><app-icon [name]="item.icon" /></span>
+            <h3>{{ item.title }}</h3>
+            <button
+              type="button"
+              class="loan-toggle"
+              [attr.aria-expanded]="openIndex() === i"
+              [attr.aria-controls]="'loan-desc-' + i"
+              [attr.aria-label]="item.title"
+              (click)="toggle(i)"
+            >
+              <app-icon name="chevron-down" style="--icon-size: 1.25rem" />
+            </button>
+          </div>
+          <p class="loan-desc" [id]="'loan-desc-' + i">{{ item.description }}</p>
+        </li>
+      }
+    </ul>
+
+    <div class="support">
+      <h3>Additional Signing Support</h3>
+      <ul class="support-list">
+        @for (item of support; track item.title) {
+          <li><app-icon [name]="item.icon" style="--icon-size: 1.125rem" /> {{ item.title }}</li>
+        }
+      </ul>
+    </div>
+
+    <p class="schedule">
+      <a class="btn btn--gold" routerLink="/contact">Schedule a Loan Signing</a>
+    </p>
+  </div>
+</section>
+
+<section class="section section--alt" aria-label="Background and mobile office">
+  <div class="container two-col">
+    <div class="background">
+      <h2>Professional Background</h2>
+      <p>
+        Mira has worked as a Notary Signing Agent since 2016 and transitioned to full-time signing
+        work in 2020.
+      </p>
+      <p>
+        Her experience also includes more than 16 years in banking and consumer lending and real
+        estate experience since 2010.
+      </p>
+      <p class="history">
+        <strong>Professional History:</strong> Includes experience handling approximately 100
+        signings per month during full-time signing work.
+      </p>
+    </div>
+
+    <div class="office card">
+      <h2>Fully Equipped Mobile Office</h2>
+      <p>
+        Mira travels with mobile printing and scanning equipment to support professional loan
+        signings when required.
+      </p>
+      <figure>
+        <img
+          src="assets/images/mira-mobile-office.webp"
+          width="765"
+          height="1020"
+          alt="Mira Derkach mobile notary printing and scanning setup"
+          loading="lazy"
+          decoding="async"
+        />
+        <figcaption>Mira’s mobile signing setup.</figcaption>
+      </figure>
+      <app-check-list [items]="officeItems" />
+    </div>
+  </div>
+</section>
+
+<app-cta-band />

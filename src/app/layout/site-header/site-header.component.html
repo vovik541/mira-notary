@@ -1,0 +1,97 @@
+<header class="header">
+  <div class="container bar">
+    <app-brand-logo [priority]="true" />
+
+    <nav class="desktop-nav" aria-label="Main">
+      <div
+        #dropdown
+        class="dropdown"
+        (mouseenter)="openServices()"
+        (mouseleave)="closeServices()"
+        (focusout)="onServicesFocusOut($event, dropdown)"
+      >
+        <a class="nav-link" routerLink="/services" routerLinkActive="active">Services</a>
+        <button
+          #servicesToggle
+          type="button"
+          class="dropdown-toggle"
+          aria-label="Show services menu"
+          aria-controls="services-menu"
+          [attr.aria-expanded]="servicesOpen()"
+          (click)="toggleServices()"
+        >
+          <app-icon name="chevron-down" style="--icon-size: 1rem" />
+        </button>
+        <ul id="services-menu" class="dropdown-menu" [class.open]="servicesOpen()">
+          @for (link of serviceLinks; track link.path) {
+            <li>
+              <a [routerLink]="link.path" routerLinkActive="active">{{ link.label }}</a>
+            </li>
+          }
+        </ul>
+      </div>
+      @for (link of mainNav; track link.path) {
+        <a class="nav-link" [routerLink]="link.path" routerLinkActive="active">{{ link.label }}</a>
+      }
+    </nav>
+
+    <div class="actions">
+      <a class="phone-link" [href]="phone.href">
+        <app-icon name="phone" style="--icon-size: 1rem" />
+        <span>{{ phone.display }}</span>
+      </a>
+      <a class="btn btn--gold btn--sm book" routerLink="/contact">Book an Appointment</a>
+      <a class="call-icon" [href]="phone.href" [attr.aria-label]="'Call ' + phone.display">
+        <app-icon name="phone" style="--icon-size: 1.5rem" />
+      </a>
+      <button
+        #menuButton
+        type="button"
+        class="menu-button"
+        aria-controls="mobile-menu"
+        [attr.aria-expanded]="mobileOpen()"
+        [attr.aria-label]="mobileOpen() ? 'Close menu' : 'Open menu'"
+        (click)="toggleMobile()"
+      >
+        <app-icon [name]="mobileOpen() ? 'close' : 'menu'" style="--icon-size: 1.5rem" />
+      </button>
+    </div>
+  </div>
+
+  <nav id="mobile-menu" class="mobile-menu" aria-label="Mobile" [class.open]="mobileOpen()">
+    <div class="container">
+      <ul class="mobile-list">
+        @for (link of mobilePrimary; track link.path) {
+          <li>
+            <a
+              class="mobile-link"
+              [routerLink]="link.path"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: true }"
+              >{{ link.label }}</a
+            >
+          </li>
+        }
+        <li>
+          <ul class="mobile-sub">
+            @for (link of serviceLinks; track link.path) {
+              <li>
+                <a class="mobile-link sub" [routerLink]="link.path" routerLinkActive="active">{{
+                  link.label
+                }}</a>
+              </li>
+            }
+          </ul>
+        </li>
+        @for (link of mobileSecondary; track link.path) {
+          <li>
+            <a class="mobile-link" [routerLink]="link.path" routerLinkActive="active">{{
+              link.label
+            }}</a>
+          </li>
+        }
+      </ul>
+      <a class="btn btn--gold btn--block" routerLink="/contact">Book an Appointment</a>
+    </div>
+  </nav>
+</header>
