@@ -1,0 +1,18 @@
+# Copy to .dev.vars for `npm run preview:cloudflare` (wrangler dev). .dev.vars is git-ignored.
+# Never put real secrets in this example file.
+
+# Cloudflare's PUBLISHED dummy Turnstile secrets (not real secrets):
+#   always passes: 1x0000000000000000000000000000000AA
+#   always fails:  2x0000000000000000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+
+# Resend API key (restricted "sending access" key). Leave empty here; fill in only in your own
+# git-ignored .dev.vars when you want a real local test email. Without it the API answers with
+# the "please call Mira" fallback and sends nothing.
+RESEND_API_KEY=
+
+# Optional local overrides of the values in wrangler.jsonc `vars` (test sender on the temporary
+# notify.reiskra.com Resend domain; the recipient is your own test mailbox):
+# EMAIL_FROM_ADDRESS=appointments@notify.reiskra.com
+# EMAIL_FROM_NAME=Local Notary Signings by Mira Derkach
+# APPOINTMENT_RECIPIENT=

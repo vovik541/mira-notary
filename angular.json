@@ -44,11 +44,13 @@
             "outputMode": "server",
             "security": {
               "allowedHosts": [
-                "localhost"
+                "localhost",
+                "*.workers.dev"
               ]
             },
             "ssr": {
-              "entry": "src/server.ts"
+              "entry": "src/worker.ts",
+              "experimentalPlatform": "neutral"
             }
           },
           "configurations": {

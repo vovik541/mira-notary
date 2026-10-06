@@ -6,22 +6,17 @@
       availability and final pricing.
     </p>
 
-    @if (submission(); as result) {
+    @if (state() === 'success') {
       <div class="notice card" role="status">
-        <h2>Request ready — please send it to Mira</h2>
-        <p>
-          This website form is not connected to an inbox yet, so your request has
-          <strong>not been delivered</strong>. To make sure Mira receives it, use one of the options
-          below.
-        </p>
+        <h2>Thank you. Your request has been sent to Mira.</h2>
+        <p>Mira will contact you to confirm availability and final pricing.</p>
         <div class="page-actions">
-          <a class="btn btn--gold" [href]="result.mailtoUrl">Email This Request to Mira</a>
           <a class="btn btn--outline" [href]="phone.href">
             <app-icon name="phone" style="--icon-size: 1rem" />
             Call {{ phone.display }}
           </a>
-          <button class="btn btn--outline" type="button" (click)="editRequest()">
-            Edit Request
+          <button class="btn btn--outline" type="button" (click)="newRequest()">
+            Send Another Request
           </button>
         </div>
       </div>
@@ -221,7 +216,32 @@
           <label for="urgent">Same-Day / Urgent Request</label>
         </div>
 
-        <button class="btn btn--gold btn--block" type="submit">Request Appointment</button>
+        @if (turnstileEnabled) {
+          <div class="verify">
+            <app-turnstile
+              [siteKey]="siteKey"
+              (token)="onToken($event)"
+              (loadFailed)="onTurnstileLoadFailed()"
+            />
+          </div>
+        }
+
+        @if (errorMessage(); as message) {
+          <p class="form-error" role="alert" id="form-error">{{ message }}</p>
+        }
+
+        <button
+          class="btn btn--gold btn--block"
+          type="submit"
+          [disabled]="state() === 'sending'"
+          [attr.aria-busy]="state() === 'sending'"
+        >
+          @if (state() === 'sending') {
+            <span class="spinner" aria-hidden="true"></span> Sending…
+          } @else {
+            Request Appointment
+          }
+        </button>
         <p class="hint">Fields marked * are required.</p>
       </form>
     }

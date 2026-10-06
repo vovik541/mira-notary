@@ -1,0 +1,50 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mira-notary",
+  "main": "dist/mira-notary/server/server.mjs",
+  "compatibility_date": "2026-08-23",
+  // Angular SSR (platform-server) needs Node built-ins.
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Prerendered pages + JS/CSS/images are served from here before the Worker runs.
+  // `run_worker_first` makes sure /api/* always reaches the Worker code.
+  "assets": {
+    "directory": "./dist/mira-notary/browser",
+    "binding": "ASSETS",
+    // Serve /about (not /about/): prerendered pages live at about/index.html.
+    "html_handling": "drop-trailing-slash",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // Non-secret runtime configuration for appointment emails (sent through Resend).
+  // Changing environments (test → Mira's production) is a change to these values only.
+  "vars": {
+    // TEST sender. notify.reiskra.com is TEMPORARY test infrastructure (a ReIskra sending domain
+    // verified in Resend). Before Mira's launch replace it with Mira's own verified Resend
+    // sending domain, e.g. "appointments@notify.<MIRA_DOMAIN>".
+    "EMAIL_FROM_ADDRESS": "appointments@notify.reiskra.com",
+    "EMAIL_FROM_NAME": "Local Notary Signings by Mira Derkach",
+
+    // Where appointment notifications are delivered. Server-side only, never sent to the browser
+    // and never accepted from a request. Left empty on purpose: until it is set the API answers
+    // with the "please call Mira" fallback and sends nothing.
+    //   test:       your own test mailbox
+    //   production: "MiraNotary@gmail.com" (or Mira's custom-domain mailbox)
+    // (Locally, put it in .dev.vars instead.)
+    "APPOINTMENT_RECIPIENT": ""
+  },
+
+  // Modest abuse limit: 5 requests / 60 s per client IP, per Cloudflare location (approximate,
+  // eventually consistent). Turnstile is the primary protection.
+  "ratelimits": [
+    {
+      "name": "APPOINTMENT_RATE_LIMIT",
+      "namespace_id": "4801",
+      "simple": { "limit": 5, "period": 60 }
+    }
+  ]
+
+  // Secrets are NOT stored here. Set them with:
+  //   npx wrangler secret put RESEND_API_KEY
+  //   npx wrangler secret put TURNSTILE_SECRET_KEY
+}

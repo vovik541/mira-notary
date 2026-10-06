@@ -1,38 +1,82 @@
-import { AppointmentRequest, AppointmentRequestService } from './appointment-request.service';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+import { AppointmentRequestPayload } from '../../../shared/appointment.model';
+import { AppointmentRequestService, AppointmentSubmitResult } from './appointment-request.service';
 
-const request: AppointmentRequest = {
+const payload: AppointmentRequestPayload = {
   fullName: 'Jane Doe',
   phone: '(916) 555-0100',
-  email: '',
   service: 'Loan Signing',
-  location: '95814',
-  preferredDate: '2030-01-15',
+  locationZip: '95814',
+  preferredDate: '2027-03-15',
   preferredTime: 'Morning',
-  signers: 2,
-  documents: null,
-  language: 'English',
-  details: 'Closing at a title office & hospital',
-  urgent: true,
+  urgent: false,
+  turnstileToken: 'token',
 };
 
 describe('AppointmentRequestService', () => {
-  const service = new AppointmentRequestService();
+  let service: AppointmentRequestService;
+  let http: HttpTestingController;
 
-  it('never reports a request as delivered while no backend exists', () => {
-    let delivered: boolean | undefined;
-    service.submit(request).subscribe((result) => (delivered = result.delivered));
-    expect(delivered).toBe(false);
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    service = TestBed.inject(AppointmentRequestService);
+    http = TestBed.inject(HttpTestingController);
   });
 
-  it('builds a mailto link addressed to Mira with encoded details', () => {
-    const url = service.buildMailtoUrl(request);
-    expect(url.startsWith('mailto:MiraNotary@gmail.com?subject=')).toBe(true);
-    const body = decodeURIComponent(url.split('&body=')[1]);
-    expect(body).toContain('Name: Jane Doe');
-    expect(body).toContain('Number of signers: 2');
-    expect(body).toContain('Same-day / urgent request: yes');
-    expect(body).toContain('Details: Closing at a title office & hospital');
-    expect(body).not.toContain('Email:');
-    expect(body).not.toContain('Documents to notarize');
+  afterEach(() => http.verify());
+
+  const submit = (): { result: AppointmentSubmitResult | undefined } => {
+    const holder: { result: AppointmentSubmitResult | undefined } = { result: undefined };
+    service.submit(payload).subscribe((result) => (holder.result = result));
+    return holder;
+  };
+
+  it('POSTs the payload to the same-origin endpoint', () => {
+    const holder = submit();
+    const request = http.expectOne('/api/appointments');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(payload);
+    request.flush({ success: true });
+    expect(holder.result).toEqual({ ok: true });
+  });
+
+  it('surfaces the API error message and code', () => {
+    const holder = submit();
+    http
+      .expectOne('/api/appointments')
+      .flush(
+        { success: false, error: 'verification', message: "We couldn't verify the submission." },
+        { status: 403, statusText: 'Forbidden' },
+      );
+    expect(holder.result).toEqual({
+      ok: false,
+      code: 'verification',
+      message: "We couldn't verify the submission.",
+    });
+  });
+
+  it('falls back to a safe "call Mira" message on network or unexpected errors', () => {
+    const holder = submit();
+    http.expectOne('/api/appointments').error(new ProgressEvent('error'));
+    expect(holder.result?.ok).toBe(false);
+    if (holder.result && !holder.result.ok) {
+      expect(holder.result.code).toBe('delivery');
+      expect(holder.result.message).toContain('(916) 759-0383');
+    }
+  });
+
+  it('ignores error bodies that are not API responses', () => {
+    const holder = submit();
+    http
+      .expectOne('/api/appointments')
+      .flush('<html>boom</html>', { status: 500, statusText: 'Server Error' });
+    expect(holder.result?.ok).toBe(false);
+    if (holder.result && !holder.result.ok) {
+      expect(holder.result.message).not.toContain('boom');
+    }
   });
 });
