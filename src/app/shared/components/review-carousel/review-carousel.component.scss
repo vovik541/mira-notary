@@ -12,9 +12,29 @@
   scroll-snap-type: x mandatory;
   scroll-padding-inline: var(--gutter);
   scrollbar-width: none;
+  /* offsetParent for the slides: lets the component measure exact snap offsets */
+  position: relative;
 
   &::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Mouse drag affordance only where a real mouse exists; touch keeps native swiping */
+  @media (hover: hover) and (pointer: fine) {
+    cursor: grab;
+  }
+
+  /* Snapping is suspended while the pointer drags and while the programmatic settle runs, so it
+     can never fight the motion; it is restored as soon as the track is at rest. */
+  &.is-dragging,
+  &.is-settling {
+    scroll-snap-type: none;
+    scroll-behavior: auto;
+  }
+
+  &.is-dragging {
+    cursor: grabbing;
+    user-select: none;
   }
 }
 

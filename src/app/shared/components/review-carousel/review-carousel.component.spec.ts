@@ -17,6 +17,9 @@ const button = (fixture: ComponentFixture<ReviewCarouselComponent>, label: strin
 /** jsdom has no layout: fake the scroll geometry, then fire a scroll event like a swipe would. */
 function scrollTo(fixture: ComponentFixture<ReviewCarouselComponent>, left: number): void {
   const track = (fixture.nativeElement as HTMLElement).querySelector('.track') as HTMLElement;
+  Array.from(track.children).forEach((slide, i) =>
+    Object.defineProperty(slide, 'offsetLeft', { value: i * 300, configurable: true }),
+  );
   Object.defineProperty(track, 'clientWidth', { value: 1000, configurable: true });
   Object.defineProperty(track, 'scrollWidth', { value: 1600, configurable: true });
   Object.defineProperty(track, 'scrollLeft', { value: left, configurable: true });
