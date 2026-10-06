@@ -1,4 +1,4 @@
-import { validateAppointmentRequest } from './appointment-validation';
+import { isUrgentRequest, validateAppointmentRequest } from './appointment-validation';
 
 const NOW = new Date('2026-10-05T12:00:00Z');
 
@@ -11,6 +11,7 @@ const valid = {
   locationZip: '95814',
   preferredDate: '2026-10-20',
   preferredTime: 'Morning',
+  contactConsent: true,
   turnstileToken: 'token',
 };
 
@@ -28,6 +29,7 @@ describe('validateAppointmentRequest', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.urgent).toBe(false);
+      expect(result.value.contactConsent).toBe(true);
       expect(result.value.additionalDetails).toBeUndefined();
       expect(result.value.locationZip).toBe('95814');
     }
@@ -36,10 +38,8 @@ describe('validateAppointmentRequest', () => {
   it('accepts a fully populated request', () => {
     const result = run({
       numberOfSigners: 2,
-      numberOfDocuments: 10,
       preferredLanguage: 'Ukrainian',
       additionalDetails: 'Line one\nLine two',
-      urgent: true,
     });
     expect(result.ok).toBe(true);
   });
@@ -231,8 +231,45 @@ describe('validateAppointmentRequest', () => {
     expect(invalidFields({ numberOfSigners: 1.5 })).toContain('numberOfSigners');
     expect(invalidFields({ numberOfSigners: '2' })).toContain('numberOfSigners');
     expect(invalidFields({ numberOfSigners: 51 })).toContain('numberOfSigners');
-    expect(invalidFields({ numberOfDocuments: 501 })).toContain('numberOfDocuments');
-    expect(run({ numberOfSigners: 50, numberOfDocuments: 500 }).ok).toBe(true);
+    expect(run({ numberOfSigners: 50 }).ok).toBe(true);
+  });
+
+  it('no longer knows about a document count: it is ignored, never copied', () => {
+    const result = run({ numberOfDocuments: 3 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).not.toHaveProperty('numberOfDocuments');
+    }
+  });
+
+  it.each([undefined, false, 'true', 'on', 1, 'yes', null])(
+    'requires contactConsent to be the boolean true (rejects %j)',
+    (consent) => {
+      const body: Record<string, unknown> = { ...valid, contactConsent: consent };
+      if (consent === undefined) {
+        delete body['contactConsent'];
+      }
+      const result = validateAppointmentRequest(body, NOW);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.invalidFields).toContain('contactConsent');
+      }
+    },
+  );
+
+  it('rejects urgent: true (phone-only) and accepts only false/absent', () => {
+    expect(invalidFields({ urgent: true })).toContain('urgent');
+    expect(invalidFields({ urgent: 'true' })).toContain('urgent');
+    expect(run({ urgent: false }).ok).toBe(true);
+    expect(run().ok).toBe(true);
+  });
+
+  it('isUrgentRequest detects only a literal true', () => {
+    expect(isUrgentRequest({ urgent: true })).toBe(true);
+    expect(isUrgentRequest({ urgent: 'true' })).toBe(false);
+    expect(isUrgentRequest({ urgent: false })).toBe(false);
+    expect(isUrgentRequest(null)).toBe(false);
+    expect(isUrgentRequest([{ urgent: true }])).toBe(false);
   });
 
   it('rejects non-boolean urgent and non-object bodies', () => {

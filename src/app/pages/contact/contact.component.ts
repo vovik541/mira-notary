@@ -1,12 +1,13 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   inject,
   isDevMode,
   signal,
   viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
   FormControl,
@@ -25,6 +26,14 @@ import {
   DEFAULT_APPOINTMENT_SERVICE,
   serviceFromSlug,
 } from '../../../shared/appointment.model';
+import {
+  PHOTO_ACCEPT,
+  PHOTO_ERROR_MESSAGES,
+  PHOTO_LIMITS,
+  isAllowedPhotoType,
+  normalizePhotoType,
+  validatePhotos,
+} from '../../../shared/photos';
 import { normalizeZipCode } from '../../../shared/service-area';
 import { BUSINESS } from '../../core/config/business.config';
 import { SITE, TURNSTILE_DEV_SITE_KEY } from '../../core/config/site.config';
@@ -57,9 +66,9 @@ export type FieldKey =
   | 'preferredDate'
   | 'preferredTime'
   | 'signers'
-  | 'documents'
   | 'language'
-  | 'details';
+  | 'details'
+  | 'consent';
 
 /** DOM order of the fields: used to focus the first invalid one. */
 const FIELD_ORDER: readonly FieldKey[] = [
@@ -72,10 +81,20 @@ const FIELD_ORDER: readonly FieldKey[] = [
   'preferredDate',
   'preferredTime',
   'signers',
-  'documents',
   'language',
   'details',
+  'consent',
 ];
+
+export interface PhotoItem {
+  readonly id: number;
+  readonly file: File;
+  /** Object URL for a thumbnail; null for formats browsers generally cannot render (HEIC/HEIF). */
+  readonly previewUrl: string | null;
+}
+
+export const CONSENT_ERROR_MESSAGE = 'Please confirm that Mira may contact you about this request.';
+export const URGENT_PHONE_MESSAGE = 'Same-day and urgent appointments must be booked by phone.';
 
 const GLOBAL_MESSAGES = {
   verify: 'Please complete the verification check before sending.',
@@ -107,6 +126,14 @@ export class ContactComponent {
   protected readonly serviceOptions = SERVICE_OPTIONS;
   protected readonly languageOptions = APPOINTMENT_LANGUAGES;
   protected readonly limits = APPOINTMENT_LIMITS;
+  protected readonly photoAccept = PHOTO_ACCEPT;
+  protected readonly photoLimits = PHOTO_LIMITS;
+  protected readonly urgentMessage = URGENT_PHONE_MESSAGE;
+  protected readonly consentErrorMessage = CONSENT_ERROR_MESSAGE;
+
+  protected readonly photos = signal<readonly PhotoItem[]>([]);
+  protected readonly photoError = signal<string | null>(null);
+  private nextPhotoId = 0;
 
   /** idle → sending → success (errors return to `idle` with `errorMessage` set). */
   protected readonly state = signal<FormState>('idle');
@@ -163,20 +190,22 @@ export class ContactComponent {
       Validators.min(1),
       Validators.max(APPOINTMENT_LIMITS.maxSigners),
     ]),
-    documents: new FormControl<number | null>(null, [
-      wholeNumberValidator,
-      Validators.min(1),
-      Validators.max(APPOINTMENT_LIMITS.maxDocuments),
-    ]),
     language: new FormControl<string>('English', { nonNullable: true }),
     details: new FormControl('', {
       nonNullable: true,
       validators: [Validators.maxLength(APPOINTMENT_LIMITS.additionalDetails)],
     }),
     urgent: new FormControl(false, { nonNullable: true }),
+    consent: new FormControl(false, { nonNullable: true, validators: [Validators.requiredTrue] }),
+  });
+
+  /** Same-day / urgent requests are phone-only: while checked, the form cannot be submitted. */
+  protected readonly urgent = toSignal(this.form.controls.urgent.valueChanges, {
+    initialValue: false,
   });
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => this.revokeAllPreviews());
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed())
       .subscribe((params) => this.applyQuery(params));
@@ -252,8 +281,8 @@ export class ContactComponent {
           : `Preferred time must be ${APPOINTMENT_LIMITS.preferredTime} characters or fewer.`;
       case 'signers':
         return `Enter a whole number from 1 to ${APPOINTMENT_LIMITS.maxSigners}.`;
-      case 'documents':
-        return `Enter a whole number from 1 to ${APPOINTMENT_LIMITS.maxDocuments}.`;
+      case 'consent':
+        return CONSENT_ERROR_MESSAGE;
       case 'details':
         return `Additional details must be ${APPOINTMENT_LIMITS.additionalDetails} characters or fewer.`;
       default:
@@ -276,8 +305,73 @@ export class ContactComponent {
     this.errorMessage.set(GLOBAL_MESSAGES.unavailable);
   }
 
+  protected onPhotosSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const picked = Array.from(input.files ?? []);
+    // Allow choosing the same file again later.
+    input.value = '';
+    if (picked.length === 0) {
+      return;
+    }
+
+    const combined = [...this.photos().map((item) => item.file), ...picked];
+    const problem = validatePhotos(combined);
+    if (problem) {
+      this.photoError.set(PHOTO_ERROR_MESSAGES[problem]);
+      return;
+    }
+    this.photoError.set(null);
+    this.photos.update((items) => [
+      ...items,
+      ...picked.map((file) => ({
+        id: this.nextPhotoId++,
+        file,
+        previewUrl: this.previewFor(file),
+      })),
+    ]);
+  }
+
+  protected removePhoto(id: number): void {
+    const item = this.photos().find((candidate) => candidate.id === id);
+    if (item?.previewUrl) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+    this.photos.update((items) => items.filter((candidate) => candidate.id !== id));
+    this.photoError.set(null);
+  }
+
+  protected formatSize(bytes: number): string {
+    return bytes >= 1024 * 1024
+      ? `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+      : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+
+  private previewFor(file: File): string | null {
+    if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
+      return null;
+    }
+    const type = normalizePhotoType(file.type, file.name);
+    return isAllowedPhotoType(type) && type !== 'image/heic' && type !== 'image/heif'
+      ? URL.createObjectURL(file)
+      : null;
+  }
+
+  private clearPhotos(): void {
+    this.revokeAllPreviews();
+    this.photos.set([]);
+    this.photoError.set(null);
+  }
+
+  private revokeAllPreviews(): void {
+    for (const item of this.photos()) {
+      if (item.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+    }
+  }
+
   protected submit(): void {
-    if (this.state() === 'sending') {
+    if (this.state() === 'sending' || this.urgent()) {
       return;
     }
     this.errorMessage.set(null);
@@ -298,13 +392,16 @@ export class ContactComponent {
     }
 
     this.state.set('sending');
-    this.appointments.submit(this.buildPayload(this.turnstileToken)).subscribe((result) => {
+    const files = this.photos().map((item) => item.file);
+    this.appointments.submit(this.buildPayload(this.turnstileToken), files).subscribe((result) => {
       if (result.ok) {
         this.form.reset({
           service: DEFAULT_APPOINTMENT_SERVICE,
           language: 'English',
           urgent: false,
+          consent: false,
         });
+        this.clearPhotos();
         this.turnstileToken = null;
         this.state.set('success');
         return;
@@ -339,10 +436,10 @@ export class ContactComponent {
       preferredDate: value.preferredDate,
       preferredTime: value.preferredTime.trim(),
       ...(value.signers ? { numberOfSigners: value.signers } : {}),
-      ...(value.documents ? { numberOfDocuments: value.documents } : {}),
       ...(language ? { preferredLanguage: language } : {}),
       ...(details ? { additionalDetails: details } : {}),
-      urgent: value.urgent,
+      urgent: false,
+      contactConsent: true,
       turnstileToken,
     };
   }

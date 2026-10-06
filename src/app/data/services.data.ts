@@ -113,49 +113,16 @@ export const COMMON_NOTARY_SERVICES: readonly string[] = [
   'Proof of Execution / Subscribing Witness',
 ];
 
-export interface LoanSigningItem {
-  readonly title: string;
-  readonly description: string;
-  readonly icon: IconName;
-}
-
-export const LOAN_SIGNING_ITEMS: readonly LoanSigningItem[] = [
-  {
-    title: 'Buyer Packages',
-    description: 'Signing support for home purchase closing documents.',
-    icon: 'home',
-  },
-  {
-    title: 'Seller Packages',
-    description: 'Signing support for home sale closing documents.',
-    icon: 'sign',
-  },
-  {
-    title: 'Refinance',
-    description: 'Signing support for refinance loan documents.',
-    icon: 'refresh',
-  },
-  {
-    title: 'HELOC',
-    description: 'Signing support for home equity lines of credit.',
-    icon: 'bank',
-  },
-  {
-    title: 'Reverse Mortgage',
-    description: 'Signing support for reverse mortgage loan documents.',
-    icon: 'key',
-  },
-  {
-    title: 'Loan Modification',
-    description: 'Signing support for loan modification documents.',
-    icon: 'edit',
-  },
+export const LOAN_SIGNING_ITEMS: readonly string[] = [
+  'Buyer Packages',
+  'Seller Packages',
+  'Refinance',
+  'HELOC',
+  'Reverse Mortgage',
+  'Loan Modification',
 ];
 
-export const ADDITIONAL_SIGNING_SUPPORT: readonly { title: string; icon: IconName }[] = [
-  { title: 'Scanbacks', icon: 'scan' },
-  { title: 'Courier Drop-Offs', icon: 'package' },
-];
+export const ADDITIONAL_SIGNING_SUPPORT: readonly string[] = ['Scanbacks', 'Courier Drop-Offs'];
 
 export const MOBILE_OFFICE_ITEMS: readonly string[] = [
   'Dual-Tray Laser Printer',

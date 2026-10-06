@@ -36,7 +36,12 @@ interface Section {
   rows: Row[];
 }
 
-function sectionsFor(request: AppointmentRequestPayload): Section[] {
+/** "3 photos attached" / "None" — the photos themselves are attachments, never inlined. */
+export function describeAttachments(photoCount: number): string {
+  return photoCount === 0 ? 'None' : `${photoCount} photo${photoCount === 1 ? '' : 's'} attached`;
+}
+
+function sectionsFor(request: AppointmentRequestPayload, photoCount: number): Section[] {
   return [
     { title: 'Service', rows: [{ label: 'Service', value: request.service }] },
     {
@@ -63,11 +68,11 @@ function sectionsFor(request: AppointmentRequestPayload): Section[] {
           label: 'Number of Signers',
           value: request.numberOfSigners?.toString() ?? 'Not specified',
         },
-        {
-          label: 'Documents Requiring Notarization',
-          value: request.numberOfDocuments?.toString() ?? 'Not specified',
-        },
         { label: 'Same-Day / Urgent', value: request.urgent ? 'Yes' : 'No' },
+        {
+          label: 'Contact Permission',
+          value: 'Yes — phone, text or email regarding this request.',
+        },
       ],
     },
     {
@@ -80,13 +85,20 @@ function sectionsFor(request: AppointmentRequestPayload): Section[] {
         },
       ],
     },
+    {
+      title: 'Attachments',
+      rows: [{ label: 'Attachments', value: describeAttachments(photoCount) }],
+    },
   ];
 }
 
 const FOOTER = 'Submitted through Local Notary Signings website.';
 
-export function buildAppointmentEmail(request: AppointmentRequestPayload): EmailContent {
-  const sections = sectionsFor(request);
+export function buildAppointmentEmail(
+  request: AppointmentRequestPayload,
+  photoCount = 0,
+): EmailContent {
+  const sections = sectionsFor(request, photoCount);
 
   const text = [
     'NEW APPOINTMENT REQUEST',

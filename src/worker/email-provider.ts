@@ -9,6 +9,13 @@ export interface EmailAddress {
   name?: string;
 }
 
+/** A file attached to the email (already validated; content is Base64). */
+export interface EmailAttachment {
+  filename: string;
+  contentBase64: string;
+  contentType: string;
+}
+
 /** Fully trusted, server-built message (no field is taken directly from the browser request). */
 export interface OutboundEmail {
   from: EmailAddress;
@@ -19,6 +26,8 @@ export interface OutboundEmail {
   subject: string;
   html: string;
   text: string;
+  /** Optional photos, sent as normal attachments (never inlined into the HTML). */
+  attachments?: readonly EmailAttachment[];
 }
 
 export type EmailFailureCategory =

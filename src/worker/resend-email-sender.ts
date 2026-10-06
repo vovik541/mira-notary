@@ -3,6 +3,8 @@ import { FetchLike } from './turnstile';
 
 export const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 export const RESEND_TIMEOUT_MS = 8000;
+/** Larger request bodies (photos as Base64) get more time. Still a single attempt, no retries. */
+export const RESEND_ATTACHMENT_TIMEOUT_MS = 30000;
 
 /**
  * Resend adapter using the plain REST API (POST /emails, snake_case fields) over `fetch`; no SDK.
@@ -13,6 +15,7 @@ export class ResendEmailSender implements EmailProvider {
     private readonly apiKey: string,
     private readonly fetchFn: FetchLike = (input, init) => fetch(input, init),
     private readonly timeoutMs: number = RESEND_TIMEOUT_MS,
+    private readonly attachmentTimeoutMs: number = RESEND_ATTACHMENT_TIMEOUT_MS,
   ) {}
 
   async send(message: OutboundEmail): Promise<EmailSendResult> {
@@ -23,7 +26,17 @@ export class ResendEmailSender implements EmailProvider {
       html: message.html,
       text: message.text,
       ...(message.replyTo ? { reply_to: message.replyTo } : {}),
+      ...(message.attachments?.length
+        ? {
+            attachments: message.attachments.map((attachment) => ({
+              filename: attachment.filename,
+              content: attachment.contentBase64,
+              content_type: attachment.contentType,
+            })),
+          }
+        : {}),
     };
+    const timeout = message.attachments?.length ? this.attachmentTimeoutMs : this.timeoutMs;
 
     let response: Response;
     try {
@@ -36,7 +49,7 @@ export class ResendEmailSender implements EmailProvider {
           'idempotency-key': crypto.randomUUID(),
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal: AbortSignal.timeout(timeout),
       });
     } catch (error) {
       const name = (error as { name?: unknown } | null)?.name;

@@ -3,6 +3,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of } from 'rxjs';
 import {
   APPOINTMENT_ENDPOINT,
+  APPOINTMENT_PAYLOAD_FIELD,
+  APPOINTMENT_PHOTOS_FIELD,
   AppointmentApiResponse,
   AppointmentErrorCode,
   AppointmentRequestPayload,
@@ -23,8 +25,20 @@ const NETWORK_FAILURE_MESSAGE = `We couldn't send your request right now. Please
 export class AppointmentRequestService {
   private readonly http = inject(HttpClient);
 
-  submit(payload: AppointmentRequestPayload): Observable<AppointmentSubmitResult> {
-    return this.http.post<AppointmentApiResponse>(APPOINTMENT_ENDPOINT, payload).pipe(
+  /**
+   * Sends the request as `multipart/form-data` (JSON `payload` part + `photos` file parts). The
+   * browser sets the multipart boundary itself, so no Content-Type header is set here.
+   */
+  submit(
+    payload: AppointmentRequestPayload,
+    photos: readonly File[] = [],
+  ): Observable<AppointmentSubmitResult> {
+    const body = new FormData();
+    body.append(APPOINTMENT_PAYLOAD_FIELD, JSON.stringify(payload));
+    for (const photo of photos) {
+      body.append(APPOINTMENT_PHOTOS_FIELD, photo, photo.name);
+    }
+    return this.http.post<AppointmentApiResponse>(APPOINTMENT_ENDPOINT, body).pipe(
       map((): AppointmentSubmitResult => ({ ok: true })),
       catchError((error: unknown) => of(this.toFailure(error))),
     );

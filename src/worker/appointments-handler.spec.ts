@@ -18,14 +18,92 @@ const body = {
   preferredDate: '2026-10-20',
   preferredTime: 'Morning',
   urgent: false,
+  contactConsent: true,
   turnstileToken: 'good-token',
 };
 
-function post(data: unknown, headers: Record<string, string> = {}): Request {
+interface Part {
+  readonly name: string;
+  readonly content: string | Uint8Array;
+  readonly filename?: string;
+  readonly type?: string;
+}
+
+/** Hand-built multipart bytes: jsdom's FormData cannot be serialized by Node's Request. */
+function multipartBytes(parts: readonly Part[]): { bytes: Uint8Array; contentType: string } {
+  const boundary = '----vitest-boundary-7MA4YWxkTrZu0gW';
+  const encoder = new TextEncoder();
+  const chunks: Uint8Array[] = [];
+  for (const part of parts) {
+    let head = `--${boundary}\r\nContent-Disposition: form-data; name="${part.name}"`;
+    if (part.filename !== undefined) {
+      head += `; filename="${part.filename}"`;
+    }
+    head += '\r\n';
+    if (part.type) {
+      head += `Content-Type: ${part.type}\r\n`;
+    }
+    chunks.push(encoder.encode(`${head}\r\n`));
+    chunks.push(typeof part.content === 'string' ? encoder.encode(part.content) : part.content);
+    chunks.push(encoder.encode('\r\n'));
+  }
+  chunks.push(encoder.encode(`--${boundary}--\r\n`));
+  const bytes = new Uint8Array(chunks.reduce((sum, chunk) => sum + chunk.length, 0));
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return { bytes, contentType: `multipart/form-data; boundary=${boundary}` };
+}
+
+interface PhotoSpec {
+  readonly filename: string;
+  readonly type: string;
+  readonly content: Uint8Array;
+}
+
+const pad = (head: number[], size: number): Uint8Array => {
+  const bytes = new Uint8Array(Math.max(size, head.length));
+  bytes.set(head);
+  return bytes;
+};
+const ascii = (text: string): number[] => [...text].map((c) => c.charCodeAt(0));
+
+const jpeg = (size = 2048): PhotoSpec => ({
+  filename: 'scan.jpg',
+  type: 'image/jpeg',
+  content: pad([0xff, 0xd8, 0xff, 0xe0], size),
+});
+const png = (size = 2048): PhotoSpec => ({
+  filename: 'id.png',
+  type: 'image/png',
+  content: pad([0x89, ...ascii('PNG'), 0x0d, 0x0a, 0x1a, 0x0a], size),
+});
+const webp = (size = 2048): PhotoSpec => ({
+  filename: 'doc.webp',
+  type: 'image/webp',
+  content: pad([...ascii('RIFF'), 0, 0, 0, 0, ...ascii('WEBP')], size),
+});
+const heic = (size = 2048): PhotoSpec => ({
+  filename: 'IMG_0001.HEIC',
+  type: 'image/heic',
+  content: pad([0, 0, 0, 0x18, ...ascii('ftypheic')], size),
+});
+
+function post(
+  data: unknown,
+  headers: Record<string, string> = {},
+  photos: readonly PhotoSpec[] = [],
+): Request {
+  const { bytes, contentType } = multipartBytes([
+    { name: 'payload', content: typeof data === 'string' ? data : JSON.stringify(data) },
+    ...photos.map((photo) => ({ name: 'photos', ...photo })),
+  ]);
   return new Request('https://site.test/api/appointments', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', ...headers },
-    body: typeof data === 'string' ? data : JSON.stringify(data),
+    headers: { 'content-type': contentType, ...headers },
+    body: bytes as BodyInit,
   });
 }
 
@@ -82,8 +160,9 @@ describe('handleAppointmentRequest', () => {
     provider: EmailProvider,
     fetchFn: FetchLike = turnstile(true),
     headers: Record<string, string> = {},
+    photos: readonly PhotoSpec[] = [],
   ) =>
-    handleAppointmentRequest(post(data, headers), env, {
+    handleAppointmentRequest(post(data, headers, photos), env, {
       fetchFn,
       emailProvider: provider,
       now: () => NOW,
@@ -256,16 +335,229 @@ describe('handleAppointmentRequest', () => {
     expect(provider.send).not.toHaveBeenCalled();
   });
 
-  it('rejects oversized bodies and non-JSON content types', async () => {
+  it('rejects an oversized payload part, non-multipart bodies and legacy JSON posts', async () => {
     const { provider } = makeProvider();
-    const big = await run({ ...body, additionalDetails: 'a'.repeat(20_000) }, makeEnv(), provider);
+    const big = await run({ ...body, additionalDetails: 'a'.repeat(40_000) }, makeEnv(), provider);
     expect(big.status).toBe(400);
 
     const wrongType = await run(body, makeEnv(), provider, turnstile(true), {
       'content-type': 'text/plain',
     });
     expect(wrongType.status).toBe(400);
+
+    const json = await handleAppointmentRequest(
+      new Request('https://site.test/api/appointments', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+      makeEnv(),
+      { fetchFn: turnstile(true), emailProvider: provider, now: () => NOW },
+    );
+    expect(json.status).toBe(400);
     expect(provider.send).not.toHaveBeenCalled();
+  });
+
+  it('rejects a body larger than the multipart limit with 413 before any other work', async () => {
+    const { provider } = makeProvider();
+    const fetchFn = turnstile(true);
+    const huge = [jpeg(6_000_000), jpeg(6_000_000), jpeg(6_000_000)];
+    const response = await run(body, makeEnv(), provider, fetchFn, {}, huge);
+    expect(response.status).toBe(413);
+    expect((await errorOf(response)).error).toBe('validation');
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(provider.send).not.toHaveBeenCalled();
+  });
+
+  it('rejects a body whose declared Content-Length exceeds the limit', async () => {
+    const { provider } = makeProvider();
+    const response = await run(body, makeEnv(), provider, turnstile(true), {
+      'content-length': String(20 * 1024 * 1024),
+    });
+    expect(response.status).toBe(413);
+    expect(provider.send).not.toHaveBeenCalled();
+  });
+
+  describe('photo attachments', () => {
+    it('sends a request without photos and without attachments', async () => {
+      const { provider, sent } = makeProvider();
+      const response = await run(body, makeEnv(), provider);
+      expect(response.status).toBe(200);
+      expect(sent[0].attachments).toBeUndefined();
+      expect(sent[0].text).toContain('Attachments: None');
+    });
+
+    it.each([
+      ['one JPEG', [jpeg()]],
+      ['one PNG', [png()]],
+      ['one WebP', [webp()]],
+      ['one HEIC', [heic()]],
+      ['five mixed photos', [jpeg(), png(), webp(), heic(), jpeg()]],
+    ])('forwards %s to Resend as base64 attachments', async (_name, photos) => {
+      const { provider, sent } = makeProvider();
+      const response = await run(body, makeEnv(), provider, turnstile(true), {}, photos);
+      expect(response.status).toBe(200);
+      expect(provider.send).toHaveBeenCalledTimes(1);
+      const attachments = sent[0].attachments ?? [];
+      expect(attachments).toHaveLength(photos.length);
+      attachments.forEach((attachment, index) => {
+        expect(attachment.contentType).toBe(photos[index].type);
+        expect(attachment.contentBase64).toBe(btoa(String.fromCharCode(...photos[index].content)));
+      });
+      expect(sent[0].text).toContain(
+        `${photos.length} photo${photos.length === 1 ? '' : 's'} attached`,
+      );
+    });
+
+    it('accepts exactly 5 MB per file and 15 MB in total', async () => {
+      const { provider } = makeProvider();
+      const five = 5 * 1024 * 1024;
+      const response = await run(body, makeEnv(), provider, turnstile(true), {}, [
+        jpeg(five),
+        png(five),
+        webp(five),
+      ]);
+      expect(response.status).toBe(200);
+    });
+
+    it('sanitizes attachment filenames and keeps the extension matching the real type', async () => {
+      const { provider, sent } = makeProvider();
+      await run(body, makeEnv(), provider, turnstile(true), {}, [
+        { ...jpeg(), filename: '../../etc/pass<wd>x.exe' },
+        { ...png(), filename: '' },
+      ]);
+      const names = (sent[0].attachments ?? []).map((a) => a.filename);
+      expect(names[0]).toMatch(/^[A-Za-z0-9._ -]+\.jpg$/);
+      expect(names[0]).not.toMatch(/[/<>"]/);
+      expect(names[1]).toBe('photo-2.png');
+    });
+
+    it.each([
+      ['six photos', [jpeg(), jpeg(), jpeg(), jpeg(), jpeg(), jpeg()]],
+      ['a file larger than 5 MB', [jpeg(5 * 1024 * 1024 + 1)]],
+      [
+        'more than 15 MB in total',
+        [jpeg(4_000_000), png(4_000_000), webp(4_000_000), jpeg(4_000_000)],
+      ],
+      [
+        'application/pdf',
+        [{ filename: 'a.pdf', type: 'application/pdf', content: pad(ascii('%PDF-1.7'), 100) }],
+      ],
+      ['an empty file', [{ ...jpeg(), content: new Uint8Array(0) }]],
+      [
+        'an image type with non-image bytes',
+        [{ ...jpeg(), content: pad(ascii('<script>alert(1)</script>'), 100) }],
+      ],
+      ['a declared type that does not match the bytes', [{ ...png(), type: 'image/jpeg' }]],
+      ['an unsupported image type (GIF)', [{ ...jpeg(), type: 'image/gif' }]],
+    ])('rejects %s with 400 before Turnstile and Resend', async (_name, photos) => {
+      const { provider } = makeProvider();
+      const fetchFn = turnstile(true);
+      const response = await run(body, makeEnv(), provider, fetchFn, {}, photos);
+      expect(response.status).toBe(400);
+      const payload = await errorOf(response);
+      expect(payload.error).toBe('validation');
+      expect(payload.message).not.toBe('Please check the form and try again.');
+      expect(fetchFn).not.toHaveBeenCalled();
+      expect(provider.send).not.toHaveBeenCalled();
+    });
+
+    it('rejects a file uploaded under an unexpected field name', async () => {
+      const { provider } = makeProvider();
+      const { bytes, contentType } = multipartBytes([
+        { name: 'payload', content: JSON.stringify(body) },
+        { name: 'attachment', filename: 'a.jpg', type: 'image/jpeg', content: jpeg().content },
+      ]);
+      const response = await handleAppointmentRequest(
+        new Request('https://site.test/api/appointments', {
+          method: 'POST',
+          headers: { 'content-type': contentType },
+          body: bytes as BodyInit,
+        }),
+        makeEnv(),
+        { fetchFn: turnstile(true), emailProvider: provider, now: () => NOW },
+      );
+      expect(response.status).toBe(400);
+      expect(provider.send).not.toHaveBeenCalled();
+    });
+
+    it('does not log file names or contents, only the photo count', async () => {
+      const { provider } = makeProvider();
+      await run(body, makeEnv(), provider, turnstile(true), {}, [
+        { ...jpeg(), filename: 'secret-passport.jpg' },
+      ]);
+      const logged = loggedText();
+      expect(logged).toContain('photos=1');
+      expect(logged).not.toContain('secret-passport');
+    });
+  });
+
+  describe('same-day / urgent (phone only)', () => {
+    it('rejects urgent: true with the phone message, before Turnstile and Resend', async () => {
+      const { provider } = makeProvider();
+      const fetchFn = turnstile(true);
+      const response = await run({ ...body, urgent: true }, makeEnv(), provider, fetchFn);
+      expect(response.status).toBe(422);
+      const payload = await errorOf(response);
+      expect(payload.error).toBe('urgent');
+      expect(payload.message).toContain(
+        'Same-day and urgent appointments must be booked by phone.',
+      );
+      expect(payload.message).toContain('(279) 529-8754');
+      expect(fetchFn).not.toHaveBeenCalled();
+      expect(provider.send).not.toHaveBeenCalled();
+    });
+
+    it('rejects a forged urgent request even with photos and an otherwise invalid body', async () => {
+      const { provider } = makeProvider();
+      const fetchFn = turnstile(true);
+      const response = await run(
+        { ...body, urgent: true, email: 'nope' },
+        makeEnv(),
+        provider,
+        fetchFn,
+        {},
+        [jpeg()],
+      );
+      expect((await errorOf(response)).error).toBe('urgent');
+      expect(fetchFn).not.toHaveBeenCalled();
+      expect(provider.send).not.toHaveBeenCalled();
+    });
+
+    it('treats a non-boolean urgent as a validation error', async () => {
+      const { provider } = makeProvider();
+      const response = await run({ ...body, urgent: 'true' }, makeEnv(), provider);
+      expect(response.status).toBe(400);
+      expect(provider.send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('contact consent', () => {
+    it.each([
+      ['missing', undefined],
+      ['false', false],
+      ['the string "true"', 'true'],
+      ['the number 1', 1],
+    ])('rejects consent that is %s before Turnstile and Resend', async (_name, consent) => {
+      const { provider } = makeProvider();
+      const fetchFn = turnstile(true);
+      const response = await run(
+        { ...body, contactConsent: consent },
+        makeEnv(),
+        provider,
+        fetchFn,
+      );
+      expect(response.status).toBe(400);
+      expect((await errorOf(response)).error).toBe('validation');
+      expect(fetchFn).not.toHaveBeenCalled();
+      expect(provider.send).not.toHaveBeenCalled();
+    });
+
+    it('records the permission in the email when consent is true', async () => {
+      const { provider, sent } = makeProvider();
+      await run(body, makeEnv(), provider);
+      expect(sent[0].text).toContain('Contact Permission: Yes');
+    });
   });
 
   it('returns 403 and does not email when Turnstile fails', async () => {
@@ -328,7 +620,7 @@ describe('handleAppointmentRequest', () => {
       const { provider } = makeProvider();
       const response = await run(body, makeEnv(overrides), provider);
       expect(response.status).toBe(503);
-      expect((await errorOf(response)).message).toContain('call or text Mira at (916) 759-0383');
+      expect((await errorOf(response)).message).toContain('call or text Mira at (279) 529-8754');
       expect(provider.send).not.toHaveBeenCalled();
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining(`email_not_configured missing=${name}`),
@@ -358,7 +650,7 @@ describe('handleAppointmentRequest', () => {
       const payload = await errorOf(response);
       expect(payload.error).toBe('delivery');
       expect(payload.message).toBe(
-        "We couldn't send your request right now. Please call or text Mira at (916) 759-0383.",
+        "We couldn't send your request right now. Please call or text Mira at (279) 529-8754.",
       );
       expect(JSON.stringify(payload)).not.toMatch(/resend|422|503|api/i);
       expect(console.error).toHaveBeenCalledWith(

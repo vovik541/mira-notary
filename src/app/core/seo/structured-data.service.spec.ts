@@ -51,7 +51,7 @@ describe('StructuredDataService', () => {
 
   it('business schema contains only verified facts', () => {
     const schema = service.businessSchema();
-    expect(schema['telephone']).toBe('+19167590383');
+    expect(schema['telephone']).toBe('+12795298754');
     expect(schema['email']).toBe('MiraNotary@gmail.com');
     expect(schema).not.toHaveProperty('address');
     expect(schema).not.toHaveProperty('openingHours');

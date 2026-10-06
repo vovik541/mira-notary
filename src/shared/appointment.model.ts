@@ -53,7 +53,6 @@ export const APPOINTMENT_LIMITS = {
   additionalDetails: 3000,
   turnstileToken: 2048,
   maxSigners: 50,
-  maxDocuments: 500,
 } as const;
 
 /** Body of `POST /api/appointments`. */
@@ -63,22 +62,27 @@ export interface AppointmentRequestPayload {
   phone: string;
   email: string;
   service: AppointmentService;
-  /** Normalized 5-digit Sacramento County ZIP code. */
+  /** 5-digit ZIP inside the confirmed service area. */
   locationZip: string;
   /** ISO calendar date, `YYYY-MM-DD`. */
   preferredDate: string;
   preferredTime: string;
   numberOfSigners?: number;
-  numberOfDocuments?: number;
   preferredLanguage?: AppointmentLanguage;
   additionalDetails?: string;
+  /**
+   * Same-day / urgent requests are phone-only: the API rejects `true`. The field is still sent
+   * (always `false`) so the email can state it explicitly.
+   */
   urgent: boolean;
+  /** Must be exactly boolean `true` (permission to contact the visitor about this request). */
+  contactConsent: true;
   turnstileToken: string;
 }
 
 /** Machine-readable failure reasons returned by the API (never internal details). */
 export type AppointmentErrorCode =
-  'validation' | 'verification' | 'rate_limited' | 'delivery' | 'unavailable';
+  'validation' | 'urgent' | 'verification' | 'rate_limited' | 'delivery' | 'unavailable';
 
 export interface AppointmentSuccessResponse {
   success: true;
@@ -93,3 +97,13 @@ export interface AppointmentErrorResponse {
 export type AppointmentApiResponse = AppointmentSuccessResponse | AppointmentErrorResponse;
 
 export const APPOINTMENT_ENDPOINT = '/api/appointments';
+
+/**
+ * `POST /api/appointments` is `multipart/form-data`: one text part with the JSON payload (typed
+ * values, so booleans and numbers stay unambiguous) plus zero to five repeated photo files.
+ */
+export const APPOINTMENT_PAYLOAD_FIELD = 'payload';
+export const APPOINTMENT_PHOTOS_FIELD = 'photos';
+
+/** Largest accepted JSON `payload` part (the text fields are tiny; photos are separate parts). */
+export const APPOINTMENT_PAYLOAD_MAX_BYTES = 32 * 1024;

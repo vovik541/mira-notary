@@ -88,7 +88,7 @@ describe('ServiceAreaComponent ZIP checker', () => {
     expect(errorText(fixture)).toBeNull(); // valid format: a result, not a field error
 
     const hrefs = Array.from(result.querySelectorAll('a')).map((a) => a.getAttribute('href'));
-    expect(hrefs).toContain('tel:+19167590383');
+    expect(hrefs).toContain('tel:+12795298754');
     expect(hrefs).toContain('/contact');
   });
 

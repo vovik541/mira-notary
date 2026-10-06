@@ -1,3 +1,4 @@
+import { BUSINESS } from '../core/config/business.config';
 export interface FaqItem {
   readonly question: string;
   readonly answer: string;
@@ -16,8 +17,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
   },
   {
     question: 'Can I request a same-day appointment?',
-    answer:
-      'Same-day and short-notice appointments may be available. Call or submit an appointment request with your preferred time and location, and Mira will confirm availability.',
+    answer: `Same-day and urgent appointments must be booked by phone. Call or text Mira at ${BUSINESS.phones.primary.display} and she will confirm availability.`,
   },
   {
     question: 'What languages does Mira speak?',

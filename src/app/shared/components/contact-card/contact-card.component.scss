@@ -67,3 +67,25 @@ h2 {
   font-size: 0.875rem;
   color: var(--color-text-muted);
 }
+
+/* The 279 number is the primary call-to-action; the secondary number stays quiet. */
+.methods a.primary {
+  border-color: var(--color-navy);
+  border-left-width: 4px;
+  border-left-color: var(--color-gold);
+
+  .value {
+    font-size: 1.25rem;
+  }
+}
+
+.methods a.secondary {
+  min-height: 3rem;
+  padding-block: 0.5rem;
+
+  .value {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+}

@@ -126,7 +126,8 @@ third-party requests (other than the Turnstile script on `/contact`, see below):
   authoritative: a forged request with a bad email, a missing name or an unsupported ZIP is rejected
   with 400 before Turnstile or Resend are touched.
 - **Required fields:** First Name, Last Name, Phone, Email, Service, ZIP Code, Preferred Date,
-  Preferred Time. Optional: signers, documents, language, details, urgent.
+  Preferred Time, and the contact-permission checkbox. Optional: number of signers, language,
+  details (≤ 3000 chars), photos. (The old "Number of Documents" field was removed everywhere.)
 - **Names:** trimmed, ≤ 80 chars, must contain at least one letter in any script (O'Connor,
   Anne-Marie, José, Мирослава are fine). **Phone:** 10–15 digits, any normal formatting. **Email:**
   required, ≤ 254 chars, same pattern on both sides.
@@ -171,16 +172,62 @@ The contact form posts to **`POST /api/appointments`**, handled by the same Work
 site (no separate backend, no database, nothing stored):
 
 ```
-Angular form → POST /api/appointments → validate → rate limit → Turnstile siteverify → Resend API → recipient inbox
+Angular form → multipart POST /api/appointments → basic validation → urgent rule → consent →
+ZIP / service → photo validation → Turnstile siteverify → Resend API (+ attachments) → inbox
 ```
 
-- Validation is repeated server-side (`src/worker/appointment-validation.ts`): allowed services and
+### Photo attachments (optional, not stored)
+
+- 0–5 photos; JPEG, PNG, WebP, HEIC/HEIF; ≤ 5 MB each; ≤ 15 MB in total. Nothing is written to a
+  database, R2, KV or any storage: photos exist only while the request is processed and are sent to
+  Resend as base64 email attachments (`attachments[{filename, content, content_type}]`).
+- **Transport:** `multipart/form-data` on the same endpoint — one `payload` text part (JSON, typed
+  booleans/numbers, ≤ 32 KB) plus repeated `photos` file parts. `AppointmentRequestService` builds the
+  `FormData`; the components never see multipart. JSON posts are no longer accepted.
+- **Request limit:** the Worker reads at most 15 MB + 1 MB overhead (`MAX_REQUEST_BYTES`), checking the
+  declared Content-Length and counting while streaming; larger bodies get 413 with a clear message.
+- **Server validation is authoritative** (`src/shared/photos.ts`, `src/worker/photo-processing.ts`):
+  count, non-empty, size per file and total, allowed MIME, and the file signature (magic bytes) must
+  match the declared type. Filenames are sanitized (basename, safe characters, extension that
+  matches the verified type, never used as a path). Photo problems stop the request **before**
+  Turnstile (the single-use token is not burned) and before Resend; Base64 encoding happens only after
+  Turnstile succeeds.
+- **Privacy:** logs contain only the photo count and aggregate bytes — never file names or contents.
+  The form shows a Privacy Notice (this site does not save submissions in a website database; the
+  email and attachments may be retained by Mira's email provider and the delivery service).
+- Resend allows 40 MB per email after base64 (~33 % growth): 15 MB of photos is well within that.
+  Attachment requests use a 30 s timeout (8 s without photos); still a single attempt.
+- **Browser:** thumbnails use object URLs, which are revoked on remove, after success and on
+  destroy. HEIC/HEIF files are accepted but show a placeholder (most browsers cannot render them).
+
+### Same-day / urgent requests are phone-only
+
+The "Same-Day / Urgent Request" checkbox does not submit anything: while it is checked the form shows
+"Same-day and urgent appointments must be booked by phone." with a **Call Mira Now** button
+(`tel:+12795298754`), submission is disabled and all entered data is kept; unchecking restores it.
+The Worker enforces this too: `urgent: true` is rejected with 422 before Turnstile or Resend.
+
+### Contact consent
+
+A required, unchecked-by-default checkbox ("I agree that Mira may contact me by phone, text message,
+or email regarding this request."). The Worker requires the boolean `contactConsent === true`
+(not `"true"`, `1`, missing or false) and the email records "Contact Permission: Yes — phone, text or
+email regarding this request."
+
+### Phone numbers
+
+**(279) 529-8754** is the primary number everywhere (header, footer, CTAs, structured data,
+Worker messages, email). The former **(916) 759-0383** is shown only as "Secondary" in the Contact
+page direct-contact panel (`BUSINESS.phones.secondary`). `phone-numbers.spec.ts` fails if the old number
+appears anywhere else in `src/`.
+
+- Validation (order: urgent → fields incl. consent and ZIP → photos → Turnstile) is repeated server-side (`src/worker/appointment-validation.ts`): allowed services and
   languages, required fields, lengths, email format, ISO date, header-injection characters.
 - Turnstile is mandatory and verified server-side with the Worker secret (fail closed).
 - Email goes through a provider boundary (`src/worker/email-provider.ts`). The only adapter is
   `ResendEmailSender` (`src/worker/resend-email-sender.ts`): a plain `fetch` call to
   `POST https://api.resend.com/emails` with `Authorization: Bearer <RESEND_API_KEY>`, JSON body
-  `from`, `to`, `subject`, `html`, `text`, `reply_to`. No SDK. One attempt, 8 s timeout, no retries.
+  `from`, `to`, `subject`, `html`, `text`, `reply_to`, `attachments`. No SDK. One attempt, no retries.
   Switching provider means writing another adapter; the form and validation do not change.
 - **Sender and recipient come only from Worker configuration** (`EMAIL_FROM_ADDRESS`,
   `EMAIL_FROM_NAME`, `APPOINTMENT_RECIPIENT`). The browser payload cannot set `to`, `from`,

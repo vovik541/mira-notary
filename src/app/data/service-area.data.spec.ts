@@ -38,10 +38,11 @@ describe('service-area UI data', () => {
     expect(SERVICE_AREA_CHIPS).toHaveLength(12);
   });
 
-  it('describes the area without whole-county claims for Placer / Yolo / El Dorado', () => {
+  it('mentions the nearby counties only as places with confirmed communities, never whole counties', () => {
     expect(SERVICE_AREA_SUMMARY).toBe(
-      'Serving Sacramento County and confirmed nearby communities across the Greater Sacramento area.',
+      'Mira serves Sacramento County and confirmed nearby communities across Placer, Yolo and El Dorado Counties.',
     );
-    expect(SERVICE_AREA_SUMMARY).not.toMatch(/Placer|Yolo|El Dorado/);
+    expect(SERVICE_AREA_SUMMARY).toContain('confirmed nearby communities');
+    expect(SERVICE_AREA_SUMMARY).not.toMatch(/all of|entire|whole/i);
   });
 });

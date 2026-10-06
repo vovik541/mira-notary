@@ -188,43 +188,30 @@
             }
           </div>
           <div class="field">
-            @let documentsError = fieldError('documents');
-            <label for="documents">Number of Documents Requiring Notarization</label>
-            <input
-              id="documents"
-              type="number"
-              inputmode="numeric"
-              min="1"
-              placeholder="e.g. 2"
-              formControlName="documents"
-              [attr.aria-invalid]="documentsError ? 'true' : null"
-              [attr.aria-describedby]="documentsError ? 'documents-error' : null"
-            />
-            @if (documentsError) {
-              <p class="error" id="documents-error" aria-live="polite">{{ documentsError }}</p>
-            }
+            <label for="language">Preferred Language</label>
+            <select id="language" formControlName="language">
+              @for (language of languageOptions; track language) {
+                <option [value]="language">{{ language }}</option>
+              }
+            </select>
           </div>
-        </div>
-
-        <div class="field">
-          <label for="language">Preferred Language</label>
-          <select id="language" formControlName="language">
-            @for (language of languageOptions; track language) {
-              <option [value]="language">{{ language }}</option>
-            }
-          </select>
         </div>
 
         <div class="field">
           @let detailsError = fieldError('details');
           <label for="details">Additional Details</label>
+          <p class="help" id="details-help">
+            Briefly explain your notary request, the document type, and anything Mira should know
+            before contacting you.
+          </p>
           <textarea
             id="details"
             rows="4"
-            placeholder="Provide any details about your documents or location…"
             formControlName="details"
             [attr.aria-invalid]="detailsError ? 'true' : null"
-            [attr.aria-describedby]="detailsError ? 'details-error' : 'details-count'"
+            [attr.aria-describedby]="
+              'details-help ' + (detailsError ? 'details-error' : 'details-count')
+            "
           ></textarea>
           <p class="counter" id="details-count">
             {{ detailsLength() }} / {{ limits.additionalDetails }}
@@ -234,10 +221,101 @@
           }
         </div>
 
+        <div class="field photos">
+          <label for="photos">Photos (optional)</label>
+          <p class="help" id="photos-help">
+            Attach up to {{ photoLimits.maxFiles }} photos of the document or location if helpful.
+            JPEG, PNG, WebP or HEIC, up to 5 MB each and 15 MB in total.
+          </p>
+          <input
+            id="photos"
+            class="photo-input"
+            type="file"
+            multiple
+            [accept]="photoAccept"
+            aria-describedby="photos-help"
+            (change)="onPhotosSelected($event)"
+          />
+          @if (photoError(); as photoMessage) {
+            <p class="error" id="photos-error" role="alert">{{ photoMessage }}</p>
+          }
+          @if (photos().length > 0) {
+            <ul class="photo-list">
+              @for (item of photos(); track item.id) {
+                <li>
+                  @if (item.previewUrl) {
+                    <img [src]="item.previewUrl" alt="" width="48" height="48" />
+                  } @else {
+                    <span class="thumb-fallback" aria-hidden="true">IMG</span>
+                  }
+                  <span class="photo-meta">
+                    <span class="photo-name">{{ item.file.name }}</span>
+                    <span class="photo-size">{{ formatSize(item.file.size) }}</span>
+                  </span>
+                  <button
+                    class="photo-remove"
+                    type="button"
+                    [attr.aria-label]="'Remove ' + item.file.name"
+                    (click)="removePhoto(item.id)"
+                  >
+                    Remove
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+
         <div class="check">
           <input id="urgent" type="checkbox" formControlName="urgent" />
           <label for="urgent">Same-Day / Urgent Request</label>
         </div>
+
+        @if (urgent()) {
+          <div class="urgent-callout" role="status" id="urgent-callout">
+            <p class="urgent-title">{{ urgentMessage }}</p>
+            <p>
+              Please call Mira at <strong>{{ phone.display }}</strong
+              >. Your form details are kept if you change your mind.
+            </p>
+            <a class="btn btn--gold" [href]="phone.href">
+              <app-icon name="phone" style="--icon-size: 1rem" />
+              Call Mira Now
+            </a>
+          </div>
+        }
+
+        <div class="field consent">
+          @let consentError = fieldError('consent');
+          <div class="check">
+            <input
+              id="consent"
+              type="checkbox"
+              formControlName="consent"
+              required
+              [attr.aria-invalid]="consentError ? 'true' : null"
+              [attr.aria-describedby]="consentError ? 'consent-error' : null"
+            />
+            <label for="consent"
+              >I agree that Mira may contact me by phone, text message, or email regarding this
+              request. <span aria-hidden="true">*</span></label
+            >
+          </div>
+          @if (consentError) {
+            <p class="error" id="consent-error" aria-live="polite">{{ consentError }}</p>
+          }
+        </div>
+
+        <details class="privacy">
+          <summary>Privacy Notice</summary>
+          <p>
+            This website does not save appointment submissions in a website database. Information
+            and any photos you submit are sent by email to Mira so she can respond to your request.
+            Messages and attachments may be retained by Mira's email provider and the email delivery
+            service as part of normal email delivery. Please do not send sensitive information that
+            is not necessary for your request.
+          </p>
+        </details>
 
         @if (turnstileEnabled) {
           <div class="verify">
@@ -256,7 +334,7 @@
         <button
           class="btn btn--gold btn--block"
           type="submit"
-          [disabled]="state() === 'sending'"
+          [disabled]="state() === 'sending' || urgent()"
           [attr.aria-busy]="state() === 'sending'"
         >
           @if (state() === 'sending') {

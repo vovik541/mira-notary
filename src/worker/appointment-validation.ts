@@ -104,12 +104,6 @@ export function validateAppointmentRequest(
     APPOINTMENT_LIMITS.maxSigners,
     invalid,
   );
-  const numberOfDocuments = optionalCount(
-    body,
-    'numberOfDocuments',
-    APPOINTMENT_LIMITS.maxDocuments,
-    invalid,
-  );
 
   const preferredLanguage = line('preferredLanguage', 50, false);
   if (
@@ -133,9 +127,16 @@ export function validateAppointmentRequest(
     }
   }
 
+  // Same-day / urgent requests are phone-only: only an explicit boolean `false` (or absence) is
+  // accepted here. (The handler also short-circuits on `true` before any other work.)
   const urgentRaw = body['urgent'];
-  if (urgentRaw !== undefined && typeof urgentRaw !== 'boolean') {
+  if (urgentRaw !== undefined && urgentRaw !== false) {
     invalid.push('urgent');
+  }
+
+  // Consent must be the boolean `true`: no `"true"`, `1`, `"on"`, missing or false.
+  if (body['contactConsent'] !== true) {
+    invalid.push('contactConsent');
   }
 
   const turnstileToken = line('turnstileToken', APPOINTMENT_LIMITS.turnstileToken, true);
@@ -156,10 +157,10 @@ export function validateAppointmentRequest(
       preferredDate: preferredDate as string,
       preferredTime: preferredTime as string,
       ...(numberOfSigners !== undefined ? { numberOfSigners } : {}),
-      ...(numberOfDocuments !== undefined ? { numberOfDocuments } : {}),
       ...(preferredLanguage ? { preferredLanguage: preferredLanguage as AppointmentLanguage } : {}),
       ...(additionalDetails ? { additionalDetails } : {}),
-      urgent: urgentRaw === true,
+      urgent: false,
+      contactConsent: true,
       turnstileToken: turnstileToken as string,
     },
   };
@@ -180,4 +181,14 @@ function optionalCount(
     return undefined;
   }
   return raw;
+}
+
+/** `true` when the (untrusted) body asks for a same-day / urgent appointment. */
+export function isUrgentRequest(input: unknown): boolean {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    !Array.isArray(input) &&
+    (input as Record<string, unknown>)['urgent'] === true
+  );
 }

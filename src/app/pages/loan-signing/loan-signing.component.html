@@ -9,7 +9,12 @@
     >
     <a class="btn btn--outline" [href]="phone.href">Call Mira: {{ phone.display }}</a>
   </div>
-  <app-credential-list aside [items]="credentialItems" />
+  <app-credential-list
+    aside
+    [items]="credentialItems"
+    [profileUrl]="nnaProfileUrl"
+    profileLabel="Verify NNA Signing Agent Profile"
+  />
 </app-page-hero>
 
 <section class="section" aria-labelledby="loan-heading">
@@ -19,33 +24,13 @@
       heading="Loan Signing Services"
       text="Professional signing support for common real estate and lending transactions."
     />
-    <ul class="loan-grid">
-      @for (item of items; track item.title; let i = $index) {
-        <li class="loan-item card" [class.open]="openIndex() === i">
-          <div class="loan-head">
-            <span class="icon-box"><app-icon [name]="item.icon" /></span>
-            <h3>{{ item.title }}</h3>
-            <button
-              type="button"
-              class="loan-toggle"
-              [attr.aria-expanded]="openIndex() === i"
-              [attr.aria-controls]="'loan-desc-' + i"
-              [attr.aria-label]="item.title"
-              (click)="toggle(i)"
-            >
-              <app-icon name="chevron-down" style="--icon-size: 1.25rem" />
-            </button>
-          </div>
-          <p class="loan-desc" [id]="'loan-desc-' + i">{{ item.description }}</p>
-        </li>
-      }
-    </ul>
+    <app-check-list class="primary-list" columns="auto" [items]="items" />
 
     <div class="support">
       <h3>Additional Signing Support</h3>
       <ul class="support-list">
-        @for (item of support; track item.title) {
-          <li><app-icon [name]="item.icon" style="--icon-size: 1.125rem" /> {{ item.title }}</li>
+        @for (item of support; track item) {
+          <li><app-icon name="check" style="--icon-size: 0.875rem" /> {{ item }}</li>
         }
       </ul>
     </div>

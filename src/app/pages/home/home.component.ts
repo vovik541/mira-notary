@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BUSINESS, LANGUAGES_LABEL } from '../../core/config/business.config';
+import { BUSINESS, EXTERNAL_LINKS, LANGUAGES_LABEL } from '../../core/config/business.config';
 import { FAQ_ITEMS } from '../../data/faq.data';
 import { REVIEWS } from '../../data/reviews.data';
 import { SERVICE_AREA_CHIPS, SERVICE_AREA_SUMMARY } from '../../data/service-area.data';
@@ -35,6 +35,7 @@ export class HomeComponent {
   protected readonly services = SERVICES;
   protected readonly whyMira = WHY_MIRA;
   protected readonly reviews = REVIEWS;
+  protected readonly googleReviewUrl = EXTERNAL_LINKS.googleReview;
   protected readonly areaSummary = SERVICE_AREA_SUMMARY;
   protected readonly communities = SERVICE_AREA_CHIPS;
   protected readonly faqPreview = FAQ_ITEMS.slice(0, 3);

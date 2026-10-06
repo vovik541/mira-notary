@@ -4,18 +4,22 @@ import {
   AppointmentErrorCode,
   AppointmentRequestPayload,
 } from '../shared/appointment.model';
+import { PHOTO_ERROR_MESSAGES } from '../shared/photos';
 import { buildAppointmentEmail, sanitizeForSubject } from './appointment-email';
-import { validateAppointmentRequest } from './appointment-validation';
-import { EmailAddress, EmailProvider, OutboundEmail } from './email-provider';
+import { isUrgentRequest, validateAppointmentRequest } from './appointment-validation';
+import { EmailAttachment, EmailAddress, EmailProvider, OutboundEmail } from './email-provider';
 import { WorkerEnv } from './env';
+import { parseAppointmentForm, readBodyWithLimit } from './multipart';
+import { encodeAttachments, inspectPhotos } from './photo-processing';
 import { ResendEmailSender } from './resend-email-sender';
 import { FetchLike, verifyTurnstileToken } from './turnstile';
 
-const MAX_BODY_BYTES = 16 * 1024;
-const FALLBACK = `Please call or text Mira at ${BUSINESS.phones.primary.display}.`;
+const PHONE = BUSINESS.phones.primary.display;
+const FALLBACK = `Please call or text Mira at ${PHONE}.`;
 
 const MESSAGES: Record<AppointmentErrorCode, string> = {
   validation: 'Please check the form and try again.',
+  urgent: `Same-day and urgent appointments must be booked by phone. Call Mira directly at ${PHONE}.`,
   verification: "We couldn't verify the submission. Please try again.",
   rate_limited: 'Too many requests. Please wait a moment and try again.',
   delivery: `We couldn't send your request right now. ${FALLBACK}`,
@@ -24,6 +28,7 @@ const MESSAGES: Record<AppointmentErrorCode, string> = {
 
 const STATUS: Record<AppointmentErrorCode, number> = {
   validation: 400,
+  urgent: 422,
   verification: 403,
   rate_limited: 429,
   delivery: 502,
@@ -51,15 +56,24 @@ function json(body: AppointmentApiResponse, status: number, extra?: HeadersInit)
   });
 }
 
-function failure(code: AppointmentErrorCode): Response {
-  return json({ success: false, error: code, message: MESSAGES[code] }, STATUS[code]);
+function failure(code: AppointmentErrorCode, message?: string, status?: number): Response {
+  return json(
+    { success: false, error: code, message: message ?? MESSAGES[code] },
+    status ?? STATUS[code],
+  );
 }
 
+const TOO_LARGE_MESSAGE = `${PHOTO_ERROR_MESSAGES.too_large} ${PHOTO_ERROR_MESSAGES.total_too_large}`;
+
 /**
- * Handles `POST /api/appointments`: validate → rate limit → Turnstile → email → discard.
+ * Handles `POST /api/appointments` (multipart: JSON `payload` + up to five `photos`).
  *
- * Nothing is persisted. Logs contain only categories, field names, provider status codes, the
- * provider message id and the Cloudflare ray id — never visitor data or secrets.
+ * Order: method/origin/type → rate limit → bounded body read → parse → urgent rule → field
+ * validation (incl. consent and ZIP/service area) → photo validation → Turnstile → photo encoding
+ * → one email. Every rejection happens before Resend. Nothing is persisted.
+ *
+ * Logs contain only categories, field names, counts, sizes, provider status, the provider
+ * message id and the Cloudflare ray id — never visitor data, file names, file contents or secrets.
  */
 export async function handleAppointmentRequest(
   request: Request,
@@ -79,7 +93,8 @@ export async function handleAppointmentRequest(
     return new Response(null, { status: 403 });
   }
 
-  if (!(request.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json')) {
+  const contentType = request.headers.get('content-type') ?? '';
+  if (!contentType.toLowerCase().startsWith('multipart/form-data')) {
     return failure('validation');
   }
 
@@ -98,24 +113,31 @@ export async function handleAppointmentRequest(
     }
   }
 
-  let payloadText: string;
+  let body;
   try {
-    payloadText = await request.text();
+    body = await readBodyWithLimit(request);
   } catch {
     return failure('validation');
   }
-  if (new TextEncoder().encode(payloadText).length > MAX_BODY_BYTES) {
+  if (!body.ok) {
+    console.warn(`appointment: body_too_large${tag}`);
+    return failure('validation', TOO_LARGE_MESSAGE, 413);
+  }
+
+  const form = await parseAppointmentForm(body.bytes, contentType);
+  if (!form.ok) {
+    console.warn(`appointment: malformed_form${tag}`);
     return failure('validation');
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(payloadText);
-  } catch {
-    return failure('validation');
+  // Same-day / urgent requests are phone-only. Checked first, before any other work, so a forged
+  // request can never reach Turnstile or the email provider.
+  if (isUrgentRequest(form.payload)) {
+    console.warn(`appointment: urgent_rejected${tag}`);
+    return failure('urgent');
   }
 
-  const validation = validateAppointmentRequest(parsed, deps.now?.());
+  const validation = validateAppointmentRequest(form.payload, deps.now?.());
   if (!validation.ok) {
     console.warn(
       `appointment: validation_failed fields=${validation.invalidFields.join(',')}${tag}`,
@@ -123,6 +145,14 @@ export async function handleAppointmentRequest(
     return failure('validation');
   }
   const appointment = validation.value;
+
+  const photos = await inspectPhotos(form.photos);
+  if (!photos.ok) {
+    console.warn(
+      `appointment: photos_rejected category=${photos.code} count=${form.photos.length}${tag}`,
+    );
+    return failure('validation', photos.message);
+  }
 
   if (!env.TURNSTILE_SECRET_KEY) {
     console.error(`appointment: turnstile_secret_missing${tag}`);
@@ -147,16 +177,22 @@ export async function handleAppointmentRequest(
   }
   const provider = deps.emailProvider ?? new ResendEmailSender(config.apiKey);
 
-  const result = await provider.send(buildMessage(appointment, config.to, config.from));
+  // Only now are the (already validated) photo bytes read in full and Base64-encoded.
+  const attachments = await encodeAttachments(photos.photos);
+  const stats = `photos=${attachments.length} bytes=${photos.totalBytes}`;
+
+  const result = await provider.send(
+    buildMessage(appointment, config.to, config.from, attachments),
+  );
   if (!result.ok) {
     console.error(
       `appointment: email_failed category=${result.category}` +
-        `${result.status ? ` status=${result.status}` : ''}${tag}`,
+        `${result.status ? ` status=${result.status}` : ''} ${stats}${tag}`,
     );
     return failure('delivery');
   }
 
-  console.info(`appointment: email_sent id=${result.id}${tag}`);
+  console.info(`appointment: email_sent id=${result.id} ${stats}${tag}`);
   return json({ success: true }, 200);
 }
 
@@ -198,8 +234,9 @@ function buildMessage(
   appointment: AppointmentRequestPayload,
   to: string,
   from: EmailAddress,
+  attachments: readonly EmailAttachment[],
 ): OutboundEmail {
-  const content = buildAppointmentEmail(appointment);
+  const content = buildAppointmentEmail(appointment, attachments.length);
   return {
     from,
     to,
@@ -208,5 +245,6 @@ function buildMessage(
     subject: content.subject,
     html: content.html,
     text: content.text,
+    ...(attachments.length > 0 ? { attachments } : {}),
   };
 }

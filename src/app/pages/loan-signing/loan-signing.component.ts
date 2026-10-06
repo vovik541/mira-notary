@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BUSINESS } from '../../core/config/business.config';
+import { BUSINESS, EXTERNAL_LINKS } from '../../core/config/business.config';
 import {
   ADDITIONAL_SIGNING_SUPPORT,
   LOAN_SIGNING_ITEMS,
@@ -30,6 +30,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
 })
 export class LoanSigningComponent {
   protected readonly phone = BUSINESS.phones.primary;
+  protected readonly nnaProfileUrl = EXTERNAL_LINKS.nnaSigningAgentProfile;
   protected readonly items = LOAN_SIGNING_ITEMS;
   protected readonly support = ADDITIONAL_SIGNING_SUPPORT;
   protected readonly officeItems = MOBILE_OFFICE_ITEMS;
@@ -39,11 +40,4 @@ export class LoanSigningComponent {
     '$1M E&O Insurance',
     'Mobile Printer & Scanner',
   ];
-
-  /** Mobile-only accordion state; on larger screens every description is always visible. */
-  protected readonly openIndex = signal<number | null>(null);
-
-  protected toggle(index: number): void {
-    this.openIndex.update((current) => (current === index ? null : index));
-  }
 }

@@ -40,7 +40,7 @@ describe('MobileCtaComponent', () => {
 
   it('offers a tel: link and a link to the contact page', () => {
     const links = Array.from(host().querySelectorAll('a'));
-    expect(links[0].getAttribute('href')).toBe('tel:+19167590383');
+    expect(links[0].getAttribute('href')).toBe('tel:+12795298754');
     expect(links[1].getAttribute('href')).toBe('/contact');
   });
 });

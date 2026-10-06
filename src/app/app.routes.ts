@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { BUSINESS } from './core/config/business.config';
 import { RouteSeoData } from './core/seo/seo.service';
 
 const seo = (data: RouteSeoData): { seo: RouteSeoData } => ({ seo: data });
@@ -119,8 +120,7 @@ export const routes: Routes = [
       import('./pages/contact/contact.component').then((m) => m.ContactComponent),
     data: seo({
       title: 'Request an Appointment | Mira Derkach Mobile Notary',
-      description:
-        'Request a mobile notary, loan signing, apostille or translation appointment with Mira Derkach, or call (916) 759-0383.',
+      description: `Request a mobile notary, loan signing, apostille or translation appointment with Mira Derkach, or call ${BUSINESS.phones.primary.display}.`,
     }),
   },
   {

@@ -28,14 +28,29 @@ import { IconComponent } from '../icon/icon.component';
           </li>
         }
       </ul>
+      @if (profileUrl(); as url) {
+        <a class="profile-link" [href]="url" target="_blank" rel="noopener noreferrer">
+          {{ profileLabel() }}
+          <span class="sr-only"> (opens in a new tab)</span>
+        </a>
+      }
     </div>
   `,
   styles: `
     .panel {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 1rem;
       padding: 1rem;
+    }
+    .profile-link {
+      flex-basis: 100%;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--color-navy);
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
     }
     .badge {
       flex: none;
@@ -68,4 +83,7 @@ import { IconComponent } from '../icon/icon.component';
 })
 export class CredentialListComponent {
   readonly items = input.required<readonly string[]>();
+  /** Optional external verification link shown under the checklist. */
+  readonly profileUrl = input<string | null>(null);
+  readonly profileLabel = input('View NNA Signing Agent Profile');
 }

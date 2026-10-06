@@ -1,8 +1,5 @@
 import { CONFIRMED_NEARBY_COMMUNITIES } from '../../shared/service-area';
 
-export const SERVICE_AREA_SUMMARY =
-  'Serving Sacramento County and confirmed nearby communities across the Greater Sacramento area.';
-
 export const SERVICE_AREA_COUNTY = 'Sacramento County';
 
 export interface ServiceAreaGroup {
@@ -38,3 +35,17 @@ export const SERVICE_AREA_CHIPS: readonly string[] = [
   SERVICE_AREA_COUNTY,
   ...SERVICE_AREA_COMMUNITIES,
 ];
+
+/** "Placer, Yolo and El Dorado" — the counties that have individually confirmed communities. */
+export const SERVICE_AREA_NEARBY_COUNTIES_LABEL: string = ((): string => {
+  const names = SERVICE_AREA_GROUPS.filter((group) => !group.countywide).map((group) =>
+    group.county.replace(/ County$/, ''),
+  );
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names.join('');
+})();
+
+/**
+ * Home / marketing summary. Names the nearby counties but only ever says "confirmed nearby
+ * communities" — never that a whole county is served. `/service-area` stays the authority.
+ */
+export const SERVICE_AREA_SUMMARY = `Mira serves Sacramento County and confirmed nearby communities across ${SERVICE_AREA_NEARBY_COUNTIES_LABEL} Counties.`;

@@ -40,6 +40,13 @@ const enter = (fixture: ComponentFixture<ContactComponent>, id: string, value: s
   fixture.detectChanges();
 };
 
+const check = (fixture: ComponentFixture<ContactComponent>, id: string, checked: boolean): void => {
+  const control = field(fixture, id);
+  control.checked = checked;
+  control.dispatchEvent(new Event('change'));
+  fixture.detectChanges();
+};
+
 const submit = (fixture: ComponentFixture<ContactComponent>): void => {
   (fixture.nativeElement.querySelector('form') as HTMLFormElement).dispatchEvent(
     new Event('submit'),
@@ -65,7 +72,7 @@ const fillValid = (fixture: ComponentFixture<ContactComponent>): void => {
   set(fixture, 'zip', '95814');
   set(fixture, 'preferredDate', isoDate(7));
   set(fixture, 'preferredTime', 'Morning');
-  fixture.detectChanges();
+  check(fixture, 'consent', true);
 };
 
 const giveToken = (fixture: ComponentFixture<ContactComponent>, token: string | null): void => {
@@ -173,7 +180,7 @@ describe('ContactComponent', () => {
     it('does not make optional fields required', () => {
       const fixture = setup();
       submit(fixture);
-      for (const id of ['signers', 'documents', 'language', 'details']) {
+      for (const id of ['signers', 'language', 'details']) {
         expect(errorText(fixture, id)).toBeNull();
       }
     });
@@ -198,7 +205,7 @@ describe('ContactComponent', () => {
   });
 
   describe('phone and email', () => {
-    it.each(['9167590383', '916-759-0383', '(916) 759-0383', '+1 916 759 0383'])(
+    it.each(['9167590383', '916-759-0383', '(279) 529-8754', '+1 916 759 0383'])(
       'accepts phone %s',
       (phone) => {
         const fixture = setup();
@@ -452,11 +459,6 @@ describe('ContactComponent', () => {
       expect(errorText(fixture, 'signers')).toBe('Enter a whole number from 1 to 50.');
       enter(fixture, 'signers', '2');
       expect(errorText(fixture, 'signers')).toBeNull();
-
-      enter(fixture, 'documents', '501');
-      expect(errorText(fixture, 'documents')).toBe('Enter a whole number from 1 to 500.');
-      enter(fixture, 'documents', '10');
-      expect(errorText(fixture, 'documents')).toBeNull();
     });
 
     it('limits additional details to 3000 characters and shows a counter', () => {
@@ -556,7 +558,6 @@ describe('ContactComponent', () => {
       fillValid(fixture);
       set(fixture, 'zip', '95814-1234');
       set(fixture, 'signers', '1');
-      set(fixture, 'documents', '2');
       set(fixture, 'details', 'Closing at title office');
       giveToken(fixture, 'turnstile-token');
 
@@ -564,7 +565,10 @@ describe('ContactComponent', () => {
       submit(fixture); // second click while the first request is in flight
 
       const request = http.expectOne('/api/appointments');
-      expect(request.request.body).toEqual({
+      const form = request.request.body as FormData;
+      expect(form).toBeInstanceOf(FormData);
+      expect(form.getAll('photos')).toHaveLength(0);
+      expect(JSON.parse(form.get('payload') as string)).toEqual({
         firstName: 'Jane',
         lastName: 'Doe',
         phone: '(916) 555-0100',
@@ -574,13 +578,14 @@ describe('ContactComponent', () => {
         preferredDate: isoDate(7),
         preferredTime: 'Morning',
         numberOfSigners: 1,
-        numberOfDocuments: 2,
         preferredLanguage: 'English',
         additionalDetails: 'Closing at title office',
         urgent: false,
+        contactConsent: true,
         turnstileToken: 'turnstile-token',
       });
-      expect(request.request.body).not.toHaveProperty('fullName');
+      expect(form.get('payload') as string).not.toContain('fullName');
+      expect(form.get('payload') as string).not.toContain('numberOfDocuments');
 
       const button = fixture.nativeElement.querySelector(
         'button[type="submit"]',
@@ -624,7 +629,7 @@ describe('ContactComponent', () => {
           success: false,
           error: 'delivery',
           message:
-            "We couldn't send your request right now. Please call or text Mira at (916) 759-0383.",
+            "We couldn't send your request right now. Please call or text Mira at (279) 529-8754.",
         },
         { status: 502, statusText: 'Bad Gateway' },
       );
@@ -632,7 +637,7 @@ describe('ContactComponent', () => {
 
       expect(
         (fixture.nativeElement.querySelector('.form-error') as HTMLElement).textContent,
-      ).toContain('call or text Mira at (916) 759-0383');
+      ).toContain('call or text Mira at (279) 529-8754');
       expect(field(fixture, 'firstName').value).toBe('Jane');
       const button = fixture.nativeElement.querySelector(
         'button[type="submit"]',
@@ -643,6 +648,229 @@ describe('ContactComponent', () => {
       submit(fixture);
       expect(text(fixture)).toContain('Please complete the verification check');
       http.expectNone('/api/appointments');
+    });
+  });
+});
+
+describe('ContactComponent — contact consent, urgent and photos', () => {
+  afterEach(() => TestBed.inject(HttpTestingController).verify());
+
+  const pickPhotos = (fixture: ComponentFixture<ContactComponent>, files: File[]): void => {
+    const input = field(fixture, 'photos');
+    Object.defineProperty(input, 'files', { value: files, configurable: true });
+    input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+  };
+  const photo = (name: string, type = 'image/jpeg', size = 1024): File =>
+    new File([new Uint8Array(size)], name, { type });
+
+  it('has an unchecked-by-default required consent checkbox with the exact wording', () => {
+    const fixture = setup();
+    expect(field(fixture, 'consent').checked).toBe(false);
+    expect(text(fixture)).toContain(
+      'I agree that Mira may contact me by phone, text message, or email regarding this request.',
+    );
+  });
+
+  it('blocks submission without consent and shows the exact message', () => {
+    const fixture = setup();
+    const http = TestBed.inject(HttpTestingController);
+    fillValid(fixture);
+    check(fixture, 'consent', false);
+    giveToken(fixture, 't');
+    submit(fixture);
+    expect(errorText(fixture, 'consent')).toBe(
+      'Please confirm that Mira may contact you about this request.',
+    );
+    http.expectNone('/api/appointments');
+  });
+
+  it('no longer asks for the number of documents', () => {
+    const fixture = setup();
+    expect(field(fixture, 'documents')).toBeNull();
+    expect(text(fixture)).not.toContain('Number of Documents');
+    expect(text(fixture)).toContain('Number of Signers');
+  });
+
+  it('shows the Additional Details help text', () => {
+    const fixture = setup();
+    expect(text(fixture)).toContain(
+      'Briefly explain your notary request, the document type, and anything Mira should know before contacting you.',
+    );
+  });
+
+  it('shows a compact privacy notice without the absolute "do not store" claim', () => {
+    const fixture = setup();
+    const notice = (fixture.nativeElement.querySelector('details.privacy') as HTMLElement)
+      .textContent as string;
+    expect(notice).toContain('does not save appointment submissions in a website database');
+    expect(notice).toContain('retained by Mira');
+    expect(notice).not.toMatch(/we do not store your information/i);
+  });
+
+  describe('same-day / urgent', () => {
+    it('shows the phone callout, disables submit and never sends while checked', () => {
+      const fixture = setup();
+      const http = TestBed.inject(HttpTestingController);
+      fillValid(fixture);
+      giveToken(fixture, 't');
+      check(fixture, 'urgent', true);
+
+      expect(text(fixture)).toContain('Same-day and urgent appointments must be booked by phone.');
+      const call = fixture.nativeElement.querySelector('.urgent-callout a') as HTMLAnchorElement;
+      expect(call.textContent).toContain('Call Mira Now');
+      expect(call.getAttribute('href')).toBe('tel:+12795298754');
+      expect(fixture.nativeElement.querySelector('.urgent-callout')?.textContent).toContain(
+        '(279) 529-8754',
+      );
+      const button = fixture.nativeElement.querySelector(
+        'button[type="submit"]',
+      ) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+
+      submit(fixture);
+      http.expectNone('/api/appointments');
+    });
+
+    it('keeps entered data and restores submission when unchecked', () => {
+      const fixture = setup();
+      const http = TestBed.inject(HttpTestingController);
+      fillValid(fixture);
+      giveToken(fixture, 't');
+      check(fixture, 'urgent', true);
+      expect(field(fixture, 'firstName').value).toBe('Jane');
+
+      check(fixture, 'urgent', false);
+      expect(fixture.nativeElement.querySelector('.urgent-callout')).toBeNull();
+      const button = fixture.nativeElement.querySelector(
+        'button[type="submit"]',
+      ) as HTMLButtonElement;
+      expect(button.disabled).toBe(false);
+
+      submit(fixture);
+      const request = http.expectOne('/api/appointments');
+      const payload = JSON.parse((request.request.body as FormData).get('payload') as string);
+      expect(payload.urgent).toBe(false);
+      request.flush({ success: true });
+    });
+  });
+
+  describe('photos', () => {
+    it('accepts only the allowed image types on the file input', () => {
+      const fixture = setup();
+      const accept = field(fixture, 'photos').getAttribute('accept') as string;
+      expect(accept).toBe('image/jpeg,image/png,image/webp,image/heic,image/heif');
+    });
+
+    it('lists selected photos and lets the user remove them', () => {
+      const fixture = setup();
+      pickPhotos(fixture, [photo('a.jpg'), photo('b.png', 'image/png')]);
+      const items = fixture.nativeElement.querySelectorAll('.photo-list li');
+      expect(items).toHaveLength(2);
+      expect(text(fixture)).toContain('a.jpg');
+
+      (items[0].querySelector('.photo-remove') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('.photo-list li')).toHaveLength(1);
+      expect(text(fixture)).not.toContain('a.jpg');
+    });
+
+    it.each([
+      ['six photos', Array.from({ length: 6 }, (_v, i) => photo(`p${i}.jpg`)), 'up to 5 photos'],
+      ['a PDF', [photo('a.pdf', 'application/pdf')], 'JPEG, PNG, WebP or HEIC'],
+      [
+        'a photo over 5 MB',
+        [photo('big.jpg', 'image/jpeg', 5 * 1024 * 1024 + 1)],
+        '5 MB or smaller',
+      ],
+      ['an empty file', [photo('e.jpg', 'image/jpeg', 0)], 'is empty'],
+      [
+        'more than 15 MB in total',
+        [
+          photo('1.jpg', 'image/jpeg', 4_000_000),
+          photo('2.jpg', 'image/jpeg', 4_000_000),
+          photo('3.jpg', 'image/jpeg', 4_000_000),
+          photo('4.jpg', 'image/jpeg', 4_000_000),
+        ],
+        '15 MB or less',
+      ],
+    ])('rejects %s with a clear message and adds nothing', (_name, files, message) => {
+      const fixture = setup();
+      pickPhotos(fixture, files);
+      expect(
+        (fixture.nativeElement.querySelector('#photos-error') as HTMLElement).textContent,
+      ).toContain(message);
+      expect(fixture.nativeElement.querySelectorAll('.photo-list li')).toHaveLength(0);
+    });
+
+    it('accepts HEIC identified only by its extension', () => {
+      const fixture = setup();
+      pickPhotos(fixture, [photo('IMG_1.HEIC', '')]);
+      expect(fixture.nativeElement.querySelectorAll('.photo-list li')).toHaveLength(1);
+    });
+
+    it('sends photos as multipart file parts and clears them after success', () => {
+      const fixture = setup();
+      const http = TestBed.inject(HttpTestingController);
+      fillValid(fixture);
+      giveToken(fixture, 't');
+      pickPhotos(fixture, [photo('a.jpg'), photo('b.png', 'image/png')]);
+      submit(fixture);
+
+      const request = http.expectOne('/api/appointments');
+      const form = request.request.body as FormData;
+      expect(form.getAll('photos').map((file) => (file as File).name)).toEqual(['a.jpg', 'b.png']);
+      request.flush({ success: true });
+      fixture.detectChanges();
+
+      (fixture.nativeElement.querySelector('.notice button') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('.photo-list li')).toHaveLength(0);
+    });
+
+    it('keeps the photos when sending fails', () => {
+      const fixture = setup();
+      const http = TestBed.inject(HttpTestingController);
+      fillValid(fixture);
+      giveToken(fixture, 't');
+      pickPhotos(fixture, [photo('a.jpg')]);
+      submit(fixture);
+      http
+        .expectOne('/api/appointments')
+        .flush(
+          { success: false, error: 'delivery', message: 'Try again.' },
+          { status: 502, statusText: 'Bad Gateway' },
+        );
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('.photo-list li')).toHaveLength(1);
+    });
+
+    it('revokes thumbnail object URLs on remove and on destroy', () => {
+      const created: string[] = [];
+      const revoked: string[] = [];
+      const original = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
+      URL.createObjectURL = (): string => {
+        const url = `blob:test/${created.length}`;
+        created.push(url);
+        return url;
+      };
+      URL.revokeObjectURL = (url: string): void => {
+        revoked.push(url);
+      };
+      try {
+        const fixture = setup();
+        pickPhotos(fixture, [photo('a.jpg'), photo('b.png', 'image/png')]);
+        expect(created).toHaveLength(2);
+
+        (fixture.nativeElement.querySelector('.photo-remove') as HTMLButtonElement).click();
+        expect(revoked).toEqual(['blob:test/0']);
+
+        fixture.destroy();
+        expect(revoked).toContain('blob:test/1');
+      } finally {
+        URL.createObjectURL = original.create;
+        URL.revokeObjectURL = original.revoke;
+      }
     });
   });
 });

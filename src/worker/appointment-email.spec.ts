@@ -11,6 +11,7 @@ const base: AppointmentRequestPayload = {
   preferredDate: '2027-03-15',
   preferredTime: 'Morning',
   urgent: false,
+  contactConsent: true,
   turnstileToken: 'secret-token-value',
 };
 
@@ -43,6 +44,23 @@ describe('buildAppointmentEmail', () => {
       expect(body).toContain('Submitted through Local Notary Signings website.');
     }
     expect(text).toContain('Same-Day / Urgent: No');
+    expect(text).toContain('Attachments: None');
+  });
+
+  it('includes the contact permission and no documents row', () => {
+    const { html, text } = buildAppointmentEmail(base);
+    for (const body of [html, text]) {
+      expect(body).toContain('Yes — phone, text or email regarding this request.');
+      expect(body).not.toContain('Documents');
+    }
+    expect(text).toContain('Contact Permission: Yes');
+  });
+
+  it('mentions the number of attached photos', () => {
+    const { html, text } = buildAppointmentEmail(base, 3);
+    expect(text).toContain('3 photos attached');
+    expect(html).toContain('3 photos attached');
+    expect(buildAppointmentEmail(base, 1).text).toContain('1 photo attached');
   });
 
   it('never leaks the Turnstile token', () => {

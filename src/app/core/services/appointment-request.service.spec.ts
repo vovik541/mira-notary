@@ -14,6 +14,7 @@ const payload: AppointmentRequestPayload = {
   preferredDate: '2027-03-15',
   preferredTime: 'Morning',
   urgent: false,
+  contactConsent: true,
   turnstileToken: 'token',
 };
 
@@ -31,19 +32,34 @@ describe('AppointmentRequestService', () => {
 
   afterEach(() => http.verify());
 
-  const submit = (): { result: AppointmentSubmitResult | undefined } => {
+  const submit = (photos: File[] = []): { result: AppointmentSubmitResult | undefined } => {
     const holder: { result: AppointmentSubmitResult | undefined } = { result: undefined };
-    service.submit(payload).subscribe((result) => (holder.result = result));
+    service.submit(payload, photos).subscribe((result) => (holder.result = result));
     return holder;
   };
 
-  it('POSTs the payload to the same-origin endpoint', () => {
+  it('POSTs multipart form data (JSON payload part, no photos) to the same-origin endpoint', () => {
     const holder = submit();
     const request = http.expectOne('/api/appointments');
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(payload);
+    const body = request.request.body as FormData;
+    expect(body).toBeInstanceOf(FormData);
+    expect(JSON.parse(body.get('payload') as string)).toEqual(payload);
+    expect(body.getAll('photos')).toHaveLength(0);
     request.flush({ success: true });
     expect(holder.result).toEqual({ ok: true });
+  });
+
+  it('appends each photo as a "photos" file part', () => {
+    const files = [
+      new File([new Uint8Array([1])], 'a.jpg', { type: 'image/jpeg' }),
+      new File([new Uint8Array([2])], 'b.png', { type: 'image/png' }),
+    ];
+    submit(files);
+    const request = http.expectOne('/api/appointments');
+    const body = request.request.body as FormData;
+    expect(body.getAll('photos').map((file) => (file as File).name)).toEqual(['a.jpg', 'b.png']);
+    request.flush({ success: true });
   });
 
   it('surfaces the API error message and code', () => {
@@ -67,7 +83,7 @@ describe('AppointmentRequestService', () => {
     expect(holder.result?.ok).toBe(false);
     if (holder.result && !holder.result.ok) {
       expect(holder.result.code).toBe('delivery');
-      expect(holder.result.message).toContain('(916) 759-0383');
+      expect(holder.result.message).toContain('(279) 529-8754');
     }
   });
 

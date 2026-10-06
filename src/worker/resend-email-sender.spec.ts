@@ -51,6 +51,25 @@ describe('ResendEmailSender', () => {
     expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
+  it('sends attachments as snake_case base64 objects', async () => {
+    const fetchFn = respond(undefined, JSON.stringify({ id: 'msg-2' }));
+    await new ResendEmailSender(API_KEY, fetchFn).send({
+      ...message,
+      attachments: [{ filename: 'a.jpg', contentBase64: 'QUJD', contentType: 'image/jpeg' }],
+    });
+    const [, init] = (fetchFn as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string).attachments).toEqual([
+      { filename: 'a.jpg', content: 'QUJD', content_type: 'image/jpeg' },
+    ]);
+  });
+
+  it('omits the attachments field when there are none', async () => {
+    const fetchFn = respond(undefined, JSON.stringify({ id: 'msg-3' }));
+    await new ResendEmailSender(API_KEY, fetchFn).send(message);
+    const [, init] = (fetchFn as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).not.toHaveProperty('attachments');
+  });
+
   it('omits reply_to when there is no visitor email', async () => {
     const fetchFn = respond(undefined, JSON.stringify({ id: 'msg-1' }));
     const { replyTo: _replyTo, ...withoutReplyTo } = message;

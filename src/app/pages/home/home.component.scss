@@ -4,6 +4,7 @@
 
 /* ---- Hero ---- */
 .hero {
+  --portrait-width: 22rem;
   display: grid;
   gap: 2.5rem;
   align-items: center;
@@ -13,9 +14,24 @@
     padding-block: 4rem 4.5rem;
   }
   @media (min-width: 1024px) {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    /* Text column takes the remaining width; the portrait column is a fixed, slightly smaller size. */
+    grid-template-columns: minmax(0, 1fr) var(--portrait-width);
     gap: 3rem;
     padding-block: 5rem 6rem;
+  }
+  @media (min-width: 1280px) {
+    --portrait-width: 24.5rem;
+  }
+}
+
+/* Balanced lines; on desktop "Wherever You Need It" stays together so "It" never sits alone. */
+.hero-copy h1 {
+  text-wrap: balance;
+}
+
+.keep {
+  @media (min-width: 1024px) {
+    white-space: nowrap;
   }
 }
 
@@ -68,7 +84,7 @@
 
 .hero-visual {
   width: 100%;
-  max-width: 28rem;
+  max-width: 24.5rem;
   margin-inline: auto;
 
   app-credential-list {
@@ -181,4 +197,10 @@
 
 .more {
   margin-top: 1rem;
+}
+
+.header-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
 }

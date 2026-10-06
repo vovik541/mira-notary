@@ -12,19 +12,19 @@ import { IconComponent } from '../icon/icon.component';
       <p class="muted">Call or text Mira.</p>
       <ul class="methods">
         <li>
-          <a [href]="business.phones.primary.href">
+          <a class="primary" [href]="business.phones.primary.href">
             <span class="icon"><app-icon name="phone" /></span>
             <span class="label">
-              <span class="kind">Main Call or Text</span>
+              <span class="kind">Primary · Call or Text</span>
               <span class="value">{{ business.phones.primary.display }}</span>
             </span>
           </a>
         </li>
         <li>
-          <a [href]="business.phones.secondary.href">
+          <a class="secondary" [href]="business.phones.secondary.href">
             <span class="icon"><app-icon name="phone" /></span>
             <span class="label">
-              <span class="kind">Secondary Phone</span>
+              <span class="kind">Secondary</span>
               <span class="value">{{ business.phones.secondary.display }}</span>
             </span>
           </a>
