@@ -24,4 +24,22 @@ export const REVIEWS: readonly Review[] = [
     source: 'Google Review',
     text: 'Mira is one of our top notaries most requested. She is trusted by our title companies and lenders and always takes great care of our clients. I cannot recommend Mira enough to anyone that requires a notary!',
   },
+  {
+    author: 'Alex Lubic',
+    rating: 5,
+    source: 'Google Review',
+    // Verbatim customer quotation (paragraph breaks preserved, wording not corrected).
+    text: `Mira was a total superstar!!!
+
+She went home to print out docs that we needed for an updated Deed of trust. Did every thing she could to help make everything work perfectly for the borrowers.
+
+Thank you for being the best Mira!`,
+  },
+  {
+    author: 'Galina Izyurova',
+    rating: 5,
+    source: 'Google Review',
+    /** English translation of the reviewer's original Russian review (Галина Изьюрова). */
+    text: 'Mira is a highly qualified professional—patient, responsible, compassionate, and respectful. I wish her and her family joy and success every day. I recommend reaching out to her. — Galina Vasilievna, retiree and person with a disability.',
+  },
 ];

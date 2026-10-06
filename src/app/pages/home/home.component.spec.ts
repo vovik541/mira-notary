@@ -86,3 +86,43 @@ describe('HomeComponent hero', () => {
     expect(review.getAttribute('rel')).toBe('noopener noreferrer');
   });
 });
+
+describe('HomeComponent reviews carousel', () => {
+  const render = (): HTMLElement => {
+    TestBed.configureTestingModule({ imports: [HomeComponent], providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  };
+
+  it('has exactly five review cards on the whole page, all inside one carousel', () => {
+    const el = render();
+    expect(el.querySelectorAll('app-review-card')).toHaveLength(5);
+    expect(el.querySelectorAll('app-review-carousel')).toHaveLength(1);
+    expect(el.querySelectorAll('app-review-carousel app-review-card')).toHaveLength(5);
+    expect(el.querySelectorAll('blockquote')).toHaveLength(5);
+  });
+
+  it('shows each reviewer exactly once, in the approved order', () => {
+    const el = render();
+    const authors = Array.from(el.querySelectorAll('app-review-card .author')).map(
+      (a) => a.textContent,
+    );
+    expect(authors).toEqual([
+      'Liudmyla Petruk',
+      'Vasya K',
+      'lara tessadri',
+      'Alex Lubic',
+      'Galina Izyurova',
+    ]);
+    for (const name of authors) {
+      expect(authors.filter((author) => author === name)).toHaveLength(1);
+    }
+  });
+
+  it('renders Previous / Next controls in that one carousel', () => {
+    const carousel = render().querySelector('app-review-carousel') as HTMLElement;
+    expect(carousel.querySelector('button[aria-label="Previous review"]')).toBeTruthy();
+    expect(carousel.querySelector('button[aria-label="Next review"]')).toBeTruthy();
+  });
+});

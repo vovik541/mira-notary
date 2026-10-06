@@ -40,6 +40,7 @@ import { IconComponent } from '../icon/icon.component';
     }
     blockquote {
       margin: 0 0 1.5rem;
+      white-space: pre-line;
       font-size: 0.9375rem;
       line-height: 1.65;
     }

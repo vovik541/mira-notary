@@ -60,6 +60,7 @@ const ICONS = {
     ],
   },
   'chevron-down': { paths: ['M19 9l-7 7-7-7'] },
+  'chevron-left': { paths: ['M15 19l-7-7 7-7'] },
   'chevron-right': { paths: ['M9 5l7 7-7 7'] },
   menu: { paths: ['M4 6h16M4 12h16M4 18h16'] },
   close: { paths: ['M6 18L18 6M6 6l12 12'] },

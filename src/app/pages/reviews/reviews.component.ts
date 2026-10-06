@@ -3,11 +3,11 @@ import { RouterLink } from '@angular/router';
 import { EXTERNAL_LINKS } from '../../core/config/business.config';
 import { REVIEWS } from '../../data/reviews.data';
 import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.component';
-import { ReviewCarouselComponent } from '../../shared/components/review-carousel/review-carousel.component';
+import { ReviewCardComponent } from '../../shared/components/review-card/review-card.component';
 
 @Component({
   selector: 'app-reviews',
-  imports: [RouterLink, PageHeroComponent, ReviewCarouselComponent],
+  imports: [RouterLink, PageHeroComponent, ReviewCardComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-hero heading="What Clients Say About Mira" eyebrow="Reviews">
@@ -16,7 +16,11 @@ import { ReviewCarouselComponent } from '../../shared/components/review-carousel
 
     <section class="section">
       <div class="container">
-        <app-review-carousel [reviews]="reviews" />
+        <ul class="grid">
+          @for (review of reviews; track review.author) {
+            <li><app-review-card [review]="review" /></li>
+          }
+        </ul>
         <p class="cta">
           <a class="btn btn--gold" routerLink="/contact">Book an Appointment</a>
           <a
@@ -31,6 +35,18 @@ import { ReviewCarouselComponent } from '../../shared/components/review-carousel
     </section>
   `,
   styles: `
+    .grid {
+      display: grid;
+      gap: 1rem;
+
+      @media (min-width: 640px) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.5rem;
+      }
+      @media (min-width: 1024px) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
     .cta {
       display: flex;
       flex-wrap: wrap;

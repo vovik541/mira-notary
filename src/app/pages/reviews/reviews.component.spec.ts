@@ -18,3 +18,30 @@ describe('ReviewsComponent', () => {
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
   });
 });
+
+describe('ReviewsComponent full list', () => {
+  it('renders all five reviews, including the two newest, and keeps the review CTA', () => {
+    TestBed.configureTestingModule({
+      imports: [ReviewsComponent],
+      providers: [provideRouter([])],
+    });
+    const fixture = TestBed.createComponent(ReviewsComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const authors = Array.from(el.querySelectorAll('.author')).map((a) => a.textContent);
+    expect(authors).toEqual([
+      'Liudmyla Petruk',
+      'Vasya K',
+      'lara tessadri',
+      'Alex Lubic',
+      'Galina Izyurova',
+    ]);
+    expect(el.textContent).toContain('Mira was a total superstar!!!');
+    expect(el.textContent).toContain('highly qualified professional');
+    const cta = Array.from(el.querySelectorAll('a')).find((a) =>
+      a.textContent?.includes('Leave a Google Review'),
+    ) as HTMLAnchorElement;
+    expect(cta.getAttribute('href')).toBe('https://g.page/r/CR77WhvSyXIGEBM/review');
+    expect(cta.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+});
