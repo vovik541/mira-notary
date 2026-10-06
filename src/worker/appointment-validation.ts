@@ -6,20 +6,18 @@ import {
   AppointmentRequestPayload,
   AppointmentService,
 } from '../shared/appointment.model';
+import { checkZip } from '../shared/service-area';
+import {
+  BAD_TEXT_CHARS,
+  CONTROL_CHARS,
+  isMeaningfulName,
+  isPlausibleDate,
+  isValidEmail,
+  isValidPhone,
+} from '../shared/validation';
 
 export type ValidationResult =
   { ok: true; value: AppointmentRequestPayload } | { ok: false; invalidFields: string[] };
-
-// Any ASCII control character (CR/LF/NUL/…): rejected in single-line fields to prevent header injection.
-// eslint-disable-next-line no-control-regex
-const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
-// Control characters other than TAB / LF / CR, rejected even in multi-line text.
-// eslint-disable-next-line no-control-regex
-const BAD_TEXT_CHARS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
-const EMAIL_PATTERN = /^[^\s@<>()[\]\\,;:"]+@[^\s@<>()[\]\\,;:"]+\.[^\s@<>()[\]\\,;:"]{2,}$/;
-const PHONE_CHARS = /^[+()\-.\s\d]+$/;
-const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function validateAppointmentRequest(
   input: unknown,
@@ -31,6 +29,7 @@ export function validateAppointmentRequest(
   const body = input as Record<string, unknown>;
   const invalid: string[] = [];
 
+  /** Trimmed single-line string, or undefined (recording the field as invalid when required/bad). */
   const line = (key: string, max: number, required: boolean): string | undefined => {
     const raw = body[key];
     if (raw === undefined || raw === null || raw === '') {
@@ -57,18 +56,23 @@ export function validateAppointmentRequest(
     return value;
   };
 
-  const fullName = line('fullName', APPOINTMENT_LIMITS.fullName, true);
-
-  const phone = line('phone', APPOINTMENT_LIMITS.phone, true);
-  if (phone !== undefined) {
-    const digits = phone.replace(/\D/g, '').length;
-    if (!PHONE_CHARS.test(phone) || digits < 10 || digits > 15) {
-      invalid.push('phone');
-    }
+  const firstName = line('firstName', APPOINTMENT_LIMITS.firstName, true);
+  if (firstName !== undefined && !isMeaningfulName(firstName)) {
+    invalid.push('firstName');
   }
 
-  const email = line('email', APPOINTMENT_LIMITS.email, false);
-  if (email !== undefined && !EMAIL_PATTERN.test(email)) {
+  const lastName = line('lastName', APPOINTMENT_LIMITS.lastName, true);
+  if (lastName !== undefined && !isMeaningfulName(lastName)) {
+    invalid.push('lastName');
+  }
+
+  const phone = line('phone', APPOINTMENT_LIMITS.phone, true);
+  if (phone !== undefined && !isValidPhone(phone)) {
+    invalid.push('phone');
+  }
+
+  const email = line('email', APPOINTMENT_LIMITS.email, true);
+  if (email !== undefined && !isValidEmail(email)) {
     invalid.push('email');
   }
 
@@ -77,7 +81,15 @@ export function validateAppointmentRequest(
     invalid.push('service');
   }
 
-  const locationZip = line('locationZip', APPOINTMENT_LIMITS.locationZip, true);
+  // ZIP: exactly five digits (taken as-is: no trimming, no ZIP+4 normalization), THEN membership
+  // in the shared confirmed service-area set.
+  let locationZip: string | undefined;
+  const check = checkZip(typeof body['locationZip'] === 'string' ? body['locationZip'] : null);
+  if (check.status === 'supported') {
+    locationZip = check.zip;
+  } else {
+    invalid.push('locationZip');
+  }
 
   const preferredDate = line('preferredDate', 10, true);
   if (preferredDate !== undefined && !isPlausibleDate(preferredDate, now)) {
@@ -135,9 +147,10 @@ export function validateAppointmentRequest(
   return {
     ok: true,
     value: {
-      fullName: fullName as string,
+      firstName: firstName as string,
+      lastName: lastName as string,
       phone: phone as string,
-      ...(email ? { email } : {}),
+      email: email as string,
       service: service as AppointmentService,
       locationZip: locationZip as string,
       preferredDate: preferredDate as string,
@@ -167,23 +180,4 @@ function optionalCount(
     return undefined;
   }
   return raw;
-}
-
-/** Real calendar date, from yesterday (time-zone slack) to two years ahead. */
-function isPlausibleDate(value: string, now: Date): boolean {
-  const match = ISO_DATE.exec(value);
-  if (!match) {
-    return false;
-  }
-  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    return false;
-  }
-  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  return date.getTime() >= todayUtc - DAY_MS && date.getTime() <= todayUtc + 730 * DAY_MS;
 }

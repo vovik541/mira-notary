@@ -11,7 +11,7 @@ export const routes: Routes = [
     data: seo({
       title: 'Mobile Notary & Loan Signing Agent in Sacramento | Mira Derkach',
       description:
-        'Mobile notary and loan signing services in Sacramento and surrounding Placer and Yolo County communities. English, Ukrainian and Russian.',
+        'Mobile notary and loan signing services throughout Sacramento County and confirmed nearby communities across the Greater Sacramento area. English, Ukrainian and Russian.',
     }),
   },
   {
@@ -99,9 +99,9 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/service-area/service-area.component').then((m) => m.ServiceAreaComponent),
     data: seo({
-      title: 'Mobile Notary Service Area | Sacramento, Placer & Yolo Counties',
+      title: 'Mobile Notary Service Area | Sacramento County & Greater Sacramento',
       description:
-        'Mira serves Sacramento County and selected communities in Placer and Yolo Counties, including Sacramento, Roseville, Rocklin, Lincoln, Loomis and Granite Bay.',
+        'Mira serves Sacramento County and confirmed nearby communities across Greater Sacramento, including Roseville, Rocklin, Davis, West Sacramento, Woodland and El Dorado Hills.',
     }),
   },
   {

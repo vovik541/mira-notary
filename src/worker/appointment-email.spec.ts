@@ -2,8 +2,10 @@ import { AppointmentRequestPayload } from '../shared/appointment.model';
 import { buildAppointmentEmail, escapeHtml, sanitizeForSubject } from './appointment-email';
 
 const base: AppointmentRequestPayload = {
-  fullName: 'Jane Doe',
+  firstName: 'Jane',
+  lastName: 'Doe',
   phone: '(916) 555-0100',
+  email: 'jane@example.com',
   service: 'Loan Signing',
   locationZip: '95814',
   preferredDate: '2027-03-15',
@@ -13,7 +15,7 @@ const base: AppointmentRequestPayload = {
 };
 
 describe('buildAppointmentEmail', () => {
-  it('uses the required subject and keeps document details out of it', () => {
+  it('uses the required subject (first + last name) and keeps document details out of it', () => {
     const email = buildAppointmentEmail({
       ...base,
       additionalDetails: 'Sensitive trust documents',
@@ -22,10 +24,20 @@ describe('buildAppointmentEmail', () => {
     expect(email.subject).not.toContain('Sensitive');
   });
 
+  it('shows the split name, email and ZIP code in both html and text', () => {
+    const { html, text } = buildAppointmentEmail(base);
+    expect(text).toContain('Name: Jane Doe');
+    expect(text).toContain('Email: jane@example.com');
+    expect(text).toContain('ZIP Code: 95814');
+    expect(html).toContain('Jane Doe');
+    expect(html).toContain('ZIP Code');
+    expect(html).toContain('95814');
+    expect(text).not.toContain('Location / ZIP');
+  });
+
   it('renders defaults for optional fields in both html and text', () => {
     const { html, text } = buildAppointmentEmail(base);
     for (const body of [html, text]) {
-      expect(body).toContain('Not provided');
       expect(body).toContain('Not specified');
       expect(body).toContain('None provided');
       expect(body).toContain('Submitted through Local Notary Signings website.');
@@ -42,7 +54,7 @@ describe('buildAppointmentEmail', () => {
   it('escapes visitor input in the html body', () => {
     const { html } = buildAppointmentEmail({
       ...base,
-      fullName: '<img src=x onerror=alert(1)>',
+      firstName: '<img src=x onerror=alert(1)>',
       additionalDetails: '"><script>alert(1)</script>\nsecond & line',
     });
     expect(html).not.toContain('<script>');
@@ -53,7 +65,7 @@ describe('buildAppointmentEmail', () => {
   });
 
   it('keeps visitor line breaks out of the subject header', () => {
-    const { subject } = buildAppointmentEmail({ ...base, fullName: 'Jane\r\nBcc: x@y.com' });
+    const { subject } = buildAppointmentEmail({ ...base, lastName: 'Doe\r\nBcc: x@y.com' });
     expect(subject).not.toMatch(/[\r\n]/);
   });
 });

@@ -118,6 +118,53 @@ third-party requests (other than the Turnstile script on `/contact`, see below):
   a prerender entry (`getPrerenderParams`) in `app.routes.server.ts`. Do not create thin
   duplicate city pages.
 
+## Form validation, ZIP service area and service prefill
+
+- **Shared rules:** `src/shared/validation.ts` (names, phone, email, dates), `src/shared/service-area.ts`
+  (ZIP data and helpers) and `src/shared/appointment.model.ts` (services, limits, slugs) are imported by
+  **both** the Angular form and the Worker, so browser and server cannot drift. The Worker stays
+  authoritative: a forged request with a bad email, a missing name or an unsupported ZIP is rejected
+  with 400 before Turnstile or Resend are touched.
+- **Required fields:** First Name, Last Name, Phone, Email, Service, ZIP Code, Preferred Date,
+  Preferred Time. Optional: signers, documents, language, details, urgent.
+- **Names:** trimmed, ≤ 80 chars, must contain at least one letter in any script (O'Connor,
+  Anne-Marie, José, Мирослава are fine). **Phone:** 10–15 digits, any normal formatting. **Email:**
+  required, ≤ 254 chars, same pattern on both sides.
+- **UX:** errors appear after a field is left or on a submit attempt (never on page load), clear as
+  soon as the value is corrected, use `aria-invalid` + `aria-describedby`, and an invalid submit
+  focuses the first invalid field without calling the API.
+- **ZIP data (two separate sets, both static and in-memory — no database or ZIP API):**
+  `SACRAMENTO_COUNTY_ZIP_CODES` is *reference data*: exactly 131 ZIP codes from the State of
+  California county-by-ZIP lookup, never edited to change coverage. `SUPPORTED_SERVICE_ZIP_CODES` is
+  Mira's *confirmed online service area* (150 ZIPs today): the union of the Sacramento County set and
+  `ADDITIONAL_CONFIRMED_SERVICE_ZIP_CODES` (19 ZIPs). It decides whether the booking form is accepted
+  automatically. The Contact form, the Service Area page and the Worker all use the same `checkZip`.
+- **Confirmed nearby communities:** `CONFIRMED_NEARBY_COMMUNITIES` in `src/shared/service-area.ts`
+  (community → county → ZIPs) is the single table behind the extra ZIPs, the "Confirmed Service Area"
+  groups, the Home chips and the structured-data `areaServed`. Only individually confirmed
+  communities are listed (Placer: Roseville, Rocklin, Lincoln, Loomis, Granite Bay, Auburn; Yolo:
+  West Sacramento, Davis, Woodland; El Dorado: El Dorado Hills, Cameron Park) — never whole
+  counties. Sacramento County alone is confirmed countywide. To extend coverage, add a row to that
+  table; no validator or component changes. (Auburn PO Box ZIP 95604 is deliberately excluded.)
+- **ZIP syntax:** exactly five digits, `^\d{5}$`. No ZIP+4, no trimming, no coercion: `95814-1234`,
+  ` 95814 `, `9581`, `958140` and `9581A` are invalid (the Worker answers 400). Format is checked
+  *before* the service area, so a malformed ZIP is never reported as "unconfirmed".
+- **ZIP input (UI):** both ZIP fields use the shared `appZipInput` directive
+  (`src/app/shared/directives/zip-input.directive.ts`): `type="text"` (never `number`),
+  `inputmode="numeric"`, `autocomplete="postal-code"`, `maxlength="5"`, digits only. Typing and pasting
+  are sanitized by `sanitizeZipInput` (`95a81-4` → `95814`, `123456` → `12345`); sanitizing is separate
+  from validating. Errors appear after blur or a submit/Check attempt, never on page load.
+- **Unconfirmed ZIPs:** a valid ZIP outside the supported set blocks online submission, but is never
+  described as a place Mira does not serve: "This ZIP code is outside Mira's currently confirmed
+  online service area. Contact Mira to ask about availability in other nearby communities." (No
+  counties are named in this fallback on purpose.)
+- **Prefill:** `/contact?service=<slug>&zip=<zip>`. Slugs: `general-notary`, `loan-signing`,
+  `california-apostille`, `document-translation`, `living-trust-estate`, `power-of-attorney`. Strict
+  whitelist; anything unknown or missing selects General Notary. A ZIP from the URL is only used if
+  it is exactly five digits (`?zip=9581` and `?zip=95814-1234` are ignored) and is then validated like
+  typed input (e.g. `?zip=90210` is prefilled and shows the unconfirmed-area message). Service-specific CTAs pass their slug
+  (`CtaBandComponent` takes an optional `service` input); generic CTAs stay plain `/contact`.
+
 ## Appointment Email
 
 The contact form posts to **`POST /api/appointments`**, handled by the same Worker that serves the

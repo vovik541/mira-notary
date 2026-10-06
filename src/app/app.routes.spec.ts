@@ -36,6 +36,22 @@ describe('routing', () => {
     }
   });
 
+  it('describes the current service area in the Home meta description (no stale wording)', () => {
+    const home = routes.find((r) => r.path === '');
+    const description = (home?.data?.['seo'] as { description: string }).description;
+    expect(description).toBe(
+      'Mobile notary and loan signing services throughout Sacramento County and confirmed nearby communities across the Greater Sacramento area. English, Ukrainian and Russian.',
+    );
+    expect(description).not.toMatch(/Placer|Yolo|surrounding/);
+  });
+
+  it('keeps every route description free of the outdated Placer / Yolo service-area wording', () => {
+    for (const route of routes) {
+      const seo = route.data?.['seo'] as { description: string };
+      expect(seo.description).not.toMatch(/Placer and Yolo|selected (surrounding )?communities/i);
+    }
+  });
+
   it('prerenders every page and server-renders only the wildcard', () => {
     for (const route of routes.filter((r) => r.path !== '**')) {
       const match = serverRoutes.find((s) => s.path === route.path);

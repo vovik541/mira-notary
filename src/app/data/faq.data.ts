@@ -12,7 +12,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     question: 'Does Mira travel to my location?',
     answer:
-      'Yes. Mira provides mobile notary service throughout Sacramento County and selected surrounding communities in Placer and Yolo Counties. Contact Mira with your location or ZIP code to confirm availability.',
+      'Yes. Mira provides mobile notary service throughout Sacramento County and in confirmed nearby communities across the Greater Sacramento area. Contact Mira with your location or ZIP code to confirm availability.',
   },
   {
     question: 'Can I request a same-day appointment?',

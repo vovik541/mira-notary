@@ -42,15 +42,15 @@ function sectionsFor(request: AppointmentRequestPayload): Section[] {
     {
       title: 'Client',
       rows: [
-        { label: 'Name', value: request.fullName },
+        { label: 'Name', value: `${request.firstName} ${request.lastName}` },
         { label: 'Phone', value: request.phone },
-        { label: 'Email', value: request.email ?? 'Not provided' },
+        { label: 'Email', value: request.email },
       ],
     },
     {
       title: 'Appointment',
       rows: [
-        { label: 'Location / ZIP', value: request.locationZip },
+        { label: 'ZIP Code', value: request.locationZip },
         { label: 'Preferred Date', value: request.preferredDate },
         { label: 'Preferred Time', value: request.preferredTime },
         { label: 'Preferred Language', value: request.preferredLanguage ?? 'Not specified' },
@@ -130,7 +130,7 @@ ${sectionHtml}
 </html>`;
 
   return {
-    subject: `New Notary Appointment Request — ${sanitizeForSubject(request.fullName)}`,
+    subject: `New Notary Appointment Request — ${sanitizeForSubject(`${request.firstName} ${request.lastName}`)}`,
     html,
     text,
   };

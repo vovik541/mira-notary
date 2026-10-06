@@ -5,7 +5,9 @@ import { AppointmentRequestPayload } from '../../../shared/appointment.model';
 import { AppointmentRequestService, AppointmentSubmitResult } from './appointment-request.service';
 
 const payload: AppointmentRequestPayload = {
-  fullName: 'Jane Doe',
+  firstName: 'Jane',
+  lastName: 'Doe',
+  email: 'jane@example.com',
   phone: '(916) 555-0100',
   service: 'Loan Signing',
   locationZip: '95814',

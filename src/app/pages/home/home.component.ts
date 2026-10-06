@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { BUSINESS, LANGUAGES_LABEL } from '../../core/config/business.config';
 import { FAQ_ITEMS } from '../../data/faq.data';
 import { REVIEWS } from '../../data/reviews.data';
-import { SERVICE_AREA_COMMUNITIES, SERVICE_AREA_SUMMARY } from '../../data/service-area.data';
+import { SERVICE_AREA_CHIPS, SERVICE_AREA_SUMMARY } from '../../data/service-area.data';
 import { SERVICES, WHY_MIRA } from '../../data/services.data';
 import { CredentialListComponent } from '../../shared/components/credential-list/credential-list.component';
 import { CtaBandComponent } from '../../shared/components/cta-band/cta-band.component';
@@ -36,7 +36,7 @@ export class HomeComponent {
   protected readonly whyMira = WHY_MIRA;
   protected readonly reviews = REVIEWS;
   protected readonly areaSummary = SERVICE_AREA_SUMMARY;
-  protected readonly communities = SERVICE_AREA_COMMUNITIES;
+  protected readonly communities = SERVICE_AREA_CHIPS;
   protected readonly faqPreview = FAQ_ITEMS.slice(0, 3);
   protected readonly credentialItems = [
     'NNA Certified Signing Agent',

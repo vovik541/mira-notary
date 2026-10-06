@@ -25,7 +25,9 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
       Professional notarization at your home, office, hospital, or another convenient agreed
       location.
       <div actions class="page-actions">
-        <a class="btn btn--gold" routerLink="/contact">Request a Mobile Notary</a>
+        <a class="btn btn--gold" routerLink="/contact" [queryParams]="{ service: 'general-notary' }"
+          >Request a Mobile Notary</a
+        >
         <a class="btn btn--outline" [href]="phone.href">Call Mira: {{ phone.display }}</a>
       </div>
     </app-page-hero>
@@ -54,7 +56,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
       </div>
     </section>
 
-    <app-cta-band />
+    <app-cta-band service="general-notary" />
   `,
   styles: `
     .intro > * + * {

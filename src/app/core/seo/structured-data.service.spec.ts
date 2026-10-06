@@ -25,6 +25,30 @@ describe('StructuredDataService', () => {
     expect(document.getElementById('ld-test')?.textContent).not.toContain('</script>');
   });
 
+  it('areaServed lists Sacramento County plus only the individually confirmed communities', () => {
+    const areas = service.businessSchema()['areaServed'] as { '@type': string; name: string }[];
+    expect(areas).toEqual([
+      { '@type': 'AdministrativeArea', name: 'Sacramento County' },
+      ...[
+        'Roseville',
+        'Rocklin',
+        'Lincoln',
+        'Loomis',
+        'Granite Bay',
+        'Auburn',
+        'West Sacramento',
+        'Davis',
+        'Woodland',
+        'El Dorado Hills',
+        'Cameron Park',
+      ].map((name) => ({ '@type': 'City', name })),
+    ]);
+    // Only Sacramento County is a whole-county claim.
+    const counties = areas.filter((a) => a['@type'] === 'AdministrativeArea').map((a) => a.name);
+    expect(counties).toEqual(['Sacramento County']);
+    expect(JSON.stringify(areas)).not.toMatch(/Placer County|Yolo County|El Dorado County/);
+  });
+
   it('business schema contains only verified facts', () => {
     const schema = service.businessSchema();
     expect(schema['telephone']).toBe('+19167590383');

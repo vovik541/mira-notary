@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AppointmentServiceSlug } from '../../../../shared/appointment.model';
 import { BUSINESS } from '../../../core/config/business.config';
 import { IconComponent } from '../icon/icon.component';
 
@@ -14,7 +15,9 @@ import { IconComponent } from '../icon/icon.component';
         <h2 id="cta-heading">{{ heading() }}</h2>
         <p class="text">{{ text() }}</p>
         <div class="actions">
-          <a class="btn btn--gold" routerLink="/contact">Book an Appointment</a>
+          <a class="btn btn--gold" routerLink="/contact" [queryParams]="contactQuery()">
+            Book an Appointment
+          </a>
           <a class="btn btn--outline-light" [href]="phone.href">
             <app-icon name="phone" style="--icon-size: 1rem" />
             Call {{ phone.display }}
@@ -66,6 +69,12 @@ import { IconComponent } from '../icon/icon.component';
 })
 export class CtaBandComponent {
   protected readonly phone = BUSINESS.phones.primary;
+  /** Service context to pre-select on the Contact form (omit for the generic CTA). */
+  readonly service = input<AppointmentServiceSlug | null>(null);
+  protected readonly contactQuery = computed(() => {
+    const service = this.service();
+    return service ? { service } : null;
+  });
   readonly eyebrow = input('Need a Notary?');
   readonly heading = input('Mira Comes to You.');
   readonly text = input(

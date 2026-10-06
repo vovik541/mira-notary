@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { BUSINESS } from '../config/business.config';
 import { SITE } from '../config/site.config';
 import { FAQ_ITEMS } from '../../data/faq.data';
-import { SERVICE_AREA_COMMUNITIES, SERVICE_AREA_COUNTIES } from '../../data/service-area.data';
+import { SERVICE_AREA_COMMUNITIES, SERVICE_AREA_GROUPS } from '../../data/service-area.data';
 
 export type JsonLd = Record<string, unknown>;
 
@@ -40,7 +40,12 @@ export class StructuredDataService {
       knowsLanguage: BUSINESS.languages,
       ...(SITE.url ? { url: SITE.url } : {}),
       areaServed: [
-        ...SERVICE_AREA_COUNTIES.map((name) => ({ '@type': 'AdministrativeArea', name })),
+        // Only what is confirmed: countywide areas as AdministrativeArea (Sacramento County),
+        // every other county only through its individually confirmed communities.
+        ...SERVICE_AREA_GROUPS.filter((group) => group.countywide).map((group) => ({
+          '@type': 'AdministrativeArea',
+          name: group.county,
+        })),
         ...SERVICE_AREA_COMMUNITIES.map((name) => ({ '@type': 'City', name })),
       ],
       employee: { '@type': 'Person', name: BUSINESS.ownerName },

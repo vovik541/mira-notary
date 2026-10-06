@@ -162,3 +162,18 @@ textarea {
     transform: rotate(360deg);
   }
 }
+
+.counter {
+  font-size: 0.75rem;
+  text-align: right;
+  color: var(--color-text-muted);
+}
+
+/* Error messages must wrap inside narrow columns (320px) instead of widening the layout. */
+.error {
+  overflow-wrap: anywhere;
+}
+
+.field {
+  min-width: 0;
+}

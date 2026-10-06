@@ -22,7 +22,12 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
       Assistance with California apostille processing for documents intended for use outside the
       United States.
       <div actions class="page-actions">
-        <a class="btn btn--gold" routerLink="/contact">Request Apostille Service</a>
+        <a
+          class="btn btn--gold"
+          routerLink="/contact"
+          [queryParams]="{ service: 'california-apostille' }"
+          >Request Apostille Service</a
+        >
       </div>
     </app-page-hero>
 
@@ -49,12 +54,19 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
         </div>
         <aside class="card panel" aria-label="Rush service and requests">
           <p class="note">{{ note }}</p>
-          <p><a class="btn btn--gold" routerLink="/contact">Request Apostille Service</a></p>
+          <p>
+            <a
+              class="btn btn--gold"
+              routerLink="/contact"
+              [queryParams]="{ service: 'california-apostille' }"
+              >Request Apostille Service</a
+            >
+          </p>
         </aside>
       </div>
     </section>
 
-    <app-cta-band />
+    <app-cta-band service="california-apostille" />
   `,
   styles: `
     .steps {

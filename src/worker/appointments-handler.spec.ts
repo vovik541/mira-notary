@@ -9,7 +9,8 @@ const NOW = new Date('2026-10-05T12:00:00Z');
 const API_KEY = 're_test_super_secret_key';
 
 const body = {
-  fullName: 'Jane Doe',
+  firstName: 'Jane',
+  lastName: 'Doe',
   phone: '(916) 555-0100',
   email: 'jane@example.com',
   service: 'Loan Signing',
@@ -123,15 +124,89 @@ describe('handleAppointmentRequest', () => {
     expect(params.get('remoteip')).toBe('203.0.113.7');
   });
 
-  it('omits Reply-To without a visitor email and never uses it as From', async () => {
+  it('uses the visitor email only as Reply-To, never as From', async () => {
     const { provider, sent } = makeProvider();
-    const { email: _email, ...withoutEmail } = body;
-    await run(withoutEmail, makeEnv(), provider);
-    expect(sent[0].replyTo).toBeUndefined();
+    await run(body, makeEnv(), provider);
+    expect(sent[0].replyTo).toBe('jane@example.com');
+    expect(JSON.stringify(sent[0].from)).not.toContain('jane@example.com');
+  });
 
-    const withEmail = makeProvider();
-    await run(body, makeEnv(), withEmail.provider);
-    expect(JSON.stringify(withEmail.sent[0].from)).not.toContain('jane@example.com');
+  it.each([
+    ['missing firstName', { firstName: undefined }],
+    ['missing lastName', { lastName: undefined }],
+    ['missing phone', { phone: undefined }],
+    ['missing email', { email: undefined }],
+    ['bad email', { email: 'not-an-email' }],
+    ['bad phone', { phone: '123' }],
+    ['malformed ZIP (4 digits)', { locationZip: '9581' }],
+    ['malformed ZIP (6 digits)', { locationZip: '958140' }],
+    ['malformed ZIP (letters)', { locationZip: '9581A' }],
+    ['malformed ZIP (non-numeric)', { locationZip: 'abcde' }],
+    ['ZIP+4', { locationZip: '95814-1234' }],
+    ['padded ZIP', { locationZip: ' 95814 ' }],
+    ['non-string ZIP', { locationZip: 95814 }],
+    ['ZIP outside the confirmed service area', { locationZip: '90210' }],
+    ['legacy fullName only', { firstName: undefined, lastName: undefined, fullName: 'Jane Doe' }],
+  ])(
+    'rejects %s with 400 and never calls the email provider or Turnstile',
+    async (_name, overrides) => {
+      const { provider } = makeProvider();
+      const fetchFn = turnstile(true);
+      const response = await run({ ...body, ...overrides }, makeEnv(), provider, fetchFn);
+      expect(response.status).toBe(400);
+      expect((await errorOf(response)).error).toBe('validation');
+      expect(provider.send).not.toHaveBeenCalled();
+      expect(fetchFn).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    '95602',
+    '95603',
+    '95605',
+    '95616',
+    '95617',
+    '95618',
+    '95648',
+    '95650',
+    '95661',
+    '95677',
+    '95678',
+    '95682',
+    '95691',
+    '95695',
+    '95746',
+    '95747',
+    '95762',
+    '95765',
+    '95776',
+  ])(
+    'runs the full flow (Turnstile, then the email provider) for confirmed nearby ZIP %s',
+    async (zip) => {
+      const { provider, sent } = makeProvider();
+      const fetchFn = turnstile(true);
+      const response = await run({ ...body, locationZip: zip }, makeEnv(), provider, fetchFn);
+      expect(response.status).toBe(200);
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(provider.send).toHaveBeenCalledTimes(1);
+      expect(sent[0].text).toContain(`ZIP Code: ${zip}`);
+    },
+  );
+
+  it('still stops an unconfirmed ZIP (e.g. Auburn PO Box 95604) before Turnstile and email', async () => {
+    const { provider } = makeProvider();
+    const fetchFn = turnstile(true);
+    const response = await run({ ...body, locationZip: '95604' }, makeEnv(), provider, fetchFn);
+    expect(response.status).toBe(400);
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(provider.send).not.toHaveBeenCalled();
+  });
+
+  it('emails the ZIP code exactly as the (valid) 5-digit value was sent', async () => {
+    const { provider, sent } = makeProvider();
+    const response = await run({ ...body, locationZip: '95814' }, makeEnv(), provider);
+    expect(response.status).toBe(200);
+    expect(sent[0].text).toContain('ZIP Code: 95814');
   });
 
   it('ignores any recipient / sender / header fields supplied by the client', async () => {

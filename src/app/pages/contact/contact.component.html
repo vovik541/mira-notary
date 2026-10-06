@@ -24,116 +24,134 @@
       <form class="form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
         <div class="row two">
           <div class="field">
-            <label for="fullName">Full Name <span aria-hidden="true">*</span></label>
+            @let firstNameError = fieldError('firstName');
+            <label for="firstName">First Name <span aria-hidden="true">*</span></label>
             <input
-              id="fullName"
+              id="firstName"
               type="text"
-              autocomplete="name"
-              formControlName="fullName"
+              autocomplete="given-name"
+              formControlName="firstName"
               required
-              [attr.aria-invalid]="showError(form.controls.fullName)"
-              [attr.aria-describedby]="showError(form.controls.fullName) ? 'fullName-error' : null"
+              [attr.maxlength]="limits.firstName"
+              [attr.aria-invalid]="firstNameError ? 'true' : null"
+              [attr.aria-describedby]="firstNameError ? 'firstName-error' : null"
             />
-            @if (showError(form.controls.fullName)) {
-              <p class="error" id="fullName-error" role="alert">Please enter your full name.</p>
+            @if (firstNameError) {
+              <p class="error" id="firstName-error" aria-live="polite">{{ firstNameError }}</p>
             }
           </div>
           <div class="field">
+            @let lastNameError = fieldError('lastName');
+            <label for="lastName">Last Name <span aria-hidden="true">*</span></label>
+            <input
+              id="lastName"
+              type="text"
+              autocomplete="family-name"
+              formControlName="lastName"
+              required
+              [attr.maxlength]="limits.lastName"
+              [attr.aria-invalid]="lastNameError ? 'true' : null"
+              [attr.aria-describedby]="lastNameError ? 'lastName-error' : null"
+            />
+            @if (lastNameError) {
+              <p class="error" id="lastName-error" aria-live="polite">{{ lastNameError }}</p>
+            }
+          </div>
+        </div>
+
+        <div class="row two">
+          <div class="field">
+            @let phoneError = fieldError('phone');
             <label for="phone">Phone Number <span aria-hidden="true">*</span></label>
             <input
               id="phone"
               type="tel"
               autocomplete="tel"
               inputmode="tel"
+              placeholder="(916) 555-0100"
               formControlName="phone"
               required
-              [attr.aria-invalid]="showError(form.controls.phone)"
-              [attr.aria-describedby]="showError(form.controls.phone) ? 'phone-error' : null"
+              [attr.maxlength]="limits.phone"
+              [attr.aria-invalid]="phoneError ? 'true' : null"
+              [attr.aria-describedby]="phoneError ? 'phone-error' : null"
             />
-            @if (showError(form.controls.phone)) {
-              <p class="error" id="phone-error" role="alert">
-                Please enter a valid phone number, including area code.
-              </p>
+            @if (phoneError) {
+              <p class="error" id="phone-error" aria-live="polite">{{ phoneError }}</p>
+            }
+          </div>
+          <div class="field">
+            @let emailError = fieldError('email');
+            <label for="email">Email <span aria-hidden="true">*</span></label>
+            <input
+              id="email"
+              type="email"
+              autocomplete="email"
+              inputmode="email"
+              formControlName="email"
+              required
+              [attr.maxlength]="limits.email"
+              [attr.aria-invalid]="emailError ? 'true' : null"
+              [attr.aria-describedby]="emailError ? 'email-error' : null"
+            />
+            @if (emailError) {
+              <p class="error" id="email-error" aria-live="polite">{{ emailError }}</p>
             }
           </div>
         </div>
 
         <div class="field">
-          <label for="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            autocomplete="email"
-            formControlName="email"
-            [attr.aria-invalid]="showError(form.controls.email)"
-            [attr.aria-describedby]="showError(form.controls.email) ? 'email-error' : null"
-          />
-          @if (showError(form.controls.email)) {
-            <p class="error" id="email-error" role="alert">Please enter a valid email address.</p>
-          }
-        </div>
-
-        <div class="field">
+          @let serviceError = fieldError('service');
           <label for="service">Service Needed <span aria-hidden="true">*</span></label>
           <select
             id="service"
             formControlName="service"
             required
-            [attr.aria-invalid]="showError(form.controls.service)"
-            [attr.aria-describedby]="showError(form.controls.service) ? 'service-error' : null"
+            [attr.aria-invalid]="serviceError ? 'true' : null"
+            [attr.aria-describedby]="serviceError ? 'service-error' : null"
           >
-            <option value="">Select a service…</option>
             @for (option of serviceOptions; track option) {
               <option [value]="option">{{ option }}</option>
             }
           </select>
-          @if (showError(form.controls.service)) {
-            <p class="error" id="service-error" role="alert">Please choose a service.</p>
+          @if (serviceError) {
+            <p class="error" id="service-error" aria-live="polite">{{ serviceError }}</p>
           }
         </div>
 
         <div class="row three">
           <div class="field">
-            <label for="location">Location / ZIP Code <span aria-hidden="true">*</span></label>
+            @let zipError = fieldError('zip');
+            <label for="zip">ZIP Code <span aria-hidden="true">*</span></label>
             <input
-              id="location"
-              type="text"
-              autocomplete="postal-code"
+              id="zip"
+              appZipInput
               placeholder="e.g. 95814"
-              formControlName="location"
+              formControlName="zip"
               required
-              [attr.aria-invalid]="showError(form.controls.location)"
-              [attr.aria-describedby]="showError(form.controls.location) ? 'location-error' : null"
+              [attr.aria-invalid]="zipError ? 'true' : null"
+              [attr.aria-describedby]="zipError ? 'zip-error' : null"
             />
-            @if (showError(form.controls.location)) {
-              <p class="error" id="location-error" role="alert">
-                Please enter the appointment location or ZIP code.
-              </p>
+            @if (zipError) {
+              <p class="error" id="zip-error" aria-live="polite">{{ zipError }}</p>
             }
           </div>
           <div class="field">
+            @let dateError = fieldError('preferredDate');
             <label for="preferredDate">Preferred Date <span aria-hidden="true">*</span></label>
             <input
               id="preferredDate"
               type="date"
               formControlName="preferredDate"
               required
-              [attr.aria-invalid]="showError(form.controls.preferredDate)"
-              [attr.aria-describedby]="
-                showError(form.controls.preferredDate) ? 'preferredDate-error' : null
-              "
+              [attr.aria-invalid]="dateError ? 'true' : null"
+              [attr.aria-describedby]="dateError ? 'preferredDate-error' : null"
             />
-            @if (showError(form.controls.preferredDate)) {
-              <p class="error" id="preferredDate-error" role="alert">
-                @if (form.controls.preferredDate.hasError('pastDate')) {
-                  Please choose today or a future date.
-                } @else {
-                  Please choose a preferred date.
-                }
-              </p>
+            @if (dateError) {
+              <p class="error" id="preferredDate-error" aria-live="polite">{{ dateError }}</p>
             }
           </div>
           <div class="field">
+            @let timeError = fieldError('preferredTime');
             <label for="preferredTime">Preferred Time <span aria-hidden="true">*</span></label>
             <input
               id="preferredTime"
@@ -141,21 +159,19 @@
               placeholder="e.g. Morning, 2:00 PM"
               formControlName="preferredTime"
               required
-              [attr.aria-invalid]="showError(form.controls.preferredTime)"
-              [attr.aria-describedby]="
-                showError(form.controls.preferredTime) ? 'preferredTime-error' : null
-              "
+              [attr.maxlength]="limits.preferredTime"
+              [attr.aria-invalid]="timeError ? 'true' : null"
+              [attr.aria-describedby]="timeError ? 'preferredTime-error' : null"
             />
-            @if (showError(form.controls.preferredTime)) {
-              <p class="error" id="preferredTime-error" role="alert">
-                Please tell us your preferred time.
-              </p>
+            @if (timeError) {
+              <p class="error" id="preferredTime-error" aria-live="polite">{{ timeError }}</p>
             }
           </div>
         </div>
 
         <div class="row two">
           <div class="field">
+            @let signersError = fieldError('signers');
             <label for="signers">Number of Signers</label>
             <input
               id="signers"
@@ -164,14 +180,15 @@
               min="1"
               placeholder="e.g. 1"
               formControlName="signers"
-              [attr.aria-invalid]="showError(form.controls.signers)"
-              [attr.aria-describedby]="showError(form.controls.signers) ? 'signers-error' : null"
+              [attr.aria-invalid]="signersError ? 'true' : null"
+              [attr.aria-describedby]="signersError ? 'signers-error' : null"
             />
-            @if (showError(form.controls.signers)) {
-              <p class="error" id="signers-error" role="alert">Enter a number from 1 to 50.</p>
+            @if (signersError) {
+              <p class="error" id="signers-error" aria-live="polite">{{ signersError }}</p>
             }
           </div>
           <div class="field">
+            @let documentsError = fieldError('documents');
             <label for="documents">Number of Documents Requiring Notarization</label>
             <input
               id="documents"
@@ -180,13 +197,11 @@
               min="1"
               placeholder="e.g. 2"
               formControlName="documents"
-              [attr.aria-invalid]="showError(form.controls.documents)"
-              [attr.aria-describedby]="
-                showError(form.controls.documents) ? 'documents-error' : null
-              "
+              [attr.aria-invalid]="documentsError ? 'true' : null"
+              [attr.aria-describedby]="documentsError ? 'documents-error' : null"
             />
-            @if (showError(form.controls.documents)) {
-              <p class="error" id="documents-error" role="alert">Enter a number from 1 to 500.</p>
+            @if (documentsError) {
+              <p class="error" id="documents-error" aria-live="polite">{{ documentsError }}</p>
             }
           </div>
         </div>
@@ -201,14 +216,22 @@
         </div>
 
         <div class="field">
+          @let detailsError = fieldError('details');
           <label for="details">Additional Details</label>
           <textarea
             id="details"
             rows="4"
-            maxlength="2000"
             placeholder="Provide any details about your documents or location…"
             formControlName="details"
+            [attr.aria-invalid]="detailsError ? 'true' : null"
+            [attr.aria-describedby]="detailsError ? 'details-error' : 'details-count'"
           ></textarea>
+          <p class="counter" id="details-count">
+            {{ detailsLength() }} / {{ limits.additionalDetails }}
+          </p>
+          @if (detailsError) {
+            <p class="error" id="details-error" aria-live="polite">{{ detailsError }}</p>
+          }
         </div>
 
         <div class="check">

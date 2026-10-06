@@ -32,7 +32,14 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
             Tell Mira what document you need translated, the language pair, and any relevant
             deadline. She will confirm availability and provide a quote.
           </p>
-          <p><a class="btn btn--gold" routerLink="/contact">Request a Translation Quote</a></p>
+          <p>
+            <a
+              class="btn btn--gold"
+              routerLink="/contact"
+              [queryParams]="{ service: 'document-translation' }"
+              >Request a Translation Quote</a
+            >
+          </p>
         </div>
       </div>
     </section>
