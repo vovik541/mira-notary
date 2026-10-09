@@ -123,7 +123,7 @@ third-party requests (other than the Turnstile script on `/contact`, see below):
 - **Shared rules:** `src/shared/validation.ts` (names, phone, email, dates), `src/shared/service-area.ts`
   (ZIP data and helpers) and `src/shared/appointment.model.ts` (services, limits, slugs) are imported by
   **both** the Angular form and the Worker, so browser and server cannot drift. The Worker stays
-  authoritative: a forged request with a bad email, a missing name or an unsupported ZIP is rejected
+  authoritative: a forged request with a bad email, a missing name or a malformed ZIP is rejected
   with 400 before Turnstile or Resend are touched.
 - **Required fields:** First Name, Last Name, Phone, Email, Service, ZIP Code, Preferred Date,
   Preferred Time (a structured choice, see below), and the contact-permission checkbox. Optional: number of signers, language,
@@ -169,7 +169,7 @@ third-party requests (other than the Turnstile script on `/contact`, see below):
   `SACRAMENTO_COUNTY_ZIP_CODES` is *reference data*: exactly 131 ZIP codes from the State of
   California county-by-ZIP lookup, never edited to change coverage. `SUPPORTED_SERVICE_ZIP_CODES` is
   Mira's *confirmed online service area* (150 ZIPs today): the union of the Sacramento County set and
-  `ADDITIONAL_CONFIRMED_SERVICE_ZIP_CODES` (19 ZIPs). It decides whether the booking form is accepted
+  `ADDITIONAL_CONFIRMED_SERVICE_ZIP_CODES` (19 ZIPs). It decides whether a ZIP is shown as "confirmed" (the form is accepted either way)
   automatically. The Contact form, the Service Area page and the Worker all use the same `checkZip`.
 - **Confirmed nearby communities:** `CONFIRMED_NEARBY_COMMUNITIES` in `src/shared/service-area.ts`
   (community → county → ZIPs) is the single table behind the extra ZIPs, the "Confirmed Service Area"
@@ -186,10 +186,15 @@ third-party requests (other than the Turnstile script on `/contact`, see below):
   `inputmode="numeric"`, `autocomplete="postal-code"`, `maxlength="5"`, digits only. Typing and pasting
   are sanitized by `sanitizeZipInput` (`95a81-4` → `95814`, `123456` → `12345`); sanitizing is separate
   from validating. Errors appear after blur or a submit/Check attempt, never on page load.
-- **Unconfirmed ZIPs:** a valid ZIP outside the supported set blocks online submission, but is never
-  described as a place Mira does not serve: "This ZIP code is outside Mira's currently confirmed
-  online service area. Contact Mira to ask about availability in other nearby communities." (No
-  counties are named in this fallback on purpose.)
+- **ZIPs outside the standard service area (non-blocking):** the form checks that a ZIP is *well-formed*
+  (exactly five digits) — it does not verify that the ZIP exists in USPS data (no external ZIP API). A
+  well-formed ZIP outside the standard (confirmed) set is NOT an error: a short, amber note under the
+  date row says "Outside standard service area — you can still submit. Mira will confirm travel
+  availability and fee." (`role="note"`, no `aria-invalid`, no red border) and Submit stays available.
+  The Worker accepts it too, and the email says "Service Area: Outside standard service area — confirm
+  travel availability and fee" (or "Standard service area"). Only a malformed ZIP is a red error that
+  blocks submission, on both sides. The Service Area page's checker still reports confirmed / not
+  confirmed from the same `checkZip`.
 - **Prefill:** `/contact?service=<slug>&zip=<zip>`. Slugs: `general-notary`, `loan-signing`,
   `california-apostille`, `document-translation`, `living-trust-estate`, `power-of-attorney`. Strict
   whitelist; anything unknown or missing selects General Notary. A ZIP from the URL is only used if

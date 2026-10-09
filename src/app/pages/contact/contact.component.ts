@@ -49,7 +49,7 @@ import {
   normalizePhotoType,
   validatePhotos,
 } from '../../../shared/photos';
-import { normalizeZipCode } from '../../../shared/service-area';
+import { checkZip, normalizeZipCode } from '../../../shared/service-area';
 import {
   MAX_SIGNERS,
   SIGNERS_INPUT_MAX_LENGTH,
@@ -73,7 +73,7 @@ import {
   preferredDateValidator,
   requiredTrimmed,
   signersValidator,
-  zipValidator,
+  zipFormatValidator,
 } from '../../shared/validators/form-validators';
 
 export const SERVICE_OPTIONS = APPOINTMENT_SERVICES;
@@ -191,8 +191,9 @@ const GLOBAL_MESSAGES = {
   invalid: 'Please check the form and try again.',
 } as const;
 
-export const UNCONFIRMED_ZIP_MESSAGE =
-  "This ZIP code is outside Mira's currently confirmed online service area. Contact Mira to ask about availability in other nearby communities.";
+/** Non-blocking note for a well-formed ZIP outside the confirmed area (not an error). */
+export const OUTSIDE_AREA_NOTE =
+  'Outside standard service area — you can still submit. Mira will confirm travel availability and fee.';
 
 @Component({
   selector: 'app-contact',
@@ -273,7 +274,7 @@ export class ContactComponent {
     }),
     zip: new FormControl('', {
       nonNullable: true,
-      validators: [requiredTrimmed, zipValidator],
+      validators: [requiredTrimmed, zipFormatValidator],
     }),
     preferredDate: new FormControl('', {
       nonNullable: true,
@@ -289,6 +290,18 @@ export class ContactComponent {
     }),
     consent: new FormControl(false, { nonNullable: true, validators: [Validators.requiredTrue] }),
   });
+
+  private readonly zipValue = toSignal(this.form.controls.zip.valueChanges, {
+    initialValue: this.form.controls.zip.value,
+  });
+  /**
+   * A well-formed ZIP outside the confirmed area: informational only. It never makes the control
+   * invalid and never blocks submission (the Worker accepts it and flags it for Mira).
+   */
+  protected readonly outsideArea = computed(
+    () => checkZip(this.zipValue()).status === 'unconfirmed',
+  );
+  protected readonly outsideAreaNote = OUTSIDE_AREA_NOTE;
 
   private readonly dateValue = toSignal(this.form.controls.preferredDate.valueChanges, {
     initialValue: '',
@@ -430,11 +443,7 @@ export class ContactComponent {
       case 'service':
         return 'Choose a service.';
       case 'zip':
-        return has('required')
-          ? 'ZIP code is required.'
-          : has('zipUnconfirmed')
-            ? UNCONFIRMED_ZIP_MESSAGE
-            : 'Enter a valid 5-digit ZIP code.';
+        return has('required') ? 'ZIP code is required.' : 'Enter a valid 5-digit ZIP code.';
       case 'preferredDate':
         return has('required')
           ? 'Choose a preferred date.'

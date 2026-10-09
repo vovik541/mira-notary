@@ -267,9 +267,11 @@ describe('validateAppointmentRequest', () => {
     });
 
     it.each(['90210', '10001', '95604'])(
-      'rejects a well-formed ZIP that is not in the confirmed service area: %s',
+      'accepts a well-formed ZIP outside the confirmed service area (not an error): %s',
       (zip) => {
-        expect(invalidFields({ locationZip: zip })).toContain('locationZip');
+        const result = run({ locationZip: zip });
+        expect(result.ok).toBe(true);
+        expect(result.ok && result.value.locationZip).toBe(zip);
       },
     );
 

@@ -140,7 +140,7 @@
               formControlName="zip"
               required
               [attr.aria-invalid]="zipError ? 'true' : null"
-              [attr.aria-describedby]="zipError ? 'zip-error' : null"
+              [attr.aria-describedby]="zipError ? 'zip-error' : outsideArea() ? 'zip-note' : null"
             />
             @if (zipError) {
               <p class="error" id="zip-error" aria-live="polite">{{ zipError }}</p>
@@ -181,6 +181,10 @@
             }
           </div>
         </div>
+
+        @if (outsideArea()) {
+          <p class="zip-note" id="zip-note" role="note">{{ outsideAreaNote }}</p>
+        }
 
         @if (timePreference() === 'specific') {
           <div class="field specific-time">

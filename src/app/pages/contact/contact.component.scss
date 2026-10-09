@@ -285,6 +285,18 @@ textarea {
   }
 }
 
+/* Informational (not an error): soft amber, compact, lighter than a validation error. */
+.zip-note {
+  margin: -0.5rem 0 0;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: #5c4400;
+  background: #fff8e1;
+  border-left: 3px solid var(--color-gold);
+  border-radius: var(--radius-md);
+}
+
 .submit-help {
   margin: 0;
   font-size: 0.8125rem;

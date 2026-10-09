@@ -9,7 +9,7 @@ import { of } from 'rxjs';
 import { todayInBusinessZone, isSunday } from '../../../shared/appointment-timing';
 import { TurnstileComponent } from '../../shared/components/turnstile/turnstile.component';
 import { preferredDateValidator } from '../../shared/validators/form-validators';
-import { ContactComponent, UNCONFIRMED_ZIP_MESSAGE } from './contact.component';
+import { ContactComponent, OUTSIDE_AREA_NOTE } from './contact.component';
 
 function setup(query: Record<string, string> = {}): ComponentFixture<ContactComponent> {
   TestBed.configureTestingModule({
@@ -606,34 +606,90 @@ describe('ContactComponent', () => {
       expect(errorText(fixture, 'zip')).toBeNull();
     });
 
-    it('treats 90210 as a valid format but an unconfirmed service area', () => {
+    const submitButton = (fixture: ComponentFixture<ContactComponent>): HTMLButtonElement =>
+      fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const note = (fixture: ComponentFixture<ContactComponent>): HTMLElement | null =>
+      fixture.nativeElement.querySelector('#zip-note') as HTMLElement | null;
+
+    it('treats 90210 as valid: a short non-error note, never a validation error', () => {
       const fixture = setup();
       enter(fixture, 'zip', '90210');
-      const message = errorText(fixture, 'zip');
-      expect(message).toBe(UNCONFIRMED_ZIP_MESSAGE);
-      expect(message).toBe(
-        "This ZIP code is outside Mira's currently confirmed online service area. Contact Mira to ask about availability in other nearby communities.",
+      expect(errorText(fixture, 'zip')).toBeNull();
+      expect(fixture.componentInstance['form'].controls.zip.valid).toBe(true);
+      expect(field(fixture, 'zip').getAttribute('aria-invalid')).toBeNull();
+      expect(field(fixture, 'zip').getAttribute('aria-describedby')).toBe('zip-note');
+
+      const element = note(fixture) as HTMLElement;
+      expect(element.textContent?.trim()).toBe(
+        'Outside standard service area — you can still submit. Mira will confirm travel availability and fee.',
       );
-      expect(message).not.toMatch(/does not serve/i);
-      // Future-proof fallback: no county is named (so no whole-county availability is implied).
-      expect(message).not.toMatch(/Placer|Yolo|El Dorado|County/);
-      expect(fixture.componentInstance['form'].controls.zip.hasError('zipFormat')).toBe(false);
+      expect(OUTSIDE_AREA_NOTE).toBe(element.textContent?.trim());
+      // not error semantics or styling
+      expect(element.classList.contains('error')).toBe(false);
+      expect(element.getAttribute('role')).toBe('note');
+      expect(element.getAttribute('aria-live')).toBeNull();
+      expect(fixture.nativeElement.querySelector('#zip-error')).toBeNull();
+      expect(fixture.nativeElement.querySelectorAll('.error')).toHaveLength(0);
+      // short: one compact sentence pair, no county or "does not serve" wording
+      expect(element.textContent).not.toMatch(/does not serve|County|Placer|Yolo|El Dorado/i);
+      expect(element.textContent?.length).toBeLessThan(110);
     });
 
-    it('does not submit while the ZIP is malformed or unconfirmed', () => {
+    it('shows the note as soon as five digits are typed, without leaving the field', () => {
+      const fixture = setup();
+      set(fixture, 'zip', '90210');
+      fixture.detectChanges();
+      expect(note(fixture)).not.toBeNull();
+      expect(errorText(fixture, 'zip')).toBeNull();
+    });
+
+    it('shows no note for a confirmed ZIP, an empty ZIP or a malformed ZIP', () => {
+      const fixture = setup();
+      expect(note(fixture)).toBeNull();
+      enter(fixture, 'zip', '95814');
+      expect(note(fixture)).toBeNull();
+      enter(fixture, 'zip', '9581');
+      expect(note(fixture)).toBeNull();
+      enter(fixture, 'zip', '');
+      expect(note(fixture)).toBeNull();
+    });
+
+    it('invalid ZIP format stays a real red error and blocks submission', () => {
       const fixture = setup();
       const http = TestBed.inject(HttpTestingController);
       fillValid(fixture);
       giveToken(fixture, 't');
+      expect(submitButton(fixture).disabled).toBe(false);
 
-      set(fixture, 'zip', '9581');
-      submit(fixture);
+      enter(fixture, 'zip', '9581');
       expect(errorText(fixture, 'zip')).toBe('Enter a valid 5-digit ZIP code.');
-
-      set(fixture, 'zip', '90210');
+      expect(fixture.nativeElement.querySelector('#zip-error')?.classList.contains('error')).toBe(
+        true,
+      );
+      expect(field(fixture, 'zip').getAttribute('aria-invalid')).toBe('true');
+      expect(field(fixture, 'zip').getAttribute('aria-describedby')).toBe('zip-error');
+      expect(note(fixture)).toBeNull();
+      expect(submitButton(fixture).disabled).toBe(true);
       submit(fixture);
-      expect(errorText(fixture, 'zip')).toBe(UNCONFIRMED_ZIP_MESSAGE);
       http.expectNone('/api/appointments');
+    });
+
+    it('allows submission for a valid ZIP outside the confirmed area', () => {
+      const fixture = setup();
+      const http = TestBed.inject(HttpTestingController);
+      fillValid(fixture);
+      set(fixture, 'zip', '90210');
+      fixture.detectChanges();
+      giveToken(fixture, 't');
+      expect(note(fixture)).not.toBeNull();
+      expect(submitButton(fixture).disabled).toBe(false);
+      expect(submitButton(fixture).getAttribute('aria-describedby')).toBeNull();
+
+      submit(fixture);
+      const request = http.expectOne('/api/appointments');
+      const payload = JSON.parse((request.request.body as FormData).get('payload') as string);
+      expect(payload.locationZip).toBe('90210');
+      request.flush({ success: true });
     });
   });
 
@@ -786,10 +842,12 @@ describe('ContactComponent', () => {
       expect(fixture.componentInstance['form'].controls.zip.valid).toBe(false);
     });
 
-    it('does not accept an unsupported ZIP from the URL', () => {
+    it('prefills an outside-area ZIP from the URL with the note, not an error', () => {
       const fixture = setup({ zip: '90210' });
-      expect(errorText(fixture, 'zip')).toBe(UNCONFIRMED_ZIP_MESSAGE);
-      expect(fixture.componentInstance['form'].controls.zip.valid).toBe(false);
+      expect(field(fixture, 'zip').value).toBe('90210');
+      expect(errorText(fixture, 'zip')).toBeNull();
+      expect(fixture.nativeElement.querySelector('#zip-note')).not.toBeNull();
+      expect(fixture.componentInstance['form'].controls.zip.valid).toBe(true);
     });
 
     it('ignores a malformed ZIP in the URL', () => {

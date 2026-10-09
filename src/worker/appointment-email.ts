@@ -1,4 +1,5 @@
 import { AppointmentRequestPayload } from '../shared/appointment.model';
+import { checkZip } from '../shared/service-area';
 import { DateTiming, classifyDate, describeTimePreference } from '../shared/appointment-timing';
 
 export interface EmailContent {
@@ -72,6 +73,13 @@ function sectionsFor(
       title: 'Appointment',
       rows: [
         { label: 'ZIP Code', value: request.locationZip },
+        {
+          label: 'Service Area',
+          value:
+            checkZip(request.locationZip).status === 'supported'
+              ? 'Standard service area'
+              : 'Outside standard service area — confirm travel availability and fee',
+        },
         {
           label: 'Preferred Date',
           value: timing.sunday ? `${request.preferredDate} (Sunday)` : request.preferredDate,

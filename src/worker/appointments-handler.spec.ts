@@ -253,7 +253,6 @@ describe('handleAppointmentRequest', () => {
     ['ZIP+4', { locationZip: '95814-1234' }],
     ['padded ZIP', { locationZip: ' 95814 ' }],
     ['non-string ZIP', { locationZip: 95814 }],
-    ['ZIP outside the confirmed service area', { locationZip: '90210' }],
     ['legacy fullName only', { firstName: undefined, lastName: undefined, fullName: 'Jane Doe' }],
   ])(
     'rejects %s with 400 and never calls the email provider or Turnstile',
@@ -301,13 +300,26 @@ describe('handleAppointmentRequest', () => {
     },
   );
 
-  it('still stops an unconfirmed ZIP (e.g. Auburn PO Box 95604) before Turnstile and email', async () => {
-    const { provider } = makeProvider();
-    const fetchFn = turnstile(true);
-    const response = await run({ ...body, locationZip: '95604' }, makeEnv(), provider, fetchFn);
-    expect(response.status).toBe(400);
-    expect(fetchFn).not.toHaveBeenCalled();
-    expect(provider.send).not.toHaveBeenCalled();
+  it.each(['90210', '95604'])(
+    'accepts the well-formed outside-area ZIP %s: one email, flagged for Mira',
+    async (zip) => {
+      const { provider, sent } = makeProvider();
+      const fetchFn = turnstile(true);
+      const response = await run({ ...body, locationZip: zip }, makeEnv(), provider, fetchFn);
+      expect(response.status).toBe(200);
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(provider.send).toHaveBeenCalledTimes(1);
+      expect(sent[0].text).toContain(`ZIP Code: ${zip}`);
+      expect(sent[0].text).toContain(
+        'Service Area: Outside standard service area — confirm travel availability and fee',
+      );
+    },
+  );
+
+  it('marks a confirmed-area ZIP as such in the email', async () => {
+    const { provider, sent } = makeProvider();
+    await run(body, makeEnv(), provider);
+    expect(sent[0].text).toContain('Service Area: Standard service area');
   });
 
   it('emails the ZIP code exactly as the (valid) 5-digit value was sent', async () => {
@@ -672,9 +684,9 @@ describe('handleAppointmentRequest', () => {
         expect(provider.send).not.toHaveBeenCalled();
       });
 
-      it('still requires a valid ZIP in the service area', async () => {
+      it('still requires a well-formed 5-digit ZIP', async () => {
         const { provider } = makeProvider();
-        const response = await run({ ...today, locationZip: '90210' }, makeEnv(), provider);
+        const response = await run({ ...today, locationZip: '9021' }, makeEnv(), provider);
         expect(response.status).toBe(400);
         expect(provider.send).not.toHaveBeenCalled();
       });

@@ -100,14 +100,15 @@ export function validateAppointmentRequest(
     invalid.push('service');
   }
 
-  // ZIP: exactly five digits (taken as-is: no trimming, no ZIP+4 normalization), THEN membership
-  // in the shared confirmed service-area set.
+  // ZIP: exactly five digits (taken as-is: no trimming, no ZIP+4 normalization). A well-formed ZIP
+  // outside the confirmed service area is NOT an error: the request is accepted and the email
+  // tells Mira to confirm availability and the travel fee.
   let locationZip: string | undefined;
   const check = checkZip(typeof body['locationZip'] === 'string' ? body['locationZip'] : null);
-  if (check.status === 'supported') {
-    locationZip = check.zip;
-  } else {
+  if (check.status === 'invalid') {
     invalid.push('locationZip');
+  } else {
+    locationZip = check.zip;
   }
 
   const preferredDate = line('preferredDate', 10, true);

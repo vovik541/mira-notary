@@ -1,5 +1,5 @@
 import { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
-import { checkZip, normalizeZipCode } from '../../../shared/service-area';
+import { normalizeZipCode } from '../../../shared/service-area';
 import {
   MAX_FUTURE_DAYS,
   isMeaningfulName,
@@ -37,21 +37,6 @@ export const zipFormatValidator: ValidatorFn = (
   isEmpty(control.value) || normalizeZipCode(String(control.value)) !== null
     ? null
     : { zipFormat: true };
-
-/**
- * Format first, then service area: `zipFormat` = not exactly five digits; `zipUnconfirmed` = a
- * well-formed ZIP that is not in the confirmed online service area.
- */
-export const zipValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-  if (isEmpty(control.value)) {
-    return null;
-  }
-  const result = checkZip(String(control.value));
-  if (result.status === 'invalid') {
-    return { zipFormat: true };
-  }
-  return result.status === 'unconfirmed' ? { zipUnconfirmed: true } : null;
-};
 
 const localToday = (now: Date): string =>
   [
