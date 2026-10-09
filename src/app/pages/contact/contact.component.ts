@@ -53,7 +53,6 @@ import { normalizeZipCode } from '../../../shared/service-area';
 import {
   MAX_SIGNERS,
   SIGNERS_INPUT_MAX_LENGTH,
-  formatPhone,
   normalizePhone,
   parseSigners,
 } from '../../../shared/validation';
@@ -64,6 +63,7 @@ import { ContactCardComponent } from '../../shared/components/contact-card/conta
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { DigitsInputDirective } from '../../shared/directives/digits-input.directive';
 import { NameInputDirective } from '../../shared/directives/name-input.directive';
+import { PhoneInputDirective } from '../../shared/directives/phone-input.directive';
 import { ZipInputDirective } from '../../shared/directives/zip-input.directive';
 import { TurnstileComponent } from '../../shared/components/turnstile/turnstile.component';
 import {
@@ -203,6 +203,7 @@ export const UNCONFIRMED_ZIP_MESSAGE =
     TurnstileComponent,
     ZipInputDirective,
     NameInputDirective,
+    PhoneInputDirective,
     DigitsInputDirective,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -618,7 +619,8 @@ export class ContactComponent {
     return {
       firstName: value.firstName.trim(),
       lastName: value.lastName.trim(),
-      phone: formatPhone(normalizePhone(value.phone) ?? value.phone.trim()),
+      // The control holds the display text "(279) 555-0100"; the request carries the ten digits.
+      phone: normalizePhone(value.phone) ?? value.phone.trim(),
       email: value.email.trim(),
       service: value.service as AppointmentService,
       locationZip: normalizeZipCode(value.zip) ?? value.zip.trim(),

@@ -137,10 +137,19 @@ third-party requests (other than the Turnstile script on `/contact`, see below):
   the Worker re-validates with the same shared pattern and rejects (never trims or truncates).
 - **Email:** required, ≤ 120 characters (`maxlength="120"`, client and Worker), no spaces, same
   `local@domain.tld` pattern on both sides. An over-long email is rejected, not truncated.
-- **Phone:** a U.S. number **without** country code — exactly ten digits after removing spaces, "(", ")"
-  and "-". `+1 …`, `1…` (11 digits), letters and other symbols are invalid; nothing is silently stripped.
-  Plain `type="tel"`, no live mask, raw length ≤ 14 (the length of `(279) 555-0100`). The Worker stores
-  and emails it normalized as `(279) 555-0100`.
+- **Phone:** a U.S. number **without** country code — exactly ten digits. The field is live-formatted by
+  the `appPhoneInput` directive (`src/app/shared/directives/phone-input.directive.ts`, pure helpers in
+  `src/shared/phone.ts`; adapted from the personal-page phone input: strip to digits, cap, reformat,
+  restore the caret from the digits before it): typing `2795550100` shows `(2` → `(27` → `(279)` →
+  `(279) 5` … `(279) 555-0100`. An 11th digit is refused (nothing grows or shifts); a paste is merged at
+  the selection and formatted, but a paste that contains `+` or would exceed ten digits is rejected whole
+  — never truncated into another number. Backspace/Delete over punctuation removes the neighbouring digit
+  and the caret is preserved, so editing in the middle works. `maxlength="14"` only matches the longest
+  display; the digit cap is the formatter's. Representations: the **Angular control holds the display
+  text** (`(279) 555-0100`, so the validator and the red "Enter a valid 10-digit phone number." message
+  see exactly what the user sees); the **request carries the ten digits** (`2795550100`); the Worker
+  re-validates (ten digits, only spaces ( ) - tolerated, no `+`, no 11 digits) and the email shows it as
+  `(279) 555-0100`.
 - **Number of Signers:** optional; a numeric **text** field (`appDigitsInput`: digits only, 3 characters,
   no spinner), valid when 1–50. Leading zeros are normalized (`007` → 7); the client sends an integer and
   the Worker accepts only an integer from 1 to 50.

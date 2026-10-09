@@ -79,13 +79,10 @@
             <label for="phone">Phone Number <span aria-hidden="true">*</span></label>
             <input
               id="phone"
-              type="tel"
-              autocomplete="tel"
-              inputmode="tel"
+              appPhoneInput
               placeholder="(279) 555-0100"
               formControlName="phone"
               required
-              [attr.maxlength]="limits.phone"
               [attr.aria-invalid]="phoneError ? 'true' : null"
               [attr.aria-describedby]="phoneError ? 'phone-error' : null"
             />

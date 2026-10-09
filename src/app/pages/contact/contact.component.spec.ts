@@ -338,38 +338,94 @@ describe('ContactComponent', () => {
   });
 
   describe('phone and email', () => {
+    const typePhone = (
+      fixture: ComponentFixture<ContactComponent>,
+      text: string,
+    ): HTMLInputElement => {
+      const input = field(fixture, 'phone');
+      input.dispatchEvent(new Event('beforeinput'));
+      input.value = text;
+      input.dispatchEvent(new Event('input'));
+      input.dispatchEvent(new Event('blur'));
+      fixture.detectChanges();
+      return input;
+    };
+
+    it('formats live and is valid once ten digits are entered (no stale error)', () => {
+      const fixture = setup();
+      const input = field(fixture, 'phone');
+      input.dispatchEvent(new Event('blur'));
+      fixture.detectChanges();
+      expect(errorText(fixture, 'phone')).toBe('Enter your phone number.');
+
+      typePhone(fixture, '279555010');
+      expect(input.value).toBe('(279) 555-010');
+      expect(errorText(fixture, 'phone')).toBe('Enter a valid 10-digit phone number.');
+
+      typePhone(fixture, '(279) 555-0100');
+      expect(input.value).toBe('(279) 555-0100');
+      expect(errorText(fixture, 'phone')).toBeNull();
+      expect(input.getAttribute('aria-invalid')).toBeNull();
+    });
+
     it.each(['2795550100', '279-555-0100', '(279) 555-0100', '279 555 0100'])(
-      'accepts phone %s',
+      'accepts phone %s and shows it as (279) 555-0100',
       (phone) => {
         const fixture = setup();
-        enter(fixture, 'phone', phone);
+        const input = typePhone(fixture, phone);
+        expect(input.value).toBe('(279) 555-0100');
         expect(errorText(fixture, 'phone')).toBeNull();
       },
     );
 
-    it.each([
-      '+1 279 555 0100',
-      '12795550100',
-      '279555010',
-      '27955501000',
-      'abcdefghij',
-      '279.555.0100',
-    ])('rejects phone %s', (phone) => {
+    it.each(['+1 279 555 0100', '12795550100', '27955501000'])(
+      'refuses %s: it is never turned into another number',
+      (phone) => {
+        const fixture = setup();
+        const input = typePhone(fixture, phone);
+        expect(input.value).toBe('');
+        expect(errorText(fixture, 'phone')).toBe('Enter your phone number.');
+      },
+    );
+
+    it('is incomplete (invalid) with fewer than ten digits', () => {
       const fixture = setup();
-      enter(fixture, 'phone', phone);
+      typePhone(fixture, '279555010');
       expect(errorText(fixture, 'phone')).toBe('Enter a valid 10-digit phone number.');
     });
 
-    it('is a plain tel input: no live mask, 14-character physical limit', () => {
+    it('still rejects forged values the directive never saw (+1, 11 digits, letters)', () => {
+      const fixture = setup();
+      const form = (fixture.componentInstance as unknown as { form: FormGroup }).form;
+      for (const forged of ['+1 279 555 0100', '12795550100', 'abcdefghij', '279.555.0100']) {
+        form.controls['phone'].setValue(forged);
+        form.controls['phone'].markAsTouched();
+        fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+        fixture.detectChanges();
+        expect(errorText(fixture, 'phone')).toBe('Enter a valid 10-digit phone number.');
+      }
+    });
+
+    it('is a live-formatted tel input with national autofill and a 14-character display limit', () => {
       const fixture = setup();
       const input = field(fixture, 'phone');
       expect(input.type).toBe('tel');
+      expect(input.getAttribute('inputmode')).toBe('tel');
+      expect(input.getAttribute('autocomplete')).toBe('tel-national');
       expect(input.getAttribute('maxlength')).toBe('14');
       expect(input.getAttribute('placeholder')).toBe('(279) 555-0100');
-      input.value = '2795550100';
-      input.dispatchEvent(new Event('input'));
-      fixture.detectChanges();
-      expect(input.value).toBe('2795550100'); // never reformatted while typing
+    });
+
+    it('sends the ten digits, not the display text', () => {
+      const fixture = setup();
+      const http = TestBed.inject(HttpTestingController);
+      fillValid(fixture);
+      giveToken(fixture, 't');
+      submit(fixture);
+      const request = http.expectOne('/api/appointments');
+      const payload = JSON.parse((request.request.body as FormData).get('payload') as string);
+      expect(payload.phone).toBe('9165550100');
+      request.flush({ success: true });
     });
 
     it('uses the right input types and hints', () => {
@@ -783,7 +839,7 @@ describe('ContactComponent', () => {
       expect(JSON.parse(form.get('payload') as string)).toEqual({
         firstName: 'Jane',
         lastName: 'Doe',
-        phone: '(916) 555-0100',
+        phone: '9165550100',
         email: 'jane@example.com',
         service: 'Loan Signing',
         locationZip: '95814',
