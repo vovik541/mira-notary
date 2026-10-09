@@ -5,8 +5,12 @@ import {
   AppointmentRequestPayload,
 } from '../shared/appointment.model';
 import { PHOTO_ERROR_MESSAGES } from '../shared/photos';
-import { buildAppointmentEmail, sanitizeForSubject } from './appointment-email';
-import { isUrgentRequest, validateAppointmentRequest } from './appointment-validation';
+import {
+  buildAppointmentEmail,
+  needsPhoneConfirmation,
+  sanitizeForSubject,
+} from './appointment-email';
+import { validateAppointmentRequest } from './appointment-validation';
 import { EmailAttachment, EmailAddress, EmailProvider, OutboundEmail } from './email-provider';
 import { WorkerEnv } from './env';
 import { parseAppointmentForm, readBodyWithLimit } from './multipart';
@@ -19,7 +23,6 @@ const FALLBACK = `Please call or text Mira at ${PHONE}.`;
 
 const MESSAGES: Record<AppointmentErrorCode, string> = {
   validation: 'Please check the form and try again.',
-  urgent: `Same-day and urgent appointments must be booked by phone. Call Mira directly at ${PHONE}.`,
   verification: "We couldn't verify the submission. Please try again.",
   rate_limited: 'Too many requests. Please wait a moment and try again.',
   delivery: `We couldn't send your request right now. ${FALLBACK}`,
@@ -28,7 +31,6 @@ const MESSAGES: Record<AppointmentErrorCode, string> = {
 
 const STATUS: Record<AppointmentErrorCode, number> = {
   validation: 400,
-  urgent: 422,
   verification: 403,
   rate_limited: 429,
   delivery: 502,
@@ -68,9 +70,9 @@ const TOO_LARGE_MESSAGE = `${PHOTO_ERROR_MESSAGES.too_large} ${PHOTO_ERROR_MESSA
 /**
  * Handles `POST /api/appointments` (multipart: JSON `payload` + up to five `photos`).
  *
- * Order: method/origin/type → rate limit → bounded body read → parse → urgent rule → field
- * validation (incl. consent and ZIP/service area) → photo validation → Turnstile → photo encoding
- * → one email. Every rejection happens before Resend. Nothing is persisted.
+ * Order: method/origin/type → rate limit → bounded body read → parse → field validation (incl.
+ * consent, ZIP/service area, structured time; same-day and Sunday dates are forced urgent) → photo
+ * validation → Turnstile → photo encoding → one email. Every rejection happens before Resend. Nothing is persisted.
  *
  * Logs contain only categories, field names, counts, sizes, provider status, the provider
  * message id and the Cloudflare ray id — never visitor data, file names, file contents or secrets.
@@ -130,13 +132,6 @@ export async function handleAppointmentRequest(
     return failure('validation');
   }
 
-  // Same-day / urgent requests are phone-only. Checked first, before any other work, so a forged
-  // request can never reach Turnstile or the email provider.
-  if (isUrgentRequest(form.payload)) {
-    console.warn(`appointment: urgent_rejected${tag}`);
-    return failure('urgent');
-  }
-
   const validation = validateAppointmentRequest(form.payload, deps.now?.());
   if (!validation.ok) {
     console.warn(
@@ -193,7 +188,10 @@ export async function handleAppointmentRequest(
   }
 
   console.info(`appointment: email_sent id=${result.id} ${stats}${tag}`);
-  return json({ success: true }, 200);
+  return json(
+    { success: true, phoneConfirmationRequired: needsPhoneConfirmation(appointment) },
+    200,
+  );
 }
 
 type EmailConfig =

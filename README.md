@@ -126,7 +126,7 @@ third-party requests (other than the Turnstile script on `/contact`, see below):
   authoritative: a forged request with a bad email, a missing name or an unsupported ZIP is rejected
   with 400 before Turnstile or Resend are touched.
 - **Required fields:** First Name, Last Name, Phone, Email, Service, ZIP Code, Preferred Date,
-  Preferred Time, and the contact-permission checkbox. Optional: number of signers, language,
+  Preferred Time (a structured choice, see below), and the contact-permission checkbox. Optional: number of signers, language,
   details (≤ 3000 chars), photos. (The old "Number of Documents" field was removed everywhere.)
 - **Names:** trimmed, ≤ 80 chars, must contain at least one letter in any script (O'Connor,
   Anne-Marie, José, Мирослава are fine). **Phone:** 10–15 digits, any normal formatting. **Email:**
@@ -172,7 +172,7 @@ The contact form posts to **`POST /api/appointments`**, handled by the same Work
 site (no separate backend, no database, nothing stored):
 
 ```
-Angular form → multipart POST /api/appointments → basic validation → urgent rule → consent →
+Angular form → multipart POST /api/appointments → basic validation → consent → structured time →
 ZIP / service → photo validation → Turnstile siteverify → Resend API (+ attachments) → inbox
 ```
 
@@ -200,12 +200,34 @@ ZIP / service → photo validation → Turnstile siteverify → Resend API (+ at
 - **Browser:** thumbnails use object URLs, which are revoked on remove, after success and on
   destroy. HEIC/HEIF files are accepted but show a placeholder (most browsers cannot render them).
 
-### Same-day / urgent requests are phone-only
+### Preferred time (structured)
 
-The "Same-Day / Urgent Request" checkbox does not submit anything: while it is checked the form shows
-"Same-day and urgent appointments must be booked by phone." with a **Call Mira Now** button
-(`tel:+12795298754`), submission is disabled and all entered data is kept; unchecking restores it.
-The Worker enforces this too: `urgent: true` is rejected with 422 before Turnstile or Resend.
+There is no free-text time any more. The form has a `<select>` — Morning, Afternoon, Evening,
+Flexible / Any Time, Specific Time — and, only for Specific Time, an `<input type="time">`. The contract
+is `timePreference` (`morning | afternoon | evening | flexible | specific`) plus `specificTime`
+(`HH:mm` or `null`). The Worker enforces it (`src/shared/appointment-timing.ts`): unknown preferences are
+rejected, `specific` requires a valid `HH:mm`, and any other preference must carry no time (an injected
+one is rejected, never silently kept). A legacy `preferredTime` string is not accepted. The email shows
+readable labels ("Flexible / Any Time", "Specific Time — 2:30 PM").
+
+### Same-day, urgent and Sunday requests (submit, then phone)
+
+These requests **can be submitted** so Mira can review them and any photos, but submitting never confirms
+an appointment: the visitor must call Mira (**(279) 529-8754**, `tel:+12795298754`) to confirm.
+
+- **Client:** choosing today's date (Mira's time zone, America/Los_Angeles) or a Sunday automatically
+  ticks and locks "Same-Day / Urgent Request"; a manual tick on any other date is kept separately, so
+  moving the date back only clears the automatic part. An informational (not error) callout explains
+  "Same-day request" / "Sunday availability" / "Urgent request" (one combined callout when today is a
+  Sunday) with a **Call Mira** button. The submit button is disabled only by invalid/missing required
+  fields, consent or a missing specific time — never by urgency. After sending, the success state says
+  "Request sent … does not confirm a same-day or urgent appointment" with **Call Mira Now**.
+- **Worker:** `urgent: true` is valid. The Worker does not trust the browser: a preferred date that is
+  today in America/Los_Angeles, or a Sunday, is forced to urgent even if the client sent `urgent: false`.
+  Consent, ZIP, photos, Turnstile and rate limiting all still apply. Exactly one email is sent, with an
+  `URGENT — ` subject prefix, a banner, "Same-Day / Urgent: Yes" and "Phone Confirmation Required: Yes"
+  (also for Sundays, whose date is shown as "… (Sunday)"). The success response carries
+  `phoneConfirmationRequired`.
 
 ### Contact consent
 
@@ -221,7 +243,7 @@ Worker messages, email). The former **(916) 759-0383** is shown only as "Seconda
 page direct-contact panel (`BUSINESS.phones.secondary`). `phone-numbers.spec.ts` fails if the old number
 appears anywhere else in `src/`.
 
-- Validation (order: urgent → fields incl. consent and ZIP → photos → Turnstile) is repeated server-side (`src/worker/appointment-validation.ts`): allowed services and
+- Validation (order: fields incl. consent, structured time and ZIP, with same-day/Sunday forced urgent → photos → Turnstile) is repeated server-side (`src/worker/appointment-validation.ts`): allowed services and
   languages, required fields, lengths, email format, ISO date, header-injection characters.
 - Turnstile is mandatory and verified server-side with the Worker secret (fail closed).
 - Email goes through a provider boundary (`src/worker/email-provider.ts`). The only adapter is

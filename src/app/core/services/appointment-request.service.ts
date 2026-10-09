@@ -12,7 +12,7 @@ import {
 import { BUSINESS } from '../config/business.config';
 
 export type AppointmentSubmitResult =
-  | { readonly ok: true }
+  | { readonly ok: true; readonly phoneConfirmationRequired: boolean }
   | { readonly ok: false; readonly code: AppointmentErrorCode; readonly message: string };
 
 const NETWORK_FAILURE_MESSAGE = `We couldn't send your request right now. Please call or text Mira at ${BUSINESS.phones.primary.display}.`;
@@ -39,7 +39,12 @@ export class AppointmentRequestService {
       body.append(APPOINTMENT_PHOTOS_FIELD, photo, photo.name);
     }
     return this.http.post<AppointmentApiResponse>(APPOINTMENT_ENDPOINT, body).pipe(
-      map((): AppointmentSubmitResult => ({ ok: true })),
+      map((response): AppointmentSubmitResult => ({
+        ok: true,
+        phoneConfirmationRequired:
+          payload.urgent ||
+          (response.success === true && response.phoneConfirmationRequired === true),
+      })),
       catchError((error: unknown) => of(this.toFailure(error))),
     );
   }

@@ -1,3 +1,5 @@
+import { TimePreference } from './appointment-timing';
+
 /**
  * Appointment request contract shared by the Angular form and the Cloudflare Worker API.
  * Pure TypeScript only (no Angular, no Workers types) so both bundles can import it.
@@ -49,7 +51,6 @@ export const APPOINTMENT_LIMITS = {
   phone: 40,
   email: 254,
   zip: 5,
-  preferredTime: 100,
   additionalDetails: 3000,
   turnstileToken: 2048,
   maxSigners: 50,
@@ -66,13 +67,16 @@ export interface AppointmentRequestPayload {
   locationZip: string;
   /** ISO calendar date, `YYYY-MM-DD`. */
   preferredDate: string;
-  preferredTime: string;
+  /** Structured choice; replaces the former free-text time. */
+  timePreference: TimePreference;
+  /** `HH:mm`; required when `timePreference` is `specific`, otherwise `null`. */
+  specificTime: string | null;
   numberOfSigners?: number;
   preferredLanguage?: AppointmentLanguage;
   additionalDetails?: string;
   /**
-   * Same-day / urgent requests are phone-only: the API rejects `true`. The field is still sent
-   * (always `false`) so the email can state it explicitly.
+   * Same-day / urgent request. Submitting it does not confirm anything: Mira confirms by phone.
+   * The Worker also forces it to `true` for a same-day or Sunday date, whatever the client sent.
    */
   urgent: boolean;
   /** Must be exactly boolean `true` (permission to contact the visitor about this request). */
@@ -82,10 +86,12 @@ export interface AppointmentRequestPayload {
 
 /** Machine-readable failure reasons returned by the API (never internal details). */
 export type AppointmentErrorCode =
-  'validation' | 'urgent' | 'verification' | 'rate_limited' | 'delivery' | 'unavailable';
+  'validation' | 'verification' | 'rate_limited' | 'delivery' | 'unavailable';
 
 export interface AppointmentSuccessResponse {
   success: true;
+  /** Same-day, urgent or Sunday: the visitor must still phone Mira to confirm availability. */
+  phoneConfirmationRequired?: boolean;
 }
 
 export interface AppointmentErrorResponse {

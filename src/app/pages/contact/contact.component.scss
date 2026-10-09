@@ -274,6 +274,19 @@ textarea {
   }
 }
 
+.specific-time {
+  max-width: 14rem;
+}
+
+.consent-help {
+  margin: 0;
+  padding-left: 2rem;
+
+  &.error {
+    font-weight: 500;
+  }
+}
+
 .consent .check {
   align-items: flex-start;
 

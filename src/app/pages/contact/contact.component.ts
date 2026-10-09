@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  computed,
   inject,
   isDevMode,
   signal,
@@ -13,9 +14,12 @@ import {
   FormControl,
   FormGroup,
   ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute, ParamMap } from '@angular/router';
+import { map } from 'rxjs';
 import {
   APPOINTMENT_LANGUAGES,
   APPOINTMENT_LIMITS,
@@ -26,6 +30,14 @@ import {
   DEFAULT_APPOINTMENT_SERVICE,
   serviceFromSlug,
 } from '../../../shared/appointment.model';
+import {
+  TIME_PREFERENCES,
+  TIME_PREFERENCE_LABELS,
+  TimePreference,
+  classifyDate,
+  isTimePreference,
+  isValidTimeOfDay,
+} from '../../../shared/appointment-timing';
 import {
   PHOTO_ACCEPT,
   PHOTO_ERROR_MESSAGES,
@@ -64,7 +76,8 @@ export type FieldKey =
   | 'service'
   | 'zip'
   | 'preferredDate'
-  | 'preferredTime'
+  | 'timePreference'
+  | 'specificTime'
   | 'signers'
   | 'language'
   | 'details'
@@ -79,7 +92,8 @@ const FIELD_ORDER: readonly FieldKey[] = [
   'service',
   'zip',
   'preferredDate',
-  'preferredTime',
+  'timePreference',
+  'specificTime',
   'signers',
   'language',
   'details',
@@ -94,7 +108,39 @@ export interface PhotoItem {
 }
 
 export const CONSENT_ERROR_MESSAGE = 'Please confirm that Mira may contact you about this request.';
-export const URGENT_PHONE_MESSAGE = 'Same-day and urgent appointments must be booked by phone.';
+export const CONSENT_HELP_MESSAGE = 'Required so Mira can respond to your appointment request.';
+
+export interface PhoneNotice {
+  readonly title: string;
+  readonly body: string;
+}
+
+const PHONE_TEXT = BUSINESS.phones.primary.display;
+
+/** Informational (not error) notices: submission is allowed, availability is confirmed by phone. */
+export const SAME_DAY_NOTICE: PhoneNotice = {
+  title: 'Same-day request',
+  body: `You can submit this form so Mira can review your request, but submitting it does not confirm an appointment. Please call Mira at ${PHONE_TEXT} after submitting to confirm whether she is available today.`,
+};
+export const SAME_DAY_SUNDAY_NOTICE: PhoneNotice = {
+  title: 'Same-day request',
+  body: `You can submit this form so Mira can review your request, but submitting it does not confirm an appointment. Sunday appointments may be available and must be confirmed by phone. Please call Mira at ${PHONE_TEXT} after submitting to confirm whether she is available today.`,
+};
+export const SUNDAY_NOTICE: PhoneNotice = {
+  title: 'Sunday availability',
+  body: `Sunday appointments may be available by request and must be confirmed by phone. You may submit your request for Mira to review, then call ${PHONE_TEXT} to confirm availability.`,
+};
+export const URGENT_NOTICE: PhoneNotice = {
+  title: 'Urgent request',
+  body: `You can submit the request so Mira can review the details, but urgent availability is not guaranteed. Please call Mira at ${PHONE_TEXT} to confirm availability.`,
+};
+
+const specificTimeValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+  const preference = control.parent?.get('timePreference')?.value;
+  return preference === 'specific' && !isValidTimeOfDay(control.value)
+    ? { specificTime: true }
+    : null;
+};
 
 const GLOBAL_MESSAGES = {
   verify: 'Please complete the verification check before sending.',
@@ -128,8 +174,11 @@ export class ContactComponent {
   protected readonly limits = APPOINTMENT_LIMITS;
   protected readonly photoAccept = PHOTO_ACCEPT;
   protected readonly photoLimits = PHOTO_LIMITS;
-  protected readonly urgentMessage = URGENT_PHONE_MESSAGE;
-  protected readonly consentErrorMessage = CONSENT_ERROR_MESSAGE;
+  protected readonly consentHelp = CONSENT_HELP_MESSAGE;
+  protected readonly timeOptions = TIME_PREFERENCES.map((value) => ({
+    value,
+    label: TIME_PREFERENCE_LABELS[value],
+  }));
 
   protected readonly photos = signal<readonly PhotoItem[]>([]);
   protected readonly photoError = signal<string | null>(null);
@@ -181,10 +230,8 @@ export class ContactComponent {
       nonNullable: true,
       validators: [requiredTrimmed, preferredDateValidator],
     }),
-    preferredTime: new FormControl('', {
-      nonNullable: true,
-      validators: [requiredTrimmed, Validators.maxLength(APPOINTMENT_LIMITS.preferredTime)],
-    }),
+    timePreference: new FormControl('', { nonNullable: true, validators: [requiredTrimmed] }),
+    specificTime: new FormControl('', { nonNullable: true, validators: [specificTimeValidator] }),
     signers: new FormControl<number | null>(null, [
       wholeNumberValidator,
       Validators.min(1),
@@ -195,17 +242,54 @@ export class ContactComponent {
       nonNullable: true,
       validators: [Validators.maxLength(APPOINTMENT_LIMITS.additionalDetails)],
     }),
-    urgent: new FormControl(false, { nonNullable: true }),
     consent: new FormControl(false, { nonNullable: true, validators: [Validators.requiredTrue] }),
   });
 
-  /** Same-day / urgent requests are phone-only: while checked, the form cannot be submitted. */
-  protected readonly urgent = toSignal(this.form.controls.urgent.valueChanges, {
-    initialValue: false,
+  private readonly dateValue = toSignal(this.form.controls.preferredDate.valueChanges, {
+    initialValue: '',
   });
+  protected readonly timePreference = toSignal(this.form.controls.timePreference.valueChanges, {
+    initialValue: '',
+  });
+  /** Mirrors the form validity (consent and a required specific time included). */
+  protected readonly formValid = toSignal(
+    this.form.statusChanges.pipe(map((status) => status === 'VALID')),
+    { initialValue: this.form.valid },
+  );
+
+  /**
+   * "Urgent" = the visitor ticked it (`manualUrgent`) OR the date forces it (today in Mira's time
+   * zone, or a Sunday). The two are kept apart, so changing the date back to a normal day clears
+   * only the automatic part and never a deliberate choice. Urgent never blocks submission.
+   */
+  protected readonly manualUrgent = signal(false);
+  protected readonly timing = computed(() => classifyDate(this.dateValue()));
+  protected readonly urgentLocked = computed(() => this.timing().phoneConfirmation);
+  protected readonly urgentChecked = computed(() => this.manualUrgent() || this.urgentLocked());
+  protected readonly notice = computed<PhoneNotice | null>(() => {
+    const timing = this.timing();
+    if (timing.sameDay) {
+      return timing.sunday ? SAME_DAY_SUNDAY_NOTICE : SAME_DAY_NOTICE;
+    }
+    if (timing.sunday) {
+      return SUNDAY_NOTICE;
+    }
+    return this.manualUrgent() ? URGENT_NOTICE : null;
+  });
+  /** Set after a successful send of a request Mira still has to confirm by phone. */
+  protected readonly phoneConfirmationPending = signal(false);
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.revokeAllPreviews());
+    this.form.controls.timePreference.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((preference) => {
+        const specific = this.form.controls.specificTime;
+        if (preference !== 'specific' && specific.value !== '') {
+          specific.setValue('');
+        }
+        specific.updateValueAndValidity();
+      });
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed())
       .subscribe((params) => this.applyQuery(params));
@@ -275,10 +359,10 @@ export class ContactComponent {
             : has('tooFar')
               ? 'Choose a date within the next two years.'
               : 'Enter a valid date.';
-      case 'preferredTime':
-        return has('required')
-          ? 'Enter your preferred time.'
-          : `Preferred time must be ${APPOINTMENT_LIMITS.preferredTime} characters or fewer.`;
+      case 'timePreference':
+        return 'Choose a preferred time.';
+      case 'specificTime':
+        return 'Enter a specific time.';
       case 'signers':
         return `Enter a whole number from 1 to ${APPOINTMENT_LIMITS.maxSigners}.`;
       case 'consent':
@@ -370,8 +454,17 @@ export class ContactComponent {
     }
   }
 
+  protected onUrgentChange(event: Event): void {
+    const box = event.target as HTMLInputElement;
+    if (this.urgentLocked()) {
+      box.checked = true; // same-day / Sunday dates are always urgent
+      return;
+    }
+    this.manualUrgent.set(box.checked);
+  }
+
   protected submit(): void {
-    if (this.state() === 'sending' || this.urgent()) {
+    if (this.state() === 'sending') {
       return;
     }
     this.errorMessage.set(null);
@@ -398,9 +491,10 @@ export class ContactComponent {
         this.form.reset({
           service: DEFAULT_APPOINTMENT_SERVICE,
           language: 'English',
-          urgent: false,
           consent: false,
         });
+        this.manualUrgent.set(false);
+        this.phoneConfirmationPending.set(result.phoneConfirmationRequired);
         this.clearPhotos();
         this.turnstileToken = null;
         this.state.set('success');
@@ -415,6 +509,7 @@ export class ContactComponent {
   }
 
   protected newRequest(): void {
+    this.phoneConfirmationPending.set(false);
     this.errorMessage.set(null);
     this.state.set('idle');
   }
@@ -422,6 +517,9 @@ export class ContactComponent {
   private buildPayload(turnstileToken: string): AppointmentRequestPayload {
     const value = this.form.getRawValue();
     const details = value.details.trim();
+    const timePreference = (
+      isTimePreference(value.timePreference) ? value.timePreference : 'flexible'
+    ) as TimePreference;
     const language = (APPOINTMENT_LANGUAGES as readonly string[]).includes(value.language)
       ? (value.language as AppointmentLanguage)
       : undefined;
@@ -434,11 +532,12 @@ export class ContactComponent {
       service: value.service as AppointmentService,
       locationZip: normalizeZipCode(value.zip) ?? value.zip.trim(),
       preferredDate: value.preferredDate,
-      preferredTime: value.preferredTime.trim(),
+      timePreference,
+      specificTime: timePreference === 'specific' ? value.specificTime : null,
       ...(value.signers ? { numberOfSigners: value.signers } : {}),
       ...(language ? { preferredLanguage: language } : {}),
       ...(details ? { additionalDetails: details } : {}),
-      urgent: false,
+      urgent: this.manualUrgent() || classifyDate(value.preferredDate).phoneConfirmation,
       contactConsent: true,
       turnstileToken,
     };

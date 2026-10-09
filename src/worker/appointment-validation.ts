@@ -6,6 +6,12 @@ import {
   AppointmentRequestPayload,
   AppointmentService,
 } from '../shared/appointment.model';
+import {
+  TimePreference,
+  classifyDate,
+  isTimePreference,
+  isValidTimeOfDay,
+} from '../shared/appointment-timing';
 import { checkZip } from '../shared/service-area';
 import {
   BAD_TEXT_CHARS,
@@ -96,7 +102,26 @@ export function validateAppointmentRequest(
     invalid.push('preferredDate');
   }
 
-  const preferredTime = line('preferredTime', APPOINTMENT_LIMITS.preferredTime, true);
+  // Structured time only: a known preference, plus an HH:mm value exactly when "specific".
+  const rawPreference = body['timePreference'];
+  let timePreference: TimePreference | undefined;
+  if (isTimePreference(rawPreference)) {
+    timePreference = rawPreference;
+  } else {
+    invalid.push('timePreference');
+  }
+  const rawSpecific = body['specificTime'];
+  let specificTime: string | null = null;
+  if (timePreference === 'specific') {
+    if (isValidTimeOfDay(rawSpecific)) {
+      specificTime = rawSpecific;
+    } else {
+      invalid.push('specificTime');
+    }
+  } else if (rawSpecific !== undefined && rawSpecific !== null) {
+    // Only "specific" may carry a time: injected values are rejected, never silently kept.
+    invalid.push('specificTime');
+  }
 
   const numberOfSigners = optionalCount(
     body,
@@ -127,10 +152,10 @@ export function validateAppointmentRequest(
     }
   }
 
-  // Same-day / urgent requests are phone-only: only an explicit boolean `false` (or absence) is
-  // accepted here. (The handler also short-circuits on `true` before any other work.)
+  // Urgent is a plain boolean (or absent). Same-day and Sunday dates are forced urgent below:
+  // the server never trusts the browser to flag them.
   const urgentRaw = body['urgent'];
-  if (urgentRaw !== undefined && urgentRaw !== false) {
+  if (urgentRaw !== undefined && typeof urgentRaw !== 'boolean') {
     invalid.push('urgent');
   }
 
@@ -155,11 +180,12 @@ export function validateAppointmentRequest(
       service: service as AppointmentService,
       locationZip: locationZip as string,
       preferredDate: preferredDate as string,
-      preferredTime: preferredTime as string,
+      timePreference: timePreference as TimePreference,
+      specificTime,
       ...(numberOfSigners !== undefined ? { numberOfSigners } : {}),
       ...(preferredLanguage ? { preferredLanguage: preferredLanguage as AppointmentLanguage } : {}),
       ...(additionalDetails ? { additionalDetails } : {}),
-      urgent: false,
+      urgent: urgentRaw === true || classifyDate(preferredDate as string, now).phoneConfirmation,
       contactConsent: true,
       turnstileToken: turnstileToken as string,
     },
@@ -181,14 +207,4 @@ function optionalCount(
     return undefined;
   }
   return raw;
-}
-
-/** `true` when the (untrusted) body asks for a same-day / urgent appointment. */
-export function isUrgentRequest(input: unknown): boolean {
-  return (
-    typeof input === 'object' &&
-    input !== null &&
-    !Array.isArray(input) &&
-    (input as Record<string, unknown>)['urgent'] === true
-  );
 }

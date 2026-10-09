@@ -1,4 +1,4 @@
-import { isUrgentRequest, validateAppointmentRequest } from './appointment-validation';
+import { validateAppointmentRequest } from './appointment-validation';
 
 const NOW = new Date('2026-10-05T12:00:00Z');
 
@@ -10,7 +10,8 @@ const valid = {
   service: 'Loan Signing',
   locationZip: '95814',
   preferredDate: '2026-10-20',
-  preferredTime: 'Morning',
+  timePreference: 'morning',
+  specificTime: null,
   contactConsent: true,
   turnstileToken: 'token',
 };
@@ -52,7 +53,7 @@ describe('validateAppointmentRequest', () => {
     'service',
     'locationZip',
     'preferredDate',
-    'preferredTime',
+    'timePreference',
     'turnstileToken',
   ])('rejects a missing required field: %s', (field) => {
     const body: Record<string, unknown> = { ...valid };
@@ -123,13 +124,11 @@ describe('validateAppointmentRequest', () => {
     );
     expect(invalidFields({ lastName: 'Doe\nX: 1' })).toContain('lastName');
     expect(invalidFields({ email: 'jane@example.com\nBcc: x@y.com' })).toContain('email');
-    expect(invalidFields({ preferredTime: 'Morning\nX-Header: 1' })).toContain('preferredTime');
   });
 
   it('rejects over-long values', () => {
     expect(invalidFields({ phone: '1'.repeat(41) })).toContain('phone');
     expect(invalidFields({ locationZip: '9'.repeat(11) })).toContain('locationZip');
-    expect(invalidFields({ preferredTime: 'a'.repeat(101) })).toContain('preferredTime');
     expect(invalidFields({ additionalDetails: 'a'.repeat(3001) })).toContain('additionalDetails');
     expect(invalidFields({ email: `${'a'.repeat(250)}@x.com` })).toContain('email');
   });
@@ -257,23 +256,131 @@ describe('validateAppointmentRequest', () => {
     },
   );
 
-  it('rejects urgent: true (phone-only) and accepts only false/absent', () => {
-    expect(invalidFields({ urgent: true })).toContain('urgent');
-    expect(invalidFields({ urgent: 'true' })).toContain('urgent');
-    expect(run({ urgent: false }).ok).toBe(true);
-    expect(run().ok).toBe(true);
+  describe('preferred time', () => {
+    it.each(['morning', 'afternoon', 'evening', 'flexible'])(
+      'accepts %s without a time',
+      (pref) => {
+        const result = run({ timePreference: pref, specificTime: null });
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+          expect(result.value.timePreference).toBe(pref);
+          expect(result.value.specificTime).toBeNull();
+        }
+      },
+    );
+
+    it('treats an absent specificTime like null for non-specific choices', () => {
+      const body: Record<string, unknown> = { ...valid, timePreference: 'evening' };
+      delete body['specificTime'];
+      expect(validateAppointmentRequest(body, NOW).ok).toBe(true);
+    });
+
+    it.each(['00:00', '09:30', '14:30', '23:59'])('accepts a specific time of %s', (time) => {
+      const result = run({ timePreference: 'specific', specificTime: time });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.specificTime).toBe(time);
+      }
+    });
+
+    it.each([
+      undefined,
+      null,
+      '',
+      '2ish',
+      'after lunch',
+      '24:00',
+      '12:60',
+      '9:30',
+      '14:30:00',
+      1430,
+    ])('rejects a specific preference with specificTime %j', (time) => {
+      expect(invalidFields({ timePreference: 'specific', specificTime: time })).toContain(
+        'specificTime',
+      );
+    });
+
+    it.each(['whenever', 'Morning', 'specific ', '', null, 5, undefined, ['morning']])(
+      'rejects unknown time preference %j',
+      (pref) => {
+        expect(invalidFields({ timePreference: pref })).toContain('timePreference');
+      },
+    );
+
+    it.each(['14:30', 'whenever', '', 0])(
+      'rejects injected specificTime %j on a non-specific preference',
+      (time) => {
+        const fields = invalidFields({ timePreference: 'morning', specificTime: time });
+        // null/undefined are fine; anything else is rejected, never silently kept
+        expect(fields).toContain('specificTime');
+      },
+    );
+
+    it('no longer accepts a free-text preferredTime', () => {
+      const body: Record<string, unknown> = { ...valid, preferredTime: 'after lunch maybe 2' };
+      delete body['timePreference'];
+      delete body['specificTime'];
+      expect(validateAppointmentRequest(body, NOW).ok).toBe(false);
+
+      const result = run({ preferredTime: 'whenever' });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).not.toHaveProperty('preferredTime');
+      }
+    });
   });
 
-  it('isUrgentRequest detects only a literal true', () => {
-    expect(isUrgentRequest({ urgent: true })).toBe(true);
-    expect(isUrgentRequest({ urgent: 'true' })).toBe(false);
-    expect(isUrgentRequest({ urgent: false })).toBe(false);
-    expect(isUrgentRequest(null)).toBe(false);
-    expect(isUrgentRequest([{ urgent: true }])).toBe(false);
+  describe('urgent / same-day / Sunday', () => {
+    // NOW = Mon 2026-10-05 12:00Z (05:00 in Los Angeles). 2026-10-11 is a Sunday.
+    it('accepts urgent true and false on a normal future weekday', () => {
+      const urgent = run({ urgent: true });
+      expect(urgent.ok).toBe(true);
+      if (urgent.ok) {
+        expect(urgent.value.urgent).toBe(true);
+      }
+      const normal = run({ urgent: false });
+      expect(normal.ok && normal.value.urgent).toBe(false);
+      expect(run().ok && (run() as { value: { urgent: boolean } }).value.urgent).toBe(false);
+    });
+
+    it('forces urgent when the date is today in Los Angeles, even if the client sent false', () => {
+      const result = run({ preferredDate: '2026-10-05', urgent: false });
+      expect(result.ok && result.value.urgent).toBe(true);
+    });
+
+    it('uses the Los Angeles calendar day, not UTC', () => {
+      // 2026-10-06T05:00Z is still Mon 2026-10-05 22:00 in Los Angeles
+      const lateEvening = new Date('2026-10-06T05:00:00Z');
+      const today = validateAppointmentRequest(
+        { ...valid, preferredDate: '2026-10-05', urgent: false },
+        lateEvening,
+      );
+      expect(today.ok && today.value.urgent).toBe(true);
+      const tomorrow = validateAppointmentRequest(
+        { ...valid, preferredDate: '2026-10-06', urgent: false },
+        lateEvening,
+      );
+      expect(tomorrow.ok && tomorrow.value.urgent).toBe(false);
+    });
+
+    it('forces urgent for a Sunday date, without rejecting it', () => {
+      const result = run({ preferredDate: '2026-10-11', urgent: false });
+      expect(result.ok).toBe(true);
+      expect(result.ok && result.value.urgent).toBe(true);
+    });
+
+    it('rejects a non-boolean urgent', () => {
+      expect(invalidFields({ urgent: 'true' })).toContain('urgent');
+      expect(invalidFields({ urgent: 1 })).toContain('urgent');
+      expect(invalidFields({ urgent: 'yes' })).toContain('urgent');
+    });
+
+    it('still requires consent for urgent requests', () => {
+      expect(invalidFields({ urgent: true, contactConsent: false })).toContain('contactConsent');
+    });
   });
 
-  it('rejects non-boolean urgent and non-object bodies', () => {
-    expect(invalidFields({ urgent: 'yes' })).toContain('urgent');
+  it('rejects non-object bodies', () => {
     expect(validateAppointmentRequest(null, NOW).ok).toBe(false);
     expect(validateAppointmentRequest([valid], NOW).ok).toBe(false);
     expect(validateAppointmentRequest('string', NOW).ok).toBe(false);

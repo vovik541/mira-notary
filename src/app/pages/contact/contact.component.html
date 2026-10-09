@@ -8,17 +8,34 @@
 
     @if (state() === 'success') {
       <div class="notice card" role="status">
-        <h2>Thank you. Your request has been sent to Mira.</h2>
-        <p>Mira will contact you to confirm availability and final pricing.</p>
-        <div class="page-actions">
-          <a class="btn btn--outline" [href]="phone.href">
-            <app-icon name="phone" style="--icon-size: 1rem" />
-            Call {{ phone.display }}
-          </a>
-          <button class="btn btn--outline" type="button" (click)="newRequest()">
-            Send Another Request
-          </button>
-        </div>
+        @if (phoneConfirmationPending()) {
+          <h2>Request sent</h2>
+          <p>
+            Mira has received your request, but this does not confirm a same-day or urgent
+            appointment. Please call {{ phone.display }} now to confirm availability.
+          </p>
+          <div class="page-actions">
+            <a class="btn btn--gold" [href]="phone.href">
+              <app-icon name="phone" style="--icon-size: 1rem" />
+              Call Mira Now
+            </a>
+            <button class="btn btn--outline" type="button" (click)="newRequest()">
+              Send Another Request
+            </button>
+          </div>
+        } @else {
+          <h2>Thank you. Your request has been sent to Mira.</h2>
+          <p>Mira will contact you to confirm availability and final pricing.</p>
+          <div class="page-actions">
+            <a class="btn btn--outline" [href]="phone.href">
+              <app-icon name="phone" style="--icon-size: 1rem" />
+              Call {{ phone.display }}
+            </a>
+            <button class="btn btn--outline" type="button" (click)="newRequest()">
+              Send Another Request
+            </button>
+          </div>
+        }
       </div>
     } @else {
       <form class="form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
@@ -68,7 +85,7 @@
               type="tel"
               autocomplete="tel"
               inputmode="tel"
-              placeholder="(916) 555-0100"
+              placeholder="(279) 555-0100"
               formControlName="phone"
               required
               [attr.maxlength]="limits.phone"
@@ -151,23 +168,66 @@
             }
           </div>
           <div class="field">
-            @let timeError = fieldError('preferredTime');
-            <label for="preferredTime">Preferred Time <span aria-hidden="true">*</span></label>
-            <input
-              id="preferredTime"
-              type="text"
-              placeholder="e.g. Morning, 2:00 PM"
-              formControlName="preferredTime"
+            @let timeError = fieldError('timePreference');
+            <label for="timePreference">Preferred Time <span aria-hidden="true">*</span></label>
+            <select
+              id="timePreference"
+              formControlName="timePreference"
               required
-              [attr.maxlength]="limits.preferredTime"
               [attr.aria-invalid]="timeError ? 'true' : null"
-              [attr.aria-describedby]="timeError ? 'preferredTime-error' : null"
-            />
+              [attr.aria-describedby]="timeError ? 'timePreference-error' : null"
+            >
+              <option value="">Select a time</option>
+              @for (option of timeOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
             @if (timeError) {
-              <p class="error" id="preferredTime-error" aria-live="polite">{{ timeError }}</p>
+              <p class="error" id="timePreference-error" aria-live="polite">{{ timeError }}</p>
             }
           </div>
         </div>
+
+        @if (timePreference() === 'specific') {
+          <div class="field specific-time">
+            @let specificError = fieldError('specificTime');
+            <label for="specificTime">Specific Time <span aria-hidden="true">*</span></label>
+            <input
+              id="specificTime"
+              type="time"
+              formControlName="specificTime"
+              aria-required="true"
+              [attr.aria-invalid]="specificError ? 'true' : null"
+              [attr.aria-describedby]="specificError ? 'specificTime-error' : null"
+            />
+            @if (specificError) {
+              <p class="error" id="specificTime-error" aria-live="polite">{{ specificError }}</p>
+            }
+          </div>
+        }
+
+        <div class="check">
+          <input
+            id="urgent"
+            type="checkbox"
+            [checked]="urgentChecked()"
+            [disabled]="urgentLocked()"
+            [attr.aria-describedby]="notice() ? 'phone-notice' : null"
+            (change)="onUrgentChange($event)"
+          />
+          <label for="urgent">Same-Day / Urgent Request</label>
+        </div>
+
+        @if (notice(); as phoneNotice) {
+          <div class="urgent-callout" role="status" id="phone-notice">
+            <p class="urgent-title">{{ phoneNotice.title }}</p>
+            <p>{{ phoneNotice.body }}</p>
+            <a class="btn btn--gold" [href]="phone.href">
+              <app-icon name="phone" style="--icon-size: 1rem" />
+              Call Mira
+            </a>
+          </div>
+        }
 
         <div class="row two">
           <div class="field">
@@ -224,8 +284,8 @@
         <div class="field photos">
           <label for="photos">Photos (optional)</label>
           <p class="help" id="photos-help">
-            Attach up to {{ photoLimits.maxFiles }} photos of the document or location if helpful.
-            JPEG, PNG, WebP or HEIC, up to 5 MB each and 15 MB in total.
+            Add up to {{ photoLimits.maxFiles }} photos that may help Mira understand your request.
+            JPEG, PNG, WebP or HEIC, up to 5 MB each and 15 MB total.
           </p>
           <input
             id="photos"
@@ -266,25 +326,6 @@
           }
         </div>
 
-        <div class="check">
-          <input id="urgent" type="checkbox" formControlName="urgent" />
-          <label for="urgent">Same-Day / Urgent Request</label>
-        </div>
-
-        @if (urgent()) {
-          <div class="urgent-callout" role="status" id="urgent-callout">
-            <p class="urgent-title">{{ urgentMessage }}</p>
-            <p>
-              Please call Mira at <strong>{{ phone.display }}</strong
-              >. Your form details are kept if you change your mind.
-            </p>
-            <a class="btn btn--gold" [href]="phone.href">
-              <app-icon name="phone" style="--icon-size: 1rem" />
-              Call Mira Now
-            </a>
-          </div>
-        }
-
         <div class="field consent">
           @let consentError = fieldError('consent');
           <div class="check">
@@ -293,17 +334,18 @@
               type="checkbox"
               formControlName="consent"
               required
+              aria-describedby="consent-help"
               [attr.aria-invalid]="consentError ? 'true' : null"
-              [attr.aria-describedby]="consentError ? 'consent-error' : null"
+              (change)="form.controls.consent.markAsTouched()"
             />
             <label for="consent"
               >I agree that Mira may contact me by phone, text message, or email regarding this
               request. <span aria-hidden="true">*</span></label
             >
           </div>
-          @if (consentError) {
-            <p class="error" id="consent-error" aria-live="polite">{{ consentError }}</p>
-          }
+          <p class="help consent-help" id="consent-help" [class.error]="consentError">
+            {{ consentError ?? consentHelp }}
+          </p>
         </div>
 
         <details class="privacy">
@@ -334,7 +376,7 @@
         <button
           class="btn btn--gold btn--block"
           type="submit"
-          [disabled]="state() === 'sending' || urgent()"
+          [disabled]="state() === 'sending' || !formValid()"
           [attr.aria-busy]="state() === 'sending'"
         >
           @if (state() === 'sending') {

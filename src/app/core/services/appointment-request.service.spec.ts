@@ -12,7 +12,8 @@ const payload: AppointmentRequestPayload = {
   service: 'Loan Signing',
   locationZip: '95814',
   preferredDate: '2027-03-15',
-  preferredTime: 'Morning',
+  timePreference: 'morning',
+  specificTime: null,
   urgent: false,
   contactConsent: true,
   turnstileToken: 'token',
@@ -47,7 +48,22 @@ describe('AppointmentRequestService', () => {
     expect(JSON.parse(body.get('payload') as string)).toEqual(payload);
     expect(body.getAll('photos')).toHaveLength(0);
     request.flush({ success: true });
-    expect(holder.result).toEqual({ ok: true });
+    expect(holder.result).toEqual({ ok: true, phoneConfirmationRequired: false });
+  });
+
+  it('reports whether phone confirmation is still required after a successful send', () => {
+    const normal = submit();
+    http.expectOne('/api/appointments').flush({ success: true });
+    expect(normal.result).toEqual({ ok: true, phoneConfirmationRequired: false });
+
+    const serverFlag = submit();
+    http.expectOne('/api/appointments').flush({ success: true, phoneConfirmationRequired: true });
+    expect(serverFlag.result).toEqual({ ok: true, phoneConfirmationRequired: true });
+
+    const holder: { result: AppointmentSubmitResult | undefined } = { result: undefined };
+    service.submit({ ...payload, urgent: true }).subscribe((r) => (holder.result = r));
+    http.expectOne('/api/appointments').flush({ success: true });
+    expect(holder.result).toEqual({ ok: true, phoneConfirmationRequired: true });
   });
 
   it('appends each photo as a "photos" file part', () => {
