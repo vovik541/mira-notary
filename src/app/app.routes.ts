@@ -111,7 +111,7 @@ export const routes: Routes = [
     data: seo({
       title: 'Notary FAQ | Mira Derkach Mobile Notary',
       description:
-        'Answers about what to bring, travel, same-day appointments, languages, pricing, apostille and translation requests.',
+        'Answers about what to bring, travel, same-day appointments, service hours, pricing, payment, languages and apostille.',
     }),
   },
   {

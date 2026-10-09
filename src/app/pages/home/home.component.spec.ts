@@ -126,3 +126,29 @@ describe('HomeComponent reviews carousel', () => {
     expect(carousel.querySelector('button[aria-label="Next review"]')).toBeTruthy();
   });
 });
+
+describe('HomeComponent FAQ preview', () => {
+  it('shows exactly the three shared questions in order and links to all FAQs', () => {
+    TestBed.configureTestingModule({ imports: [HomeComponent], providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(HomeComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const section = el.querySelector('section[aria-labelledby="faq-heading"]') as HTMLElement;
+    const questions = Array.from(section.querySelectorAll('button.trigger')).map((b) =>
+      b.textContent?.trim(),
+    );
+    expect(questions).toEqual([
+      'Does Mira travel to my location?',
+      'Can I request a same-day appointment?',
+      'How much does a mobile notary appointment cost?',
+    ]);
+    expect(section.querySelectorAll('.panel')).toHaveLength(3);
+    expect(section.textContent).not.toContain('What should I bring');
+    const all = Array.from(section.querySelectorAll('a')).find((a) =>
+      a.textContent?.includes('View All'),
+    );
+    expect(all?.getAttribute('href')).toBe('/faq');
+    const tel = section.querySelector('.panel a[href^="tel:"]');
+    expect(tel?.getAttribute('href')).toBe('tel:+12795298754');
+  });
+});

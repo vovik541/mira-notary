@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BUSINESS, EXTERNAL_LINKS, LANGUAGES_LABEL } from '../../core/config/business.config';
-import { FAQ_ITEMS } from '../../data/faq.data';
+import { HOME_FAQ_IDS, selectFaqItems } from '../../data/faq.data';
 import { REVIEWS } from '../../data/reviews.data';
 import { SERVICE_AREA_CHIPS, SERVICE_AREA_SUMMARY } from '../../data/service-area.data';
 import { SERVICES, WHY_MIRA } from '../../data/services.data';
@@ -38,7 +38,7 @@ export class HomeComponent {
   protected readonly googleReviewUrl = EXTERNAL_LINKS.googleReview;
   protected readonly areaSummary = SERVICE_AREA_SUMMARY;
   protected readonly communities = SERVICE_AREA_CHIPS;
-  protected readonly faqPreview = FAQ_ITEMS.slice(0, 3);
+  protected readonly faqPreview = selectFaqItems(HOME_FAQ_IDS);
   protected readonly credentialItems = [
     'NNA Certified Signing Agent',
     '$1M E&O Insured',

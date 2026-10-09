@@ -28,10 +28,4 @@ export const APOSTILLE_FEES: readonly PriceRow[] = [
 export const APOSTILLE_NOTE =
   '48-hour rush service may be available, except weekends. Final pricing is confirmed before service.';
 
-export const PAYMENT_METHODS: readonly string[] = [
-  'Cash',
-  'Check',
-  'Visa',
-  'Mastercard',
-  'American Express',
-];
+export const PAYMENT_METHODS: readonly string[] = ['Zelle', 'Cash App', 'Venmo', 'Cash'];
