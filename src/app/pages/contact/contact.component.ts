@@ -33,10 +33,13 @@ import {
 import {
   TIME_PREFERENCES,
   TIME_PREFERENCE_LABELS,
+  STANDARD_HOURS,
+  STANDARD_HOURS_LABEL,
   TimePreference,
   classifyDate,
   isTimePreference,
   isValidTimeOfDay,
+  isWithinStandardHours,
 } from '../../../shared/appointment-timing';
 import {
   PHOTO_ACCEPT,
@@ -117,29 +120,46 @@ export interface PhoneNotice {
 
 const PHONE_TEXT = BUSINESS.phones.primary.display;
 
-/** Informational (not error) notices: submission is allowed, availability is confirmed by phone. */
+/**
+ * Informational (not error) notices derived from the preferred date. Submission is always
+ * allowed; availability for same-day and Sunday requests is confirmed by phone.
+ */
 export const SAME_DAY_NOTICE: PhoneNotice = {
   title: 'Same-day request',
-  body: `You can submit this form so Mira can review your request, but submitting it does not confirm an appointment. Please call Mira at ${PHONE_TEXT} after submitting to confirm whether she is available today.`,
-};
-export const SAME_DAY_SUNDAY_NOTICE: PhoneNotice = {
-  title: 'Same-day request',
-  body: `You can submit this form so Mira can review your request, but submitting it does not confirm an appointment. Sunday appointments may be available and must be confirmed by phone. Please call Mira at ${PHONE_TEXT} after submitting to confirm whether she is available today.`,
+  body: `You may submit your request so Mira can review the details, but submitting this form does not confirm an appointment. Please call Mira at ${PHONE_TEXT} to confirm today's availability.`,
 };
 export const SUNDAY_NOTICE: PhoneNotice = {
   title: 'Sunday availability',
   body: `Sunday appointments may be available by request and must be confirmed by phone. You may submit your request for Mira to review, then call ${PHONE_TEXT} to confirm availability.`,
 };
-export const URGENT_NOTICE: PhoneNotice = {
-  title: 'Urgent request',
-  body: `You can submit the request so Mira can review the details, but urgent availability is not guaranteed. Please call Mira at ${PHONE_TEXT} to confirm availability.`,
+export const SAME_DAY_SUNDAY_NOTICE: PhoneNotice = {
+  title: 'Same-day Sunday request',
+  body: `You may submit your request so Mira can review the details, but same-day Sunday availability must be confirmed by phone. Please call Mira at ${PHONE_TEXT} after submitting.`,
 };
 
+/** What the success state says; submitting never confirms a same-day or Sunday appointment. */
+export type PhoneSuccessKind = 'same-day' | 'sunday' | 'same-day-sunday' | 'generic';
+export const PHONE_SUCCESS_COPY: Record<PhoneSuccessKind, string> = {
+  'same-day': `Mira has received your request, but this does not confirm a same-day appointment. Please call ${PHONE_TEXT} now to confirm availability.`,
+  sunday: `Mira has received your request, but this does not confirm a Sunday appointment. Please call ${PHONE_TEXT} to confirm availability.`,
+  'same-day-sunday': `Mira has received your request, but this does not confirm a same-day Sunday appointment. Please call ${PHONE_TEXT} now to confirm availability.`,
+  generic: `Mira has received your request, but this does not confirm an appointment. Please call ${PHONE_TEXT} to confirm availability.`,
+};
+
+export const SPECIFIC_TIME_RANGE_MESSAGE = `Choose a time between ${STANDARD_HOURS_LABEL}.`;
+
+/**
+ * The real validation of the conditional Specific Time field (no HTML `required`/`min`/`max` is
+ * relied upon): only when "Specific Time" is chosen, it must be a valid HH:mm inside 08:30–20:30.
+ */
 const specificTimeValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
-  const preference = control.parent?.get('timePreference')?.value;
-  return preference === 'specific' && !isValidTimeOfDay(control.value)
-    ? { specificTime: true }
-    : null;
+  if (control.parent?.get('timePreference')?.value !== 'specific') {
+    return null;
+  }
+  if (!isValidTimeOfDay(control.value)) {
+    return { specificTime: true };
+  }
+  return isWithinStandardHours(control.value) ? null : { outsideHours: true };
 };
 
 const GLOBAL_MESSAGES = {
@@ -175,6 +195,8 @@ export class ContactComponent {
   protected readonly photoAccept = PHOTO_ACCEPT;
   protected readonly photoLimits = PHOTO_LIMITS;
   protected readonly consentHelp = CONSENT_HELP_MESSAGE;
+  protected readonly standardHours = STANDARD_HOURS;
+  protected readonly standardHoursLabel = STANDARD_HOURS_LABEL;
   protected readonly timeOptions = TIME_PREFERENCES.map((value) => ({
     value,
     label: TIME_PREFERENCE_LABELS[value],
@@ -258,26 +280,23 @@ export class ContactComponent {
   );
 
   /**
-   * "Urgent" = the visitor ticked it (`manualUrgent`) OR the date forces it (today in Mira's time
-   * zone, or a Sunday). The two are kept apart, so changing the date back to a normal day clears
-   * only the automatic part and never a deliberate choice. Urgent never blocks submission.
+   * Same-day / Sunday status is derived from the preferred date alone (Mira's time zone). There is
+   * no user-controlled urgent state: it never blocks submission and is recomputed by the Worker.
    */
-  protected readonly manualUrgent = signal(false);
   protected readonly timing = computed(() => classifyDate(this.dateValue()));
-  protected readonly urgentLocked = computed(() => this.timing().phoneConfirmation);
-  protected readonly urgentChecked = computed(() => this.manualUrgent() || this.urgentLocked());
   protected readonly notice = computed<PhoneNotice | null>(() => {
-    const timing = this.timing();
-    if (timing.sameDay) {
-      return timing.sunday ? SAME_DAY_SUNDAY_NOTICE : SAME_DAY_NOTICE;
-    }
-    if (timing.sunday) {
-      return SUNDAY_NOTICE;
-    }
-    return this.manualUrgent() ? URGENT_NOTICE : null;
+    const kind = this.successKindFor(this.timing());
+    return kind === 'same-day-sunday'
+      ? SAME_DAY_SUNDAY_NOTICE
+      : kind === 'same-day'
+        ? SAME_DAY_NOTICE
+        : kind === 'sunday'
+          ? SUNDAY_NOTICE
+          : null;
   });
   /** Set after a successful send of a request Mira still has to confirm by phone. */
-  protected readonly phoneConfirmationPending = signal(false);
+  protected readonly phoneSuccess = signal<PhoneSuccessKind | null>(null);
+  protected readonly phoneSuccessCopy = PHONE_SUCCESS_COPY;
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.revokeAllPreviews());
@@ -362,7 +381,7 @@ export class ContactComponent {
       case 'timePreference':
         return 'Choose a preferred time.';
       case 'specificTime':
-        return 'Enter a specific time.';
+        return has('outsideHours') ? SPECIFIC_TIME_RANGE_MESSAGE : 'Enter a specific time.';
       case 'signers':
         return `Enter a whole number from 1 to ${APPOINTMENT_LIMITS.maxSigners}.`;
       case 'consent':
@@ -454,15 +473,6 @@ export class ContactComponent {
     }
   }
 
-  protected onUrgentChange(event: Event): void {
-    const box = event.target as HTMLInputElement;
-    if (this.urgentLocked()) {
-      box.checked = true; // same-day / Sunday dates are always urgent
-      return;
-    }
-    this.manualUrgent.set(box.checked);
-  }
-
   protected submit(): void {
     if (this.state() === 'sending') {
       return;
@@ -485,6 +495,7 @@ export class ContactComponent {
     }
 
     this.state.set('sending');
+    const submittedKind = this.successKindFor(classifyDate(this.form.controls.preferredDate.value));
     const files = this.photos().map((item) => item.file);
     this.appointments.submit(this.buildPayload(this.turnstileToken), files).subscribe((result) => {
       if (result.ok) {
@@ -493,8 +504,9 @@ export class ContactComponent {
           language: 'English',
           consent: false,
         });
-        this.manualUrgent.set(false);
-        this.phoneConfirmationPending.set(result.phoneConfirmationRequired);
+        this.phoneSuccess.set(
+          result.phoneConfirmationRequired ? (submittedKind ?? 'generic') : submittedKind,
+        );
         this.clearPhotos();
         this.turnstileToken = null;
         this.state.set('success');
@@ -509,9 +521,16 @@ export class ContactComponent {
   }
 
   protected newRequest(): void {
-    this.phoneConfirmationPending.set(false);
+    this.phoneSuccess.set(null);
     this.errorMessage.set(null);
     this.state.set('idle');
+  }
+
+  private successKindFor(timing: ReturnType<typeof classifyDate>): PhoneSuccessKind | null {
+    if (timing.sameDay) {
+      return timing.sunday ? 'same-day-sunday' : 'same-day';
+    }
+    return timing.sunday ? 'sunday' : null;
   }
 
   private buildPayload(turnstileToken: string): AppointmentRequestPayload {
@@ -537,7 +556,6 @@ export class ContactComponent {
       ...(value.signers ? { numberOfSigners: value.signers } : {}),
       ...(language ? { preferredLanguage: language } : {}),
       ...(details ? { additionalDetails: details } : {}),
-      urgent: this.manualUrgent() || classifyDate(value.preferredDate).phoneConfirmation,
       contactConsent: true,
       turnstileToken,
     };

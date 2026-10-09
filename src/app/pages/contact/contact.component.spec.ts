@@ -80,6 +80,15 @@ const futureWeekday = (): string => {
   return date;
 };
 
+/** The first Sunday strictly after `iso`. */
+const nextSundayFrom = (iso: string): string => {
+  let date = addDays(iso, 1);
+  while (!isSunday(date)) {
+    date = addDays(date, 1);
+  }
+  return date;
+};
+
 const fillValid = (fixture: ComponentFixture<ContactComponent>): void => {
   set(fixture, 'firstName', 'Jane');
   set(fixture, 'lastName', 'Doe');
@@ -595,7 +604,6 @@ describe('ContactComponent', () => {
         numberOfSigners: 1,
         preferredLanguage: 'English',
         additionalDetails: 'Closing at title office',
-        urgent: false,
         contactConsent: true,
         turnstileToken: 'turnstile-token',
       });
@@ -748,9 +756,7 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
   const submitButton = (fixture: ComponentFixture<ContactComponent>): HTMLButtonElement =>
     fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement;
   const callouts = (fixture: ComponentFixture<ContactComponent>): HTMLElement[] =>
-    Array.from(fixture.nativeElement.querySelectorAll('.urgent-callout'));
-  const urgentBox = (fixture: ComponentFixture<ContactComponent>): HTMLInputElement =>
-    field(fixture, 'urgent');
+    Array.from(fixture.nativeElement.querySelectorAll('.phone-callout'));
 
   describe('submit button rules', () => {
     it('is unavailable until the form is valid, including contact consent', () => {
@@ -777,11 +783,14 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
       expect(submitButton(fixture).disabled).toBe(false);
     });
 
-    it('is not disabled merely because the request is urgent', () => {
+    it('is not disabled merely because the date is today or a Sunday', () => {
       const fixture = setup();
       fillValid(fixture);
-      check(fixture, 'urgent', true);
-      expect(submitButton(fixture).disabled).toBe(false);
+      for (const date of [todayInBusinessZone(), nextSundayFrom(todayInBusinessZone())]) {
+        set(fixture, 'preferredDate', date);
+        fixture.detectChanges();
+        expect(submitButton(fixture).disabled).toBe(false);
+      }
     });
 
     it('is disabled while sending', () => {
@@ -837,6 +846,52 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
       expect(errorText(fixture, 'specificTime')).toBeNull();
     });
 
+    it('limits the time input to standard hours and explains how to ask for another time', () => {
+      const fixture = setup();
+      set(fixture, 'timePreference', 'specific');
+      fixture.detectChanges();
+      const input = field(fixture, 'specificTime');
+      expect(input.getAttribute('min')).toBe('08:30');
+      expect(input.getAttribute('max')).toBe('20:30');
+
+      const help = fixture.nativeElement.querySelector('#specificTime-help') as HTMLElement;
+      expect(help.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+        'Standard appointment hours: 8:30 AM–8:30 PM. Need another time? Call Mira to check availability.',
+      );
+      expect(help.classList.contains('error')).toBe(false);
+      expect(help.querySelector('a')?.getAttribute('href')).toBe('tel:+12795298754');
+      expect(input.getAttribute('aria-describedby')).toContain('specificTime-help');
+    });
+
+    it.each(['08:29', '20:31', '00:00', '23:59'])(
+      'rejects %s: error shown and submission unavailable',
+      (time) => {
+        const fixture = setup();
+        fillValid(fixture);
+        set(fixture, 'timePreference', 'specific');
+        fixture.detectChanges();
+        enter(fixture, 'specificTime', time);
+        expect(errorText(fixture, 'specificTime')).toBe('Choose a time between 8:30 AM–8:30 PM.');
+        expect(submitButton(fixture).disabled).toBe(true);
+      },
+    );
+
+    it.each(['08:30', '12:00', '14:00', '20:30'])('accepts %s', (time) => {
+      const fixture = setup();
+      fillValid(fixture);
+      set(fixture, 'timePreference', 'specific');
+      fixture.detectChanges();
+      enter(fixture, 'specificTime', time);
+      expect(errorText(fixture, 'specificTime')).toBeNull();
+      expect(submitButton(fixture).disabled).toBe(false);
+    });
+
+    it('does not offer before/after-hours options in the selector', () => {
+      const select = field(setup(), 'timePreference') as unknown as HTMLSelectElement;
+      const labels = Array.from(select.options).map((option) => option.textContent ?? '');
+      expect(labels.join('|')).not.toMatch(/(before|after)/i);
+    });
+
     it('sends the structured time and clears a stale specific time when the choice changes', () => {
       const fixture = setup();
       const http = TestBed.inject(HttpTestingController);
@@ -875,7 +930,7 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
     });
   });
 
-  describe('same-day, urgent and Sunday', () => {
+  describe('same-day and Sunday (derived from the date)', () => {
     // Mon 2026-10-05 12:00 in Los Angeles. 2026-10-11 is a Sunday.
     const TODAY = '2026-10-05';
     const SUNDAY = '2026-10-11';
@@ -887,36 +942,35 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
     });
     afterEach(() => vi.useRealTimers());
 
-    it('has no callout and an unchecked, editable urgent box for a normal future date', () => {
+    it('has no urgent checkbox anywhere and no callout for a normal future date', () => {
       const fixture = setup();
+      expect(fixture.nativeElement.querySelector('#urgent')).toBeNull();
+      expect(text(fixture)).not.toMatch(/Same-Day \/ Urgent Request/);
       set(fixture, 'preferredDate', FUTURE);
       fixture.detectChanges();
-      expect(urgentBox(fixture).checked).toBe(false);
-      expect(urgentBox(fixture).disabled).toBe(false);
+      expect(fixture.nativeElement.querySelector('input[type="checkbox"]#urgent')).toBeNull();
       expect(callouts(fixture)).toHaveLength(0);
     });
 
-    it('auto-checks urgent when the date is today and explains it (informational, not an error)', () => {
+    it('shows the same-day callout for today, with a Call Mira link and no error styling', () => {
       const fixture = setup();
       set(fixture, 'preferredDate', TODAY);
       fixture.detectChanges();
-      expect(urgentBox(fixture).checked).toBe(true);
-      expect(urgentBox(fixture).disabled).toBe(true);
-
       expect(callouts(fixture)).toHaveLength(1);
       const callout = callouts(fixture)[0];
-      expect(callout.querySelector('.urgent-title')?.textContent).toBe('Same-day request');
+      expect(callout.querySelector('.phone-callout-title')?.textContent).toBe('Same-day request');
       expect(callout.textContent).toContain(
-        'You can submit this form so Mira can review your request, but submitting it does not confirm an appointment. Please call Mira at (279) 529-8754 after submitting to confirm whether she is available today.',
+        "You may submit your request so Mira can review the details, but submitting this form does not confirm an appointment. Please call Mira at (279) 529-8754 to confirm today's availability.",
       );
       const call = callout.querySelector('a') as HTMLAnchorElement;
       expect(call.textContent).toContain('Call Mira');
       expect(call.getAttribute('href')).toBe('tel:+12795298754');
       expect(callout.classList.contains('error')).toBe(false);
       expect(callout.getAttribute('role')).toBe('status');
+      expect(fixture.nativeElement.querySelector('#urgent')).toBeNull();
     });
 
-    it('keeps the form submittable for a same-day request and sends urgent=true', () => {
+    it('keeps the form submittable for today and never sends an urgent field', () => {
       const fixture = setup();
       const http = TestBed.inject(HttpTestingController);
       fillValid(fixture);
@@ -929,16 +983,8 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
       const request = http.expectOne('/api/appointments');
       const payload = JSON.parse((request.request.body as FormData).get('payload') as string);
       expect(payload.preferredDate).toBe(TODAY);
-      expect(payload.urgent).toBe(true);
+      expect(payload).not.toHaveProperty('urgent');
       request.flush({ success: true, phoneConfirmationRequired: true });
-    });
-
-    it('cannot represent today with urgent unchecked (the box stays checked)', () => {
-      const fixture = setup();
-      set(fixture, 'preferredDate', TODAY);
-      fixture.detectChanges();
-      check(fixture, 'urgent', false);
-      expect(urgentBox(fixture).checked).toBe(true);
     });
 
     it('treats the Los Angeles day as today even when UTC is already tomorrow', () => {
@@ -946,95 +992,63 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
       const fixture = setup();
       set(fixture, 'preferredDate', TODAY);
       fixture.detectChanges();
-      expect(urgentBox(fixture).checked).toBe(true);
+      expect(callouts(fixture)[0]?.querySelector('.phone-callout-title')?.textContent).toBe(
+        'Same-day request',
+      );
     });
 
-    it('clears only the automatic urgent state when the date moves to a future day', () => {
+    it('removes the callout again when the date moves to a normal day', () => {
       const fixture = setup();
       set(fixture, 'preferredDate', TODAY);
       fixture.detectChanges();
-      expect(urgentBox(fixture).checked).toBe(true);
+      expect(callouts(fixture)).toHaveLength(1);
       set(fixture, 'preferredDate', FUTURE);
       fixture.detectChanges();
-      expect(urgentBox(fixture).checked).toBe(false);
-      expect(urgentBox(fixture).disabled).toBe(false);
       expect(callouts(fixture)).toHaveLength(0);
     });
 
-    it('keeps a deliberate urgent choice when the date moves between today and a future day', () => {
-      const fixture = setup();
-      set(fixture, 'preferredDate', FUTURE);
-      fixture.detectChanges();
-      check(fixture, 'urgent', true);
-      set(fixture, 'preferredDate', TODAY);
-      fixture.detectChanges();
-      set(fixture, 'preferredDate', FUTURE);
-      fixture.detectChanges();
-      expect(urgentBox(fixture).checked).toBe(true);
-      expect(callouts(fixture)[0].querySelector('.urgent-title')?.textContent).toBe(
-        'Urgent request',
-      );
-    });
-
-    it('shows the urgent callout for a manual urgent request and does not block submission', () => {
-      const fixture = setup();
-      const http = TestBed.inject(HttpTestingController);
-      fillValid(fixture);
-      giveToken(fixture, 't');
-      check(fixture, 'urgent', true);
-
-      expect(callouts(fixture)).toHaveLength(1);
-      const callout = callouts(fixture)[0];
-      expect(callout.querySelector('.urgent-title')?.textContent).toBe('Urgent request');
-      expect(callout.textContent).toContain(
-        'You can submit the request so Mira can review the details, but urgent availability is not guaranteed. Please call Mira at (279) 529-8754 to confirm availability.',
-      );
-      expect(callout.querySelector('a')?.getAttribute('href')).toBe('tel:+12795298754');
-      expect(submitButton(fixture).disabled).toBe(false);
-
-      submit(fixture);
-      const request = http.expectOne('/api/appointments');
-      const payload = JSON.parse((request.request.body as FormData).get('payload') as string);
-      expect(payload.urgent).toBe(true);
-      request.flush({ success: true });
-
-      check(fixture, 'urgent', false);
-    });
-
-    it('allows Sundays: auto-urgent, Sunday callout, submission still possible', () => {
+    it('keeps Sundays selectable and shows the Sunday callout without blocking submission', () => {
       const fixture = setup();
       fillValid(fixture);
       set(fixture, 'preferredDate', SUNDAY);
       fixture.detectChanges();
-      expect(urgentBox(fixture).checked).toBe(true);
+      expect(errorText(fixture, 'preferredDate')).toBeNull();
+      expect(field(fixture, 'preferredDate').hasAttribute('disabled')).toBe(false);
       expect(callouts(fixture)).toHaveLength(1);
       const callout = callouts(fixture)[0];
-      expect(callout.querySelector('.urgent-title')?.textContent).toBe('Sunday availability');
+      expect(callout.querySelector('.phone-callout-title')?.textContent).toBe(
+        'Sunday availability',
+      );
       expect(callout.textContent).toContain(
         'Sunday appointments may be available by request and must be confirmed by phone. You may submit your request for Mira to review, then call (279) 529-8754 to confirm availability.',
       );
+      expect(callout.querySelector('a')?.getAttribute('href')).toBe('tel:+12795298754');
       expect(submitButton(fixture).disabled).toBe(false);
     });
 
-    it('renders ONE combined callout when today is also a Sunday', () => {
+    it('renders exactly ONE combined callout when today is a Sunday', () => {
       vi.setSystemTime(new Date('2026-10-11T19:00:00Z'));
       const fixture = setup();
       set(fixture, 'preferredDate', SUNDAY);
       fixture.detectChanges();
       expect(callouts(fixture)).toHaveLength(1);
       const callout = callouts(fixture)[0];
-      expect(callout.querySelector('.urgent-title')?.textContent).toBe('Same-day request');
-      expect(callout.textContent).toContain(
-        'Sunday appointments may be available and must be confirmed by phone',
+      expect(callout.querySelector('.phone-callout-title')?.textContent).toBe(
+        'Same-day Sunday request',
       );
-      expect(callout.textContent).toContain('available today');
+      expect(callout.textContent).toContain(
+        'You may submit your request so Mira can review the details, but same-day Sunday availability must be confirmed by phone. Please call Mira at (279) 529-8754 after submitting.',
+      );
     });
 
-    it('shows the stronger "Request sent" state after a same-day / urgent / Sunday request', () => {
+    it.each([
+      ['today', TODAY, 'does not confirm a same-day appointment'],
+      ['a Sunday', SUNDAY, 'does not confirm a Sunday appointment'],
+    ])('shows the phone-confirmation success state for %s', (_name, date, phrase) => {
       const fixture = setup();
       const http = TestBed.inject(HttpTestingController);
       fillValid(fixture);
-      set(fixture, 'preferredDate', TODAY);
+      set(fixture, 'preferredDate', date);
       fixture.detectChanges();
       giveToken(fixture, 't');
       submit(fixture);
@@ -1043,13 +1057,28 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
 
       const notice = fixture.nativeElement.querySelector('.notice') as HTMLElement;
       expect(notice.querySelector('h2')?.textContent).toBe('Request sent');
-      expect(notice.textContent).toContain(
-        'Mira has received your request, but this does not confirm a same-day or urgent appointment. Please call (279) 529-8754 now to confirm availability.',
-      );
+      expect(notice.textContent).toContain(phrase);
+      expect(notice.textContent).toContain('(279) 529-8754');
       const call = notice.querySelector('a.btn--gold') as HTMLAnchorElement;
       expect(call.textContent).toContain('Call Mira Now');
       expect(call.getAttribute('href')).toBe('tel:+12795298754');
       expect(notice.classList.contains('error')).toBe(false);
+    });
+
+    it('shows one combined success state for today + Sunday', () => {
+      vi.setSystemTime(new Date('2026-10-11T19:00:00Z'));
+      const fixture = setup();
+      const http = TestBed.inject(HttpTestingController);
+      fillValid(fixture);
+      set(fixture, 'preferredDate', SUNDAY);
+      fixture.detectChanges();
+      giveToken(fixture, 't');
+      submit(fixture);
+      http.expectOne('/api/appointments').flush({ success: true, phoneConfirmationRequired: true });
+      fixture.detectChanges();
+      const notice = fixture.nativeElement.querySelector('.notice') as HTMLElement;
+      expect(notice.querySelectorAll('h2')).toHaveLength(1);
+      expect(notice.textContent).toContain('does not confirm a same-day Sunday appointment');
     });
 
     it('keeps the normal success state for an ordinary request', () => {

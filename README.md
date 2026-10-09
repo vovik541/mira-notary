@@ -200,34 +200,40 @@ ZIP / service → photo validation → Turnstile siteverify → Resend API (+ at
 - **Browser:** thumbnails use object URLs, which are revoked on remove, after success and on
   destroy. HEIC/HEIF files are accepted but show a placeholder (most browsers cannot render them).
 
-### Preferred time (structured)
+### Preferred time (structured, standard hours)
 
-There is no free-text time any more. The form has a `<select>` — Morning, Afternoon, Evening,
-Flexible / Any Time, Specific Time — and, only for Specific Time, an `<input type="time">`. The contract
-is `timePreference` (`morning | afternoon | evening | flexible | specific`) plus `specificTime`
-(`HH:mm` or `null`). The Worker enforces it (`src/shared/appointment-timing.ts`): unknown preferences are
-rejected, `specific` requires a valid `HH:mm`, and any other preference must carry no time (an injected
-one is rejected, never silently kept). A legacy `preferredTime` string is not accepted. The email shows
-readable labels ("Flexible / Any Time", "Specific Time — 2:30 PM").
+There is no free-text time. The form has a `<select>` — Morning, Afternoon, Evening, Flexible / Any Time,
+Specific Time — and, only for Specific Time, an `<input type="time" min="08:30" max="20:30">` with the
+note "Standard appointment hours: 8:30 AM–8:30 PM. Need another time? Call Mira to check availability."
+(`tel:+12795298754`). There are deliberately no "before / after hours" options: another time means a phone call.
 
-### Same-day, urgent and Sunday requests (submit, then phone)
+The contract is `timePreference` (`morning | afternoon | evening | flexible | specific`) plus
+`specificTime` (`HH:mm` or `null`), shared in `src/shared/appointment-timing.ts`. The Angular control
+itself validates (required + HH:mm + 08:30–20:30, only while "specific" is selected; HTML `min`/`max`/
+`required` are not relied upon) and the Worker validates independently (minutes-since-midnight
+comparison, both ends inclusive): unknown preferences, `specific` without a valid in-hours time, and any
+time sent with a non-specific preference are rejected with 400. A legacy `preferredTime` string is not
+accepted. The email shows readable labels ("Flexible / Any Time", "Specific Time — 2:30 PM").
 
-These requests **can be submitted** so Mira can review them and any photos, but submitting never confirms
-an appointment: the visitor must call Mira (**(279) 529-8754**, `tel:+12795298754`) to confirm.
+### Same-day and Sunday requests (submit, then phone)
 
-- **Client:** choosing today's date (Mira's time zone, America/Los_Angeles) or a Sunday automatically
-  ticks and locks "Same-Day / Urgent Request"; a manual tick on any other date is kept separately, so
-  moving the date back only clears the automatic part. An informational (not error) callout explains
-  "Same-day request" / "Sunday availability" / "Urgent request" (one combined callout when today is a
-  Sunday) with a **Call Mira** button. The submit button is disabled only by invalid/missing required
-  fields, consent or a missing specific time — never by urgency. After sending, the success state says
-  "Request sent … does not confirm a same-day or urgent appointment" with **Call Mira Now**.
-- **Worker:** `urgent: true` is valid. The Worker does not trust the browser: a preferred date that is
-  today in America/Los_Angeles, or a Sunday, is forced to urgent even if the client sent `urgent: false`.
-  Consent, ZIP, photos, Turnstile and rate limiting all still apply. Exactly one email is sent, with an
-  `URGENT — ` subject prefix, a banner, "Same-Day / Urgent: Yes" and "Phone Confirmation Required: Yes"
-  (also for Sundays, whose date is shown as "… (Sunday)"). The success response carries
-  `phoneConfirmationRequired`.
+There is **no "urgent" checkbox and no `urgent` field** in the request. Same-day and Sunday status is
+derived from `preferredDate` alone, in Mira's time zone (America/Los_Angeles); a client-sent `urgent` is
+ignored, like any unknown field. Such requests **can be submitted** so Mira can review them (and any
+photos), but submitting never confirms an appointment: the visitor must call Mira (**(279) 529-8754**).
+
+- **Client:** an informational callout (not an error) with a **Call Mira** button appears for:
+  today → "Same-day request"; a Sunday → "Sunday availability" (Sundays are never disabled; "may be
+  available by request"); today being a Sunday → one "Same-day Sunday request" callout. Normal future
+  dates (Monday–Saturday) show nothing. Submit is disabled only by invalid/missing required fields,
+  consent or an invalid Specific Time. After sending, the success state ("Request sent … does not confirm
+  a same-day / Sunday / same-day Sunday appointment") has **Call Mira Now**; normal requests keep the
+  normal success state.
+- **Worker:** derives `sameDay`, `sunday` and `phoneConfirmation` (`classifyDate`) at validation time and
+  returns `phoneConfirmationRequired` in the success response. Consent, ZIP, structured time, photos,
+  Turnstile and rate limiting all still apply. Exactly one email is sent: rows "Same-Day", "Sunday",
+  "Phone Confirmation Required", an attention banner and subject prefix `SAME-DAY — `, `SUNDAY — ` or
+  `SAME-DAY SUNDAY — ` (a future Sunday is not called same-day or urgent).
 
 ### Contact consent
 
@@ -243,7 +249,7 @@ Worker messages, email). The former **(916) 759-0383** is shown only as "Seconda
 page direct-contact panel (`BUSINESS.phones.secondary`). `phone-numbers.spec.ts` fails if the old number
 appears anywhere else in `src/`.
 
-- Validation (order: fields incl. consent, structured time and ZIP, with same-day/Sunday forced urgent → photos → Turnstile) is repeated server-side (`src/worker/appointment-validation.ts`): allowed services and
+- Validation (order: fields incl. consent, structured time and ZIP, with same-day/Sunday derived from the date → photos → Turnstile) is repeated server-side (`src/worker/appointment-validation.ts`): allowed services and
   languages, required fields, lengths, email format, ISO date, header-injection characters.
 - Turnstile is mandatory and verified server-side with the Worker secret (fail closed).
 - Email goes through a provider boundary (`src/worker/email-provider.ts`). The only adapter is

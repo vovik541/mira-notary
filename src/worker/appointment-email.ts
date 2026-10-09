@@ -1,5 +1,5 @@
 import { AppointmentRequestPayload } from '../shared/appointment.model';
-import { describeTimePreference, isSunday } from '../shared/appointment-timing';
+import { DateTiming, classifyDate, describeTimePreference } from '../shared/appointment-timing';
 
 export interface EmailContent {
   subject: string;
@@ -42,14 +42,22 @@ export function describeAttachments(photoCount: number): string {
   return photoCount === 0 ? 'None' : `${photoCount} photo${photoCount === 1 ? '' : 's'} attached`;
 }
 
-/** Same-day, urgent or Sunday: Mira must confirm availability with the client by phone. */
-export function needsPhoneConfirmation(request: AppointmentRequestPayload): boolean {
-  return request.urgent || isSunday(request.preferredDate);
+/** Attention marker for Mira: same-day, Sunday or both. Empty for a normal request. */
+function requestKind(timing: DateTiming): string {
+  if (timing.sameDay && timing.sunday) {
+    return 'SAME-DAY SUNDAY';
+  }
+  if (timing.sameDay) {
+    return 'SAME-DAY';
+  }
+  return timing.sunday ? 'SUNDAY' : '';
 }
 
-function sectionsFor(request: AppointmentRequestPayload, photoCount: number): Section[] {
-  const sunday = isSunday(request.preferredDate);
-  const phoneConfirmation = needsPhoneConfirmation(request);
+function sectionsFor(
+  request: AppointmentRequestPayload,
+  photoCount: number,
+  timing: DateTiming,
+): Section[] {
   return [
     { title: 'Service', rows: [{ label: 'Service', value: request.service }] },
     {
@@ -66,7 +74,7 @@ function sectionsFor(request: AppointmentRequestPayload, photoCount: number): Se
         { label: 'ZIP Code', value: request.locationZip },
         {
           label: 'Preferred Date',
-          value: sunday ? `${request.preferredDate} (Sunday)` : request.preferredDate,
+          value: timing.sunday ? `${request.preferredDate} (Sunday)` : request.preferredDate,
         },
         {
           label: 'Preferred Time',
@@ -82,8 +90,9 @@ function sectionsFor(request: AppointmentRequestPayload, photoCount: number): Se
           label: 'Number of Signers',
           value: request.numberOfSigners?.toString() ?? 'Not specified',
         },
-        { label: 'Same-Day / Urgent', value: request.urgent ? 'Yes' : 'No' },
-        { label: 'Phone Confirmation Required', value: phoneConfirmation ? 'Yes' : 'No' },
+        { label: 'Same-Day', value: timing.sameDay ? 'Yes' : 'No' },
+        { label: 'Sunday', value: timing.sunday ? 'Yes' : 'No' },
+        { label: 'Phone Confirmation Required', value: timing.phoneConfirmation ? 'Yes' : 'No' },
         {
           label: 'Contact Permission',
           value: 'Yes — phone, text or email regarding this request.',
@@ -107,19 +116,25 @@ function sectionsFor(request: AppointmentRequestPayload, photoCount: number): Se
   ];
 }
 
-const URGENT_BANNER_HTML = `<tr><td style="background:#fff4d6;color:#7a4b00;padding:12px 24px;font-size:15px;font-weight:bold;border-bottom:1px solid #e5eaf0;">URGENT / SAME-DAY — phone confirmation required. Call the client to confirm availability.</td></tr>`;
+const bannerHtml = (kind: string): string =>
+  `<tr><td style="background:#fff4d6;color:#7a4b00;padding:12px 24px;font-size:15px;font-weight:bold;border-bottom:1px solid #e5eaf0;">${escapeHtml(kind)} — phone confirmation required. Call the client to confirm availability.</td></tr>`;
 
 const FOOTER = 'Submitted through Local Notary Signings website.';
 
+/**
+ * `timing` is the date-derived status computed by the Worker at validation time; it defaults to
+ * the real clock only so callers without an injected clock stay simple.
+ */
 export function buildAppointmentEmail(
   request: AppointmentRequestPayload,
   photoCount = 0,
+  timing: DateTiming = classifyDate(request.preferredDate),
 ): EmailContent {
-  const sections = sectionsFor(request, photoCount);
-  const urgent = needsPhoneConfirmation(request);
+  const sections = sectionsFor(request, photoCount, timing);
+  const kind = requestKind(timing);
 
   const text = [
-    urgent ? 'URGENT / SAME-DAY REQUEST — PHONE CONFIRMATION REQUIRED' : 'NEW APPOINTMENT REQUEST',
+    kind ? `${kind} REQUEST — PHONE CONFIRMATION REQUIRED` : 'NEW APPOINTMENT REQUEST',
     '',
     ...sections.flatMap((section) => [
       section.title.toUpperCase(),
@@ -151,7 +166,7 @@ export function buildAppointmentEmail(
 <tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #e5eaf0;border-radius:8px;">
 <tr><td style="background:#082f57;color:#ffffff;padding:20px 24px;border-radius:8px 8px 0 0;font-size:20px;font-weight:bold;">New Appointment Request</td></tr>
-${urgent ? URGENT_BANNER_HTML : ''}
+${kind ? bannerHtml(kind) : ''}
 ${sectionHtml}
 <tr><td style="padding:20px 24px;font-size:12px;color:#667085;border-top:1px solid #e5eaf0;">${escapeHtml(FOOTER)}</td></tr>
 </table>
@@ -161,7 +176,7 @@ ${sectionHtml}
 </html>`;
 
   return {
-    subject: `${urgent ? 'URGENT — ' : ''}New Notary Appointment Request — ${sanitizeForSubject(`${request.firstName} ${request.lastName}`)}`,
+    subject: `${kind ? `${kind} — ` : ''}New Notary Appointment Request — ${sanitizeForSubject(`${request.firstName} ${request.lastName}`)}`,
     html,
     text,
   };

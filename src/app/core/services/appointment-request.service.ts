@@ -42,8 +42,7 @@ export class AppointmentRequestService {
       map((response): AppointmentSubmitResult => ({
         ok: true,
         phoneConfirmationRequired:
-          payload.urgent ||
-          (response.success === true && response.phoneConfirmationRequired === true),
+          response.success === true && response.phoneConfirmationRequired === true,
       })),
       catchError((error: unknown) => of(this.toFailure(error))),
     );

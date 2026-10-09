@@ -6,6 +6,8 @@ import {
   isSunday,
   isTimePreference,
   isValidTimeOfDay,
+  isWithinStandardHours,
+  minutesSinceMidnight,
   todayInBusinessZone,
 } from './appointment-timing';
 
@@ -80,5 +82,36 @@ describe('date rules (Los Angeles)', () => {
       sunday: true,
       phoneConfirmation: true,
     });
+  });
+});
+
+describe('standard hours (08:30–20:30)', () => {
+  it('converts HH:mm to minutes without any locale-dependent parsing', () => {
+    expect(minutesSinceMidnight('00:00')).toBe(0);
+    expect(minutesSinceMidnight('08:30')).toBe(510);
+    expect(minutesSinceMidnight('20:30')).toBe(1230);
+    expect(minutesSinceMidnight('23:59')).toBe(1439);
+    expect(minutesSinceMidnight('8:30')).toBeNaN();
+    expect(minutesSinceMidnight('24:00')).toBeNaN();
+  });
+
+  it('includes both boundaries and rejects everything outside them', () => {
+    for (const ok of ['08:30', '09:00', '12:00', '14:00', '20:00', '20:30']) {
+      expect(isWithinStandardHours(ok)).toBe(true);
+    }
+    for (const bad of [
+      '08:29',
+      '00:00',
+      '07:59',
+      '20:31',
+      '21:00',
+      '23:59',
+      '12:60',
+      '8:30',
+      '',
+      null,
+    ]) {
+      expect(isWithinStandardHours(bad)).toBe(false);
+    }
   });
 });

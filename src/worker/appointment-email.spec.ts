@@ -1,10 +1,5 @@
 import { AppointmentRequestPayload } from '../shared/appointment.model';
-import {
-  buildAppointmentEmail,
-  escapeHtml,
-  needsPhoneConfirmation,
-  sanitizeForSubject,
-} from './appointment-email';
+import { buildAppointmentEmail, escapeHtml, sanitizeForSubject } from './appointment-email';
 
 const base: AppointmentRequestPayload = {
   firstName: 'Jane',
@@ -16,7 +11,6 @@ const base: AppointmentRequestPayload = {
   preferredDate: '2027-03-15',
   timePreference: 'morning',
   specificTime: null,
-  urgent: false,
   contactConsent: true,
   turnstileToken: 'secret-token-value',
 };
@@ -49,7 +43,7 @@ describe('buildAppointmentEmail', () => {
       expect(body).toContain('None provided');
       expect(body).toContain('Submitted through Local Notary Signings website.');
     }
-    expect(text).toContain('Same-Day / Urgent: No');
+    expect(text).toContain('Same-Day: No');
     expect(text).toContain('Attachments: None');
   });
 
@@ -85,30 +79,62 @@ describe('buildAppointmentEmail', () => {
     expect(text).not.toMatch(/Preferred Time: (specific|afternoon|morning|evening|flexible)\b/);
   });
 
-  it('marks urgent requests in the subject, banner and rows, with phone confirmation', () => {
-    const { subject, text, html } = buildAppointmentEmail({ ...base, urgent: true });
-    expect(subject).toBe('URGENT — New Notary Appointment Request — Jane Doe');
-    expect(text.split('\n')[0]).toBe('URGENT / SAME-DAY REQUEST — PHONE CONFIRMATION REQUIRED');
-    expect(text).toContain('Same-Day / Urgent: Yes');
+  const NORMAL = { sameDay: false, sunday: false, phoneConfirmation: false };
+  const SAME_DAY = { sameDay: true, sunday: false, phoneConfirmation: true };
+  const SUNDAY = { sameDay: false, sunday: true, phoneConfirmation: true };
+  const SAME_DAY_SUNDAY = { sameDay: true, sunday: true, phoneConfirmation: true };
+
+  it('keeps a normal request unmarked: Same-Day No, Sunday No, Phone Confirmation No', () => {
+    const { subject, text, html } = buildAppointmentEmail(base, 0, NORMAL);
+    expect(subject).toBe('New Notary Appointment Request — Jane Doe');
+    expect(text.split('\n')[0]).toBe('NEW APPOINTMENT REQUEST');
+    expect(text).toContain('Same-Day: No');
+    expect(text).toContain('Sunday: No');
+    expect(text).toContain('Phone Confirmation Required: No');
+    expect(html).not.toContain('phone confirmation required');
+  });
+
+  it('marks a same-day request in the subject, banner and rows', () => {
+    const { subject, text, html } = buildAppointmentEmail(base, 0, SAME_DAY);
+    expect(subject).toBe('SAME-DAY — New Notary Appointment Request — Jane Doe');
+    expect(text.split('\n')[0]).toBe('SAME-DAY REQUEST — PHONE CONFIRMATION REQUIRED');
+    expect(text).toContain('Same-Day: Yes');
+    expect(text).toContain('Sunday: No');
     expect(text).toContain('Phone Confirmation Required: Yes');
     expect(html).toContain('phone confirmation required');
   });
 
-  it('keeps normal requests unmarked', () => {
-    const { subject, text, html } = buildAppointmentEmail(base);
-    expect(subject).toBe('New Notary Appointment Request — Jane Doe');
-    expect(text.split('\n')[0]).toBe('NEW APPOINTMENT REQUEST');
-    expect(text).toContain('Same-Day / Urgent: No');
-    expect(text).toContain('Phone Confirmation Required: No');
-    expect(html).not.toContain('URGENT');
+  it('marks a future Sunday request without calling it urgent or same-day', () => {
+    const request = { ...base, preferredDate: '2027-03-14' };
+    const { subject, text } = buildAppointmentEmail(request, 0, SUNDAY);
+    expect(subject).toBe('SUNDAY — New Notary Appointment Request — Jane Doe');
+    expect(subject).not.toMatch(/URGENT|SAME-DAY/);
+    expect(text).toContain('Preferred Date: 2027-03-14 (Sunday)');
+    expect(text).toContain('Same-Day: No');
+    expect(text).toContain('Sunday: Yes');
+    expect(text).toContain('Phone Confirmation Required: Yes');
   });
 
-  it('flags a Sunday date as needing phone confirmation, even without the urgent flag', () => {
-    const sunday = buildAppointmentEmail({ ...base, preferredDate: '2027-03-14' });
-    expect(sunday.text).toContain('Preferred Date: 2027-03-14 (Sunday)');
-    expect(sunday.text).toContain('Phone Confirmation Required: Yes');
-    expect(needsPhoneConfirmation({ ...base, preferredDate: '2027-03-14' })).toBe(true);
-    expect(needsPhoneConfirmation(base)).toBe(false);
+  it('marks a same-day Sunday request once', () => {
+    const { subject, text } = buildAppointmentEmail(
+      { ...base, preferredDate: '2027-03-14' },
+      0,
+      SAME_DAY_SUNDAY,
+    );
+    expect(subject).toBe('SAME-DAY SUNDAY — New Notary Appointment Request — Jane Doe');
+    expect(text).toContain('Same-Day: Yes');
+    expect(text).toContain('Sunday: Yes');
+  });
+
+  it('derives Sunday from the date when no timing is passed', () => {
+    const { text } = buildAppointmentEmail({ ...base, preferredDate: '2027-03-14' });
+    expect(text).toContain('Sunday: Yes');
+    expect(text).toContain('Phone Confirmation Required: Yes');
+  });
+
+  it('has no user-controlled urgent wording', () => {
+    const { text } = buildAppointmentEmail(base, 0, NORMAL);
+    expect(text).not.toMatch(/urgent/i);
   });
 
   it('never leaks the Turnstile token', () => {

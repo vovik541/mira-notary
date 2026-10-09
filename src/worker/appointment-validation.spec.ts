@@ -29,7 +29,6 @@ describe('validateAppointmentRequest', () => {
     const result = run();
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.urgent).toBe(false);
       expect(result.value.contactConsent).toBe(true);
       expect(result.value.additionalDetails).toBeUndefined();
       expect(result.value.locationZip).toBe('95814');
@@ -275,13 +274,16 @@ describe('validateAppointmentRequest', () => {
       expect(validateAppointmentRequest(body, NOW).ok).toBe(true);
     });
 
-    it.each(['00:00', '09:30', '14:30', '23:59'])('accepts a specific time of %s', (time) => {
-      const result = run({ timePreference: 'specific', specificTime: time });
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.value.specificTime).toBe(time);
-      }
-    });
+    it.each(['08:30', '09:30', '12:00', '14:30', '20:30'])(
+      'accepts a specific time of %s',
+      (time) => {
+        const result = run({ timePreference: 'specific', specificTime: time });
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+          expect(result.value.specificTime).toBe(time);
+        }
+      },
+    );
 
     it.each([
       undefined,
@@ -330,53 +332,78 @@ describe('validateAppointmentRequest', () => {
     });
   });
 
-  describe('urgent / same-day / Sunday', () => {
+  describe('standard hours (08:30–20:30)', () => {
+    it.each(['08:29', '20:31', '00:00', '07:59', '21:00', '23:59'])(
+      'rejects specific time %s outside standard hours',
+      (time) => {
+        expect(invalidFields({ timePreference: 'specific', specificTime: time })).toContain(
+          'specificTime',
+        );
+      },
+    );
+
+    it.each(['08:30', '12:00', '20:30'])('accepts the boundary / midday time %s', (time) => {
+      expect(run({ timePreference: 'specific', specificTime: time }).ok).toBe(true);
+    });
+  });
+
+  describe('same-day / Sunday (derived from the date)', () => {
     // NOW = Mon 2026-10-05 12:00Z (05:00 in Los Angeles). 2026-10-11 is a Sunday.
-    it('accepts urgent true and false on a normal future weekday', () => {
-      const urgent = run({ urgent: true });
-      expect(urgent.ok).toBe(true);
-      if (urgent.ok) {
-        expect(urgent.value.urgent).toBe(true);
-      }
-      const normal = run({ urgent: false });
-      expect(normal.ok && normal.value.urgent).toBe(false);
-      expect(run().ok && (run() as { value: { urgent: boolean } }).value.urgent).toBe(false);
+    const timingOf = (overrides: Record<string, unknown> = {}, now: Date = NOW) => {
+      const result = validateAppointmentRequest({ ...valid, ...overrides }, now);
+      return result.ok ? result.timing : null;
+    };
+
+    it('normal future date: not same-day, not Sunday, no phone confirmation', () => {
+      expect(timingOf()).toEqual({ sameDay: false, sunday: false, phoneConfirmation: false });
     });
 
-    it('forces urgent when the date is today in Los Angeles, even if the client sent false', () => {
-      const result = run({ preferredDate: '2026-10-05', urgent: false });
-      expect(result.ok && result.value.urgent).toBe(true);
+    it('today in Los Angeles: same-day, phone confirmation required', () => {
+      expect(timingOf({ preferredDate: '2026-10-05' })).toEqual({
+        sameDay: true,
+        sunday: false,
+        phoneConfirmation: true,
+      });
     });
 
     it('uses the Los Angeles calendar day, not UTC', () => {
       // 2026-10-06T05:00Z is still Mon 2026-10-05 22:00 in Los Angeles
       const lateEvening = new Date('2026-10-06T05:00:00Z');
-      const today = validateAppointmentRequest(
-        { ...valid, preferredDate: '2026-10-05', urgent: false },
-        lateEvening,
-      );
-      expect(today.ok && today.value.urgent).toBe(true);
-      const tomorrow = validateAppointmentRequest(
-        { ...valid, preferredDate: '2026-10-06', urgent: false },
-        lateEvening,
-      );
-      expect(tomorrow.ok && tomorrow.value.urgent).toBe(false);
+      expect(timingOf({ preferredDate: '2026-10-05' }, lateEvening)?.sameDay).toBe(true);
+      expect(timingOf({ preferredDate: '2026-10-06' }, lateEvening)?.sameDay).toBe(false);
     });
 
-    it('forces urgent for a Sunday date, without rejecting it', () => {
-      const result = run({ preferredDate: '2026-10-11', urgent: false });
-      expect(result.ok).toBe(true);
-      expect(result.ok && result.value.urgent).toBe(true);
+    it('Sunday is accepted (not a validation error) and needs phone confirmation', () => {
+      expect(timingOf({ preferredDate: '2026-10-11' })).toEqual({
+        sameDay: false,
+        sunday: true,
+        phoneConfirmation: true,
+      });
     });
 
-    it('rejects a non-boolean urgent', () => {
-      expect(invalidFields({ urgent: 'true' })).toContain('urgent');
-      expect(invalidFields({ urgent: 1 })).toContain('urgent');
-      expect(invalidFields({ urgent: 'yes' })).toContain('urgent');
+    it('today + Sunday: one combined state', () => {
+      const sundayNow = new Date('2026-10-11T19:00:00Z');
+      expect(timingOf({ preferredDate: '2026-10-11' }, sundayNow)).toEqual({
+        sameDay: true,
+        sunday: true,
+        phoneConfirmation: true,
+      });
     });
 
-    it('still requires consent for urgent requests', () => {
-      expect(invalidFields({ urgent: true, contactConsent: false })).toContain('contactConsent');
+    it('ignores a legacy / forged urgent field completely', () => {
+      for (const urgent of [true, false, 'true', 1, null]) {
+        const normal = validateAppointmentRequest({ ...valid, urgent }, NOW);
+        expect(normal.ok).toBe(true);
+        if (normal.ok) {
+          expect(normal.value).not.toHaveProperty('urgent');
+          expect(normal.timing.phoneConfirmation).toBe(false);
+        }
+        const today = validateAppointmentRequest(
+          { ...valid, preferredDate: '2026-10-05', urgent },
+          NOW,
+        );
+        expect(today.ok && today.timing.sameDay).toBe(true);
+      }
     });
   });
 

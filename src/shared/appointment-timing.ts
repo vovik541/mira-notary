@@ -33,6 +33,22 @@ const HH_MM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 export const isValidTimeOfDay = (value: unknown): value is string =>
   typeof value === 'string' && HH_MM.test(value);
 
+/** Mira's standard appointment / travel hours (inclusive): 8:30 AM through 8:30 PM. */
+export const STANDARD_HOURS = { start: '08:30', end: '20:30' } as const;
+export const STANDARD_HOURS_LABEL = '8:30 AM–8:30 PM';
+
+/** `HH:mm` → minutes since midnight (locale-independent, no Date parsing); NaN when malformed. */
+export function minutesSinceMidnight(value: string): number {
+  const match = HH_MM.exec(value);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : Number.NaN;
+}
+
+/** Valid `HH:mm` that falls within the standard hours (both ends inclusive). */
+export const isWithinStandardHours = (value: unknown): value is string =>
+  isValidTimeOfDay(value) &&
+  minutesSinceMidnight(value) >= minutesSinceMidnight(STANDARD_HOURS.start) &&
+  minutesSinceMidnight(value) <= minutesSinceMidnight(STANDARD_HOURS.end);
+
 /** `14:30` → `2:30 PM`. */
 export function formatTimeOfDay(value: string): string {
   const match = HH_MM.exec(value);

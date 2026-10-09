@@ -4,12 +4,9 @@ import {
   AppointmentErrorCode,
   AppointmentRequestPayload,
 } from '../shared/appointment.model';
+import { DateTiming, STANDARD_HOURS_LABEL } from '../shared/appointment-timing';
 import { PHOTO_ERROR_MESSAGES } from '../shared/photos';
-import {
-  buildAppointmentEmail,
-  needsPhoneConfirmation,
-  sanitizeForSubject,
-} from './appointment-email';
+import { buildAppointmentEmail, sanitizeForSubject } from './appointment-email';
 import { validateAppointmentRequest } from './appointment-validation';
 import { EmailAttachment, EmailAddress, EmailProvider, OutboundEmail } from './email-provider';
 import { WorkerEnv } from './env';
@@ -65,13 +62,15 @@ function failure(code: AppointmentErrorCode, message?: string, status?: number):
   );
 }
 
+const SPECIFIC_TIME_MESSAGE = `Please choose a specific time between ${STANDARD_HOURS_LABEL}, or call Mira at ${PHONE} to arrange another time.`;
+
 const TOO_LARGE_MESSAGE = `${PHOTO_ERROR_MESSAGES.too_large} ${PHOTO_ERROR_MESSAGES.total_too_large}`;
 
 /**
  * Handles `POST /api/appointments` (multipart: JSON `payload` + up to five `photos`).
  *
  * Order: method/origin/type → rate limit → bounded body read → parse → field validation (incl.
- * consent, ZIP/service area, structured time; same-day and Sunday dates are forced urgent) → photo
+ * consent, ZIP/service area, structured time; same-day / Sunday status is derived from the date) → photo
  * validation → Turnstile → photo encoding → one email. Every rejection happens before Resend. Nothing is persisted.
  *
  * Logs contain only categories, field names, counts, sizes, provider status, the provider
@@ -137,9 +136,13 @@ export async function handleAppointmentRequest(
     console.warn(
       `appointment: validation_failed fields=${validation.invalidFields.join(',')}${tag}`,
     );
-    return failure('validation');
+    // A time outside standard hours is the one failure the visitor can fix with a clear hint.
+    const onlyTime =
+      validation.invalidFields.length === 1 && validation.invalidFields[0] === 'specificTime';
+    return failure('validation', onlyTime ? SPECIFIC_TIME_MESSAGE : undefined);
   }
   const appointment = validation.value;
+  const timing = validation.timing;
 
   const photos = await inspectPhotos(form.photos);
   if (!photos.ok) {
@@ -177,7 +180,7 @@ export async function handleAppointmentRequest(
   const stats = `photos=${attachments.length} bytes=${photos.totalBytes}`;
 
   const result = await provider.send(
-    buildMessage(appointment, config.to, config.from, attachments),
+    buildMessage(appointment, timing, config.to, config.from, attachments),
   );
   if (!result.ok) {
     console.error(
@@ -188,10 +191,7 @@ export async function handleAppointmentRequest(
   }
 
   console.info(`appointment: email_sent id=${result.id} ${stats}${tag}`);
-  return json(
-    { success: true, phoneConfirmationRequired: needsPhoneConfirmation(appointment) },
-    200,
-  );
+  return json({ success: true, phoneConfirmationRequired: timing.phoneConfirmation }, 200);
 }
 
 type EmailConfig =
@@ -230,11 +230,12 @@ function resolveEmailConfig(env: WorkerEnv): EmailConfig {
 
 function buildMessage(
   appointment: AppointmentRequestPayload,
+  timing: DateTiming,
   to: string,
   from: EmailAddress,
   attachments: readonly EmailAttachment[],
 ): OutboundEmail {
-  const content = buildAppointmentEmail(appointment, attachments.length);
+  const content = buildAppointmentEmail(appointment, attachments.length, timing);
   return {
     from,
     to,

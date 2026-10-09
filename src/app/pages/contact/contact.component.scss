@@ -255,7 +255,7 @@ textarea {
   cursor: pointer;
 }
 
-.urgent-callout {
+.phone-callout {
   display: grid;
   gap: 0.75rem;
   justify-items: start;
@@ -269,13 +269,20 @@ textarea {
     margin: 0;
   }
 
-  .urgent-title {
+  .phone-callout-title {
     font-weight: 600;
   }
 }
 
 .specific-time {
-  max-width: 14rem;
+  max-width: 22rem;
+
+  .help a {
+    font-weight: 600;
+    color: var(--color-navy);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
 }
 
 .consent-help {

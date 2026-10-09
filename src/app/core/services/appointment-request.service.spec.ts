@@ -14,7 +14,6 @@ const payload: AppointmentRequestPayload = {
   preferredDate: '2027-03-15',
   timePreference: 'morning',
   specificTime: null,
-  urgent: false,
   contactConsent: true,
   turnstileToken: 'token',
 };
@@ -59,11 +58,6 @@ describe('AppointmentRequestService', () => {
     const serverFlag = submit();
     http.expectOne('/api/appointments').flush({ success: true, phoneConfirmationRequired: true });
     expect(serverFlag.result).toEqual({ ok: true, phoneConfirmationRequired: true });
-
-    const holder: { result: AppointmentSubmitResult | undefined } = { result: undefined };
-    service.submit({ ...payload, urgent: true }).subscribe((r) => (holder.result = r));
-    http.expectOne('/api/appointments').flush({ success: true });
-    expect(holder.result).toEqual({ ok: true, phoneConfirmationRequired: true });
   });
 
   it('appends each photo as a "photos" file part', () => {

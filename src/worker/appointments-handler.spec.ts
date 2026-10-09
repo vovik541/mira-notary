@@ -18,7 +18,6 @@ const body = {
   preferredDate: '2026-10-20',
   timePreference: 'morning',
   specificTime: null,
-  urgent: false,
   contactConsent: true,
   turnstileToken: 'good-token',
 };
@@ -493,53 +492,76 @@ describe('handleAppointmentRequest', () => {
     });
   });
 
-  describe('same-day / urgent / Sunday', () => {
+  describe('same-day / Sunday (derived from the date)', () => {
     // NOW = Mon 2026-10-05 12:00Z. body.preferredDate is Tue 2026-10-20; 2026-10-11 is a Sunday.
-    it('accepts urgent: true and sends exactly one urgent email (no 422)', async () => {
-      const { provider, sent } = makeProvider();
-      const fetchFn = turnstile(true);
-      const response = await run({ ...body, urgent: true }, makeEnv(), provider, fetchFn);
-      expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ success: true, phoneConfirmationRequired: true });
-      expect(fetchFn).toHaveBeenCalledTimes(1);
-      expect(provider.send).toHaveBeenCalledTimes(1);
-      expect(sent[0].subject).toBe('URGENT — New Notary Appointment Request — Jane Doe');
-      expect(sent[0].text).toContain('Same-Day / Urgent: Yes');
-      expect(sent[0].text).toContain('Phone Confirmation Required: Yes');
-    });
-
-    it('sends a normal future request as not urgent, no phone confirmation', async () => {
+    it('sends a normal future request unmarked, with no phone confirmation', async () => {
       const { provider, sent } = makeProvider();
       const response = await run(body, makeEnv(), provider);
       expect(await response.json()).toEqual({ success: true, phoneConfirmationRequired: false });
       expect(sent[0].subject).toBe('New Notary Appointment Request — Jane Doe');
+      expect(sent[0].text).toContain('Same-Day: No');
+      expect(sent[0].text).toContain('Sunday: No');
       expect(sent[0].text).toContain('Phone Confirmation Required: No');
     });
 
-    it('normalizes a forged urgent=false for today to urgent', async () => {
+    it('derives a same-day request from today in Los Angeles (exactly one email)', async () => {
       const { provider, sent } = makeProvider();
+      const fetchFn = turnstile(true);
       const response = await run(
-        { ...body, preferredDate: '2026-10-05', urgent: false },
+        { ...body, preferredDate: '2026-10-05' },
         makeEnv(),
         provider,
-      );
-      expect(response.status).toBe(200);
-      expect(sent[0].subject.startsWith('URGENT — ')).toBe(true);
-      expect(sent[0].text).toContain('Same-Day / Urgent: Yes');
-    });
-
-    it('accepts a Sunday and flags phone confirmation, without guaranteeing anything', async () => {
-      const { provider, sent } = makeProvider();
-      const response = await run(
-        { ...body, preferredDate: '2026-10-11', urgent: false },
-        makeEnv(),
-        provider,
+        fetchFn,
       );
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({ success: true, phoneConfirmationRequired: true });
-      expect(sent[0].text).toContain('Preferred Date: 2026-10-11 (Sunday)');
+      expect(provider.send).toHaveBeenCalledTimes(1);
+      expect(sent[0].subject).toBe('SAME-DAY — New Notary Appointment Request — Jane Doe');
+      expect(sent[0].text).toContain('Same-Day: Yes');
       expect(sent[0].text).toContain('Phone Confirmation Required: Yes');
     });
+
+    it('accepts a Sunday and requires phone confirmation without calling it same-day', async () => {
+      const { provider, sent } = makeProvider();
+      const response = await run({ ...body, preferredDate: '2026-10-11' }, makeEnv(), provider);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ success: true, phoneConfirmationRequired: true });
+      expect(sent[0].subject).toBe('SUNDAY — New Notary Appointment Request — Jane Doe');
+      expect(sent[0].text).toContain('Preferred Date: 2026-10-11 (Sunday)');
+      expect(sent[0].text).toContain('Same-Day: No');
+      expect(sent[0].text).toContain('Sunday: Yes');
+    });
+
+    it('handles today + Sunday as one combined state', async () => {
+      const { provider, sent } = makeProvider();
+      const response = await handleAppointmentRequest(
+        post({ ...body, preferredDate: '2026-10-11' }),
+        makeEnv(),
+        {
+          fetchFn: turnstile(true),
+          emailProvider: provider,
+          now: () => new Date('2026-10-11T19:00:00Z'),
+        },
+      );
+      expect(response.status).toBe(200);
+      expect(sent[0].subject).toBe('SAME-DAY SUNDAY — New Notary Appointment Request — Jane Doe');
+      expect(sent[0].text).toContain('Same-Day: Yes');
+      expect(sent[0].text).toContain('Sunday: Yes');
+    });
+
+    it.each([true, false, 'true', 1])(
+      'ignores a forged urgent=%j: the date alone decides',
+      async (urgent) => {
+        const normal = makeProvider();
+        await run({ ...body, urgent }, makeEnv(), normal.provider);
+        expect(normal.sent[0].subject).toBe('New Notary Appointment Request — Jane Doe');
+        expect(normal.sent[0].text).toContain('Phone Confirmation Required: No');
+
+        const today = makeProvider();
+        await run({ ...body, preferredDate: '2026-10-05', urgent }, makeEnv(), today.provider);
+        expect(today.sent[0].text).toContain('Same-Day: Yes');
+      },
+    );
 
     it('renders structured times readably in the email', async () => {
       const { provider, sent } = makeProvider();
@@ -563,6 +585,14 @@ describe('handleAppointmentRequest', () => {
         'legacy free-text preferredTime only',
         { timePreference: undefined, preferredTime: 'whenever' },
       ],
+      [
+        'specific time before opening (08:29)',
+        { timePreference: 'specific', specificTime: '08:29' },
+      ],
+      [
+        'specific time after closing (20:31)',
+        { timePreference: 'specific', specificTime: '20:31' },
+      ],
     ])('rejects %s with 400 before Turnstile and Resend', async (_name, overrides) => {
       const { provider } = makeProvider();
       const fetchFn = turnstile(true);
@@ -572,14 +602,38 @@ describe('handleAppointmentRequest', () => {
       expect(provider.send).not.toHaveBeenCalled();
     });
 
-    describe('urgent requests keep every other protection', () => {
-      const urgent = { ...body, urgent: true };
+    it('answers an out-of-hours time with a clear message that points to the phone', async () => {
+      const { provider } = makeProvider();
+      const response = await run(
+        { ...body, timePreference: 'specific', specificTime: '21:00' },
+        makeEnv(),
+        provider,
+      );
+      const payload = await errorOf(response);
+      expect(payload.error).toBe('validation');
+      expect(payload.message).toContain('8:30 AM–8:30 PM');
+      expect(payload.message).toContain('(279) 529-8754');
+    });
+
+    it.each(['08:30', '12:00', '20:30'])('accepts a specific time of %s', async (time) => {
+      const { provider, sent } = makeProvider();
+      const response = await run(
+        { ...body, timePreference: 'specific', specificTime: time },
+        makeEnv(),
+        provider,
+      );
+      expect(response.status).toBe(200);
+      expect(sent).toHaveLength(1);
+    });
+
+    describe('same-day requests keep every other protection', () => {
+      const today = { ...body, preferredDate: '2026-10-05' };
 
       it('still requires contact consent', async () => {
         const { provider } = makeProvider();
         const fetchFn = turnstile(true);
         const response = await run(
-          { ...urgent, contactConsent: false },
+          { ...today, contactConsent: false },
           makeEnv(),
           provider,
           fetchFn,
@@ -591,14 +645,14 @@ describe('handleAppointmentRequest', () => {
 
       it('still requires a valid ZIP in the service area', async () => {
         const { provider } = makeProvider();
-        const response = await run({ ...urgent, locationZip: '90210' }, makeEnv(), provider);
+        const response = await run({ ...today, locationZip: '90210' }, makeEnv(), provider);
         expect(response.status).toBe(400);
         expect(provider.send).not.toHaveBeenCalled();
       });
 
       it('still verifies Turnstile', async () => {
         const { provider } = makeProvider();
-        const response = await run(urgent, makeEnv(), provider, turnstile(false));
+        const response = await run(today, makeEnv(), provider, turnstile(false));
         expect(response.status).toBe(403);
         expect(provider.send).not.toHaveBeenCalled();
       });
@@ -611,7 +665,7 @@ describe('handleAppointmentRequest', () => {
           type: 'application/pdf',
           content: pad(ascii('%PDF-1.7'), 100),
         };
-        const response = await run(urgent, makeEnv(), provider, fetchFn, {}, [pdf]);
+        const response = await run(today, makeEnv(), provider, fetchFn, {}, [pdf]);
         expect(response.status).toBe(400);
         expect(fetchFn).not.toHaveBeenCalled();
         expect(provider.send).not.toHaveBeenCalled();
@@ -622,15 +676,8 @@ describe('handleAppointmentRequest', () => {
         const env = makeEnv({
           APPOINTMENT_RATE_LIMIT: { limit: async () => ({ success: false }) },
         });
-        const response = await run(urgent, env, provider);
+        const response = await run(today, env, provider);
         expect(response.status).toBe(429);
-        expect(provider.send).not.toHaveBeenCalled();
-      });
-
-      it('still rejects a non-boolean urgent', async () => {
-        const { provider } = makeProvider();
-        const response = await run({ ...body, urgent: 'true' }, makeEnv(), provider);
-        expect(response.status).toBe(400);
         expect(provider.send).not.toHaveBeenCalled();
       });
     });

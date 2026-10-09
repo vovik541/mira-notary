@@ -69,16 +69,15 @@ export interface AppointmentRequestPayload {
   preferredDate: string;
   /** Structured choice; replaces the former free-text time. */
   timePreference: TimePreference;
-  /** `HH:mm`; required when `timePreference` is `specific`, otherwise `null`. */
+  /**
+   * `HH:mm` within 08:30–20:30; required when `timePreference` is `specific`, otherwise `null`.
+   * There is no client-controlled "urgent" field: same-day / Sunday status is derived from
+   * `preferredDate` by the Worker.
+   */
   specificTime: string | null;
   numberOfSigners?: number;
   preferredLanguage?: AppointmentLanguage;
   additionalDetails?: string;
-  /**
-   * Same-day / urgent request. Submitting it does not confirm anything: Mira confirms by phone.
-   * The Worker also forces it to `true` for a same-day or Sunday date, whatever the client sent.
-   */
-  urgent: boolean;
   /** Must be exactly boolean `true` (permission to contact the visitor about this request). */
   contactConsent: true;
   turnstileToken: string;
@@ -90,7 +89,7 @@ export type AppointmentErrorCode =
 
 export interface AppointmentSuccessResponse {
   success: true;
-  /** Same-day, urgent or Sunday: the visitor must still phone Mira to confirm availability. */
+  /** Same-day or Sunday (derived from the date): the visitor must phone Mira to confirm. */
   phoneConfirmationRequired?: boolean;
 }
 

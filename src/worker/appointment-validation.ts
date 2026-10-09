@@ -10,7 +10,8 @@ import {
   TimePreference,
   classifyDate,
   isTimePreference,
-  isValidTimeOfDay,
+  isWithinStandardHours,
+  DateTiming,
 } from '../shared/appointment-timing';
 import { checkZip } from '../shared/service-area';
 import {
@@ -23,7 +24,13 @@ import {
 } from '../shared/validation';
 
 export type ValidationResult =
-  { ok: true; value: AppointmentRequestPayload } | { ok: false; invalidFields: string[] };
+  | {
+      ok: true;
+      value: AppointmentRequestPayload;
+      /** Same-day / Sunday status, derived from the date (never from the request body). */
+      timing: DateTiming;
+    }
+  | { ok: false; invalidFields: string[] };
 
 export function validateAppointmentRequest(
   input: unknown,
@@ -113,7 +120,7 @@ export function validateAppointmentRequest(
   const rawSpecific = body['specificTime'];
   let specificTime: string | null = null;
   if (timePreference === 'specific') {
-    if (isValidTimeOfDay(rawSpecific)) {
+    if (isWithinStandardHours(rawSpecific)) {
       specificTime = rawSpecific;
     } else {
       invalid.push('specificTime');
@@ -152,13 +159,6 @@ export function validateAppointmentRequest(
     }
   }
 
-  // Urgent is a plain boolean (or absent). Same-day and Sunday dates are forced urgent below:
-  // the server never trusts the browser to flag them.
-  const urgentRaw = body['urgent'];
-  if (urgentRaw !== undefined && typeof urgentRaw !== 'boolean') {
-    invalid.push('urgent');
-  }
-
   // Consent must be the boolean `true`: no `"true"`, `1`, `"on"`, missing or false.
   if (body['contactConsent'] !== true) {
     invalid.push('contactConsent');
@@ -172,6 +172,7 @@ export function validateAppointmentRequest(
 
   return {
     ok: true,
+    timing: classifyDate(preferredDate as string, now),
     value: {
       firstName: firstName as string,
       lastName: lastName as string,
@@ -185,7 +186,6 @@ export function validateAppointmentRequest(
       ...(numberOfSigners !== undefined ? { numberOfSigners } : {}),
       ...(preferredLanguage ? { preferredLanguage: preferredLanguage as AppointmentLanguage } : {}),
       ...(additionalDetails ? { additionalDetails } : {}),
-      urgent: urgentRaw === true || classifyDate(preferredDate as string, now).phoneConfirmation,
       contactConsent: true,
       turnstileToken: turnstileToken as string,
     },
