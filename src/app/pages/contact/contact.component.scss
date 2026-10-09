@@ -285,6 +285,13 @@ textarea {
   }
 }
 
+.submit-help {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-error);
+  overflow-wrap: anywhere;
+}
+
 .consent-help {
   margin: 0;
   padding-left: 2rem;

@@ -203,6 +203,18 @@ describe('handleAppointmentRequest', () => {
     expect(params.get('remoteip')).toBe('203.0.113.7');
   });
 
+  it('accepts Unicode names and normalizes the phone number in the email', async () => {
+    const { provider, sent } = makeProvider();
+    const response = await run(
+      { ...body, firstName: 'Мирослава', lastName: 'O’Connor', phone: '916 555 0100' },
+      makeEnv(),
+      provider,
+    );
+    expect(response.status).toBe(200);
+    expect(sent[0].text).toContain('Name: Мирослава O’Connor');
+    expect(sent[0].text).toContain('Phone: (916) 555-0100');
+  });
+
   it('uses the visitor email only as Reply-To, never as From', async () => {
     const { provider, sent } = makeProvider();
     await run(body, makeEnv(), provider);
@@ -217,6 +229,23 @@ describe('handleAppointmentRequest', () => {
     ['missing email', { email: undefined }],
     ['bad email', { email: 'not-an-email' }],
     ['bad phone', { phone: '123' }],
+    ['digits in a name', { firstName: 'John123' }],
+    ['symbols in a name', { lastName: 'Mira@' }],
+    ['symbols-only name', { firstName: '!!!!' }],
+    ['double hyphen in a name', { lastName: 'Smith--Jones' }],
+    ['trailing hyphen in a name', { firstName: 'John-' }],
+    ['name over 50 characters', { firstName: 'a'.repeat(51) }],
+    ['name with surrounding space', { firstName: ' Jane' }],
+    ['email over 120 characters', { email: `${'a'.repeat(109)}@example.com` }],
+    ['phone with +1', { phone: '+1 279 555 0100' }],
+    ['phone with country code digit', { phone: '12795550100' }],
+    ['phone with 9 digits', { phone: '279555010' }],
+    ['phone with 11 digits', { phone: '27955501000' }],
+    ['signers 0', { numberOfSigners: 0 }],
+    ['signers 51', { numberOfSigners: 51 }],
+    ['signers 999', { numberOfSigners: 999 }],
+    ['signers as text', { numberOfSigners: '5' }],
+    ['no consent', { contactConsent: false }],
     ['malformed ZIP (4 digits)', { locationZip: '9581' }],
     ['malformed ZIP (6 digits)', { locationZip: '958140' }],
     ['malformed ZIP (letters)', { locationZip: '9581A' }],

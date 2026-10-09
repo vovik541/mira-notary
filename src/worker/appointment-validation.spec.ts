@@ -78,27 +78,68 @@ describe('validateAppointmentRequest', () => {
   });
 
   describe('names', () => {
-    it.each(["O'Connor", 'Anne-Marie', 'Мирослава', 'José', 'Van der Berg', '李'])(
-      'accepts %s',
-      (name) => {
-        expect(run({ firstName: name, lastName: name }).ok).toBe(true);
-      },
-    );
+    it.each([
+      'Mira',
+      "O'Connor",
+      'O’Connor',
+      'Anna Maria',
+      'José',
+      'Мирослава',
+      'Володимир',
+      'Anne-Marie',
+      'Mary-Kate',
+      'Smith-Jones',
+      'Van der Berg',
+      '李',
+      'हिन्दी',
+    ])('accepts %s', (name) => {
+      expect(run({ firstName: name, lastName: name }).ok).toBe(true);
+    });
 
-    it.each(['---', "'", '1234', '!!!'])('rejects a name without any letter: %s', (name) => {
+    it.each([
+      'John123',
+      'Mira@',
+      'John_Doe',
+      '12345',
+      '!!!',
+      '!!!!',
+      "'John",
+      "John'",
+      '’John',
+      'John’',
+      "'",
+      ' ',
+      '- -',
+      '-John',
+      'John-',
+      'John--Smith',
+      "John''Smith",
+      'John  Smith',
+      "John-'Smith",
+      'Anna  Maria',
+      "O''Connor",
+      'John.',
+      'Dr. Who',
+    ])('rejects %j', (name) => {
       expect(invalidFields({ firstName: name })).toContain('firstName');
       expect(invalidFields({ lastName: name })).toContain('lastName');
     });
 
-    it('limits each name to 80 characters', () => {
-      expect(run({ firstName: 'a'.repeat(80) }).ok).toBe(true);
-      expect(invalidFields({ firstName: 'a'.repeat(81) })).toContain('firstName');
-      expect(invalidFields({ lastName: 'a'.repeat(81) })).toContain('lastName');
+    it('limits each name to 50 characters (50 accepted, 51 rejected, never truncated)', () => {
+      expect(run({ firstName: 'a'.repeat(50), lastName: 'b'.repeat(50) }).ok).toBe(true);
+      expect(invalidFields({ firstName: 'a'.repeat(51) })).toContain('firstName');
+      expect(invalidFields({ lastName: 'a'.repeat(51) })).toContain('lastName');
     });
 
-    it('trims names before storing them', () => {
-      const result = run({ firstName: '  Jane ', lastName: ' Doe  ' });
-      expect(result.ok && [result.value.firstName, result.value.lastName]).toEqual(['Jane', 'Doe']);
+    it('rejects surrounding whitespace instead of silently trimming it', () => {
+      expect(invalidFields({ firstName: ' Jane' })).toContain('firstName');
+      expect(invalidFields({ firstName: 'Jane ' })).toContain('firstName');
+      expect(invalidFields({ lastName: '\tDoe' })).toContain('lastName');
+    });
+
+    it('rejects non-string names', () => {
+      expect(invalidFields({ firstName: 5 })).toContain('firstName');
+      expect(invalidFields({ lastName: ['Doe'] })).toContain('lastName');
     });
   });
 
@@ -136,19 +177,63 @@ describe('validateAppointmentRequest', () => {
     expect(run({ additionalDetails: 'a'.repeat(3000) }).ok).toBe(true);
   });
 
-  it.each(['9167590383', '916-759-0383', '(916) 759-0383', '+1 916 759 0383', '+380 44 123 4567'])(
-    'accepts human phone formatting: %s',
-    (phone) => {
-      expect(run({ phone }).ok).toBe(true);
-    },
-  );
+  describe('phone (ten digits, no country code)', () => {
+    it.each(['2795550100', '279-555-0100', '(279) 555-0100', '279 555 0100', ' 279 555 0100 '])(
+      'accepts %j and stores it as (279) 555-0100',
+      (phone) => {
+        const result = run({ phone });
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+          expect(result.value.phone).toBe('(279) 555-0100');
+        }
+      },
+    );
 
-  it.each(['123', '916759038', '1'.repeat(16), 'call me maybe', '916-759-0383 ext 5'])(
-    'rejects an invalid phone: %s',
-    (phone) => {
+    it.each([
+      '+1 279 555 0100',
+      '+12795550100',
+      '12795550100',
+      '1 279 555 0100',
+      '279555010',
+      '27955501000',
+      '123',
+      'abcdefghij',
+      '279.555.0100',
+      '279_555_0100',
+      '279 555 0100 ext 5',
+      'call me maybe',
+      '1'.repeat(16),
+      '(279) 555 - 0100', // 16 raw characters: over the physical limit
+      '',
+      '          ',
+    ])('rejects %j', (phone) => {
       expect(invalidFields({ phone })).toContain('phone');
-    },
-  );
+    });
+
+    it('rejects a non-string phone', () => {
+      expect(invalidFields({ phone: 2795550100 })).toContain('phone');
+    });
+  });
+
+  describe('email length', () => {
+    const emailOfLength = (length: number): string => `${'a'.repeat(length - 12)}@example.com`;
+
+    it('accepts a structurally valid email of exactly 120 characters', () => {
+      expect(emailOfLength(120)).toHaveLength(120);
+      expect(run({ email: emailOfLength(120) }).ok).toBe(true);
+    });
+
+    it('rejects 121 characters (never truncated)', () => {
+      expect(invalidFields({ email: emailOfLength(121) })).toContain('email');
+    });
+
+    it.each(['plain', 'a@b', 'a@@b.com', 'has space@example.com', 'a b@c.com'])(
+      'rejects malformed email %j',
+      (email) => {
+        expect(invalidFields({ email })).toContain('email');
+      },
+    );
+  });
 
   describe('ZIP code', () => {
     it.each(['95814', '95630', '95742', '95624'])('accepts a Sacramento County ZIP: %s', (zip) => {
@@ -230,6 +315,10 @@ describe('validateAppointmentRequest', () => {
     expect(invalidFields({ numberOfSigners: '2' })).toContain('numberOfSigners');
     expect(invalidFields({ numberOfSigners: 51 })).toContain('numberOfSigners');
     expect(run({ numberOfSigners: 50 }).ok).toBe(true);
+    expect(run({ numberOfSigners: 1 }).ok).toBe(true);
+    for (const bad of [999, -1, 1e1 + 41, '1e1', '+3', '007', 2.0000001]) {
+      expect(invalidFields({ numberOfSigners: bad })).toContain('numberOfSigners');
+    }
   });
 
   it('no longer knows about a document count: it is ignored, never copied', () => {

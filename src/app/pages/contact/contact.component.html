@@ -43,10 +43,10 @@
             <input
               id="firstName"
               type="text"
+              appNameInput
               autocomplete="given-name"
               formControlName="firstName"
               required
-              [attr.maxlength]="limits.firstName"
               [attr.aria-invalid]="firstNameError ? 'true' : null"
               [attr.aria-describedby]="firstNameError ? 'firstName-error' : null"
             />
@@ -60,10 +60,10 @@
             <input
               id="lastName"
               type="text"
+              appNameInput
               autocomplete="family-name"
               formControlName="lastName"
               required
-              [attr.maxlength]="limits.lastName"
               [attr.aria-invalid]="lastNameError ? 'true' : null"
               [attr.aria-describedby]="lastNameError ? 'lastName-error' : null"
             />
@@ -228,9 +228,7 @@
             <label for="signers">Number of Signers</label>
             <input
               id="signers"
-              type="number"
-              inputmode="numeric"
-              min="1"
+              [appDigitsInput]="signersMaxLength"
               placeholder="e.g. 1"
               formControlName="signers"
               [attr.aria-invalid]="signersError ? 'true' : null"
@@ -286,6 +284,7 @@
             type="file"
             multiple
             [accept]="photoAccept"
+            (click)="onPhotoPickerOpen()"
             aria-describedby="photos-help"
             (change)="onPhotosSelected($event)"
           />
@@ -369,8 +368,9 @@
         <button
           class="btn btn--gold btn--block"
           type="submit"
-          [disabled]="state() === 'sending' || !formValid()"
+          [disabled]="!canSubmit()"
           [attr.aria-busy]="state() === 'sending'"
+          [attr.aria-describedby]="submitBlockMessage() ? 'submit-help' : null"
         >
           @if (state() === 'sending') {
             <span class="spinner" aria-hidden="true"></span> Sending…
@@ -378,6 +378,9 @@
             Request Appointment
           }
         </button>
+        @if (submitBlockMessage(); as blockMessage) {
+          <p class="submit-help" id="submit-help">{{ blockMessage }}</p>
+        }
         <p class="hint">Fields marked * are required.</p>
       </form>
     }

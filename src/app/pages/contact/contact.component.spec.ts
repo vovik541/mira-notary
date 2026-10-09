@@ -1,7 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FormControl } from '@angular/forms';
+import { FormControl, FormGroup } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -181,8 +182,8 @@ describe('ContactComponent', () => {
 
   describe('required fields', () => {
     it.each([
-      ['firstName', 'Enter your first name.'],
-      ['lastName', 'Enter your last name.'],
+      ['firstName', 'First name is required.'],
+      ['lastName', 'Last name is required.'],
       ['phone', 'Enter your phone number.'],
       ['email', 'Enter your email address.'],
       ['zip', 'ZIP code is required.'],
@@ -197,7 +198,7 @@ describe('ContactComponent', () => {
     it('rejects whitespace-only values', () => {
       const fixture = setup();
       enter(fixture, 'firstName', '   ');
-      expect(errorText(fixture, 'firstName')).toBe('Enter your first name.');
+      expect(errorText(fixture, 'firstName')).toBe('First name is required.');
     });
 
     it('does not make optional fields required', () => {
@@ -210,25 +211,134 @@ describe('ContactComponent', () => {
   });
 
   describe('names', () => {
-    it.each(["O'Connor", 'Anne-Marie', 'Мирослава', 'José'])('accepts %s', (name) => {
+    /** Programmatic control changes do not dirty an OnPush view by themselves. */
+    const refresh = (fixture: ComponentFixture<ContactComponent>): void => {
+      fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+      fixture.detectChanges();
+    };
+    const typeInto = (
+      fixture: ComponentFixture<ContactComponent>,
+      id: string,
+      value: string,
+    ): HTMLInputElement => {
+      const input = field(fixture, id);
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      return input;
+    };
+    const pasteInto = (
+      fixture: ComponentFixture<ContactComponent>,
+      id: string,
+      pasted: string,
+    ): Event => {
+      const event = new Event('paste', { bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'clipboardData', { value: { getData: () => pasted } });
+      field(fixture, id).dispatchEvent(event);
+      fixture.detectChanges();
+      return event;
+    };
+
+    it.each([
+      'Mira',
+      "O'Connor",
+      'O’Connor',
+      'Anne-Marie',
+      'Mary-Kate',
+      'Smith-Jones',
+      'Anna Maria',
+      'José',
+      'Мирослава',
+      'Володимир',
+    ])('accepts %s unchanged', (name) => {
       const fixture = setup();
+      const first = typeInto(fixture, 'firstName', name);
       enter(fixture, 'firstName', name);
       enter(fixture, 'lastName', name);
+      expect(first.value).toBe(name);
       expect(errorText(fixture, 'firstName')).toBeNull();
       expect(errorText(fixture, 'lastName')).toBeNull();
     });
 
-    it('rejects names without a letter and names over 80 characters', () => {
+    it('filters digits and symbols out while typing, deterministically', () => {
       const fixture = setup();
-      enter(fixture, 'firstName', '---');
-      expect(errorText(fixture, 'firstName')).toBe('Enter a valid first name.');
-      enter(fixture, 'lastName', 'a'.repeat(81));
-      expect(errorText(fixture, 'lastName')).toBe('Last name must be 80 characters or fewer.');
+      expect(typeInto(fixture, 'firstName', 'John123').value).toBe('John');
+      expect(typeInto(fixture, 'firstName', 'Mira@').value).toBe('Mira');
+      expect(typeInto(fixture, 'firstName', 'John_Doe').value).toBe('JohnDoe');
+      expect(typeInto(fixture, 'firstName', 'Anne-Marie').value).toBe('Anne-Marie');
+      expect(typeInto(fixture, 'lastName', 'Smith_Jones.').value).toBe('SmithJones');
+      expect(typeInto(fixture, 'lastName', '12345').value).toBe('');
+      expect(typeInto(fixture, 'lastName', '!!!').value).toBe('');
+      expect(typeInto(fixture, 'firstName', 'Мир1ос+лава').value).toBe('Мирослава');
+    });
+
+    it('keeps capitalization, spaces and both apostrophes while filtering', () => {
+      const fixture = setup();
+      expect(typeInto(fixture, 'firstName', "mIRa o'neil").value).toBe("mIRa o'neil");
+      expect(typeInto(fixture, 'lastName', 'D’Angelo 3').value).toBe('D’Angelo ');
+    });
+
+    it('sanitizes pasted text and keeps the paste inside the 50-character limit', () => {
+      const fixture = setup();
+      const event = pasteInto(fixture, 'firstName', 'J0hn\n<b>Doe</b> 99 ' + 'x'.repeat(80));
+      expect(event.defaultPrevented).toBe(true);
+      const value = field(fixture, 'firstName').value;
+      expect(value.startsWith('JhnbDoeb  x')).toBe(true);
+      expect(value).toHaveLength(50);
+      expect(value).not.toMatch(/[0-9<>/]/);
+    });
+
+    it('limits the physical input to 50 characters', () => {
+      const fixture = setup();
+      expect(field(fixture, 'firstName').getAttribute('maxlength')).toBe('50');
+      expect(field(fixture, 'lastName').getAttribute('maxlength')).toBe('50');
+      expect(typeInto(fixture, 'firstName', 'a'.repeat(60)).value).toHaveLength(50);
+    });
+
+    it('trims surrounding spaces when the field is left', () => {
+      const fixture = setup();
+      enter(fixture, 'firstName', '  Anna Maria ');
+      expect(field(fixture, 'firstName').value).toBe('Anna Maria');
+      expect(errorText(fixture, 'firstName')).toBeNull();
+    });
+
+    it.each(["'John", "John'", "'", '-John', 'John-', 'John--Smith', "John''Smith", 'John  Smith'])(
+      'flags %s after the field is left',
+      (name) => {
+        const fixture = setup();
+        enter(fixture, 'firstName', name);
+        expect(errorText(fixture, 'firstName')).toBe(
+          'Use letters only; apostrophes, hyphens and spaces are allowed.',
+        );
+      },
+    );
+
+    it('applies the same rules to forged / programmatic values (validator, not just the filter)', () => {
+      const fixture = setup();
+      const form = (fixture.componentInstance as unknown as { form: FormGroup }).form;
+      for (const [key, label] of [
+        ['firstName', 'First'],
+        ['lastName', 'Last'],
+      ]) {
+        const control = form.controls[key];
+        control.setValue('John123');
+        control.markAsTouched();
+        refresh(fixture);
+        expect(errorText(fixture, key)).toBe(
+          'Use letters only; apostrophes, hyphens and spaces are allowed.',
+        );
+        control.setValue('a'.repeat(51));
+        refresh(fixture);
+        expect(errorText(fixture, key)).toBe(`${label} name must be 50 characters or fewer.`);
+        control.setValue('a'.repeat(50));
+        refresh(fixture);
+        expect(errorText(fixture, key)).toBeNull();
+      }
     });
   });
 
   describe('phone and email', () => {
-    it.each(['9167590383', '916-759-0383', '(279) 529-8754', '+1 916 759 0383'])(
+    it.each(['2795550100', '279-555-0100', '(279) 555-0100', '279 555 0100'])(
       'accepts phone %s',
       (phone) => {
         const fixture = setup();
@@ -237,10 +347,29 @@ describe('ContactComponent', () => {
       },
     );
 
-    it.each(['123', 'abcdefghij', '1'.repeat(16)])('rejects phone %s', (phone) => {
+    it.each([
+      '+1 279 555 0100',
+      '12795550100',
+      '279555010',
+      '27955501000',
+      'abcdefghij',
+      '279.555.0100',
+    ])('rejects phone %s', (phone) => {
       const fixture = setup();
       enter(fixture, 'phone', phone);
-      expect(errorText(fixture, 'phone')).toBe('Enter a valid phone number.');
+      expect(errorText(fixture, 'phone')).toBe('Enter a valid 10-digit phone number.');
+    });
+
+    it('is a plain tel input: no live mask, 14-character physical limit', () => {
+      const fixture = setup();
+      const input = field(fixture, 'phone');
+      expect(input.type).toBe('tel');
+      expect(input.getAttribute('maxlength')).toBe('14');
+      expect(input.getAttribute('placeholder')).toBe('(279) 555-0100');
+      input.value = '2795550100';
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      expect(input.value).toBe('2795550100'); // never reformatted while typing
     });
 
     it('uses the right input types and hints', () => {
@@ -251,7 +380,22 @@ describe('ContactComponent', () => {
       expect(field(fixture, 'zip').getAttribute('autocomplete')).toBe('postal-code');
     });
 
-    it.each(['plain', 'a@b', 'a@@b.com'])('rejects email %s', (email) => {
+    it('limits the email physically and semantically to 120 characters', () => {
+      const fixture = setup();
+      expect(field(fixture, 'email').getAttribute('maxlength')).toBe('120');
+      const okEmail = `${'a'.repeat(108)}@example.com`;
+      enter(fixture, 'email', okEmail);
+      expect(okEmail).toHaveLength(120);
+      expect(errorText(fixture, 'email')).toBeNull();
+
+      const form = (fixture.componentInstance as unknown as { form: FormGroup }).form;
+      form.controls['email'].setValue(`${'a'.repeat(109)}@example.com`);
+      fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+      fixture.detectChanges();
+      expect(errorText(fixture, 'email')).toBe('Email must be 120 characters or fewer.');
+    });
+
+    it.each(['plain', 'a@b', 'a@@b.com', 'a b@c.com'])('rejects email %s', (email) => {
       const fixture = setup();
       enter(fixture, 'email', email);
       expect(errorText(fixture, 'email')).toBe('Enter a valid email address.');
@@ -470,18 +614,63 @@ describe('ContactComponent', () => {
       expect(errorText(fixture, 'preferredDate')).toBeNull();
     });
 
-    it('validates the optional number fields only when filled', () => {
+    it('validates the optional number of signers only when filled (1–50)', () => {
       const fixture = setup();
       enter(fixture, 'signers', '');
       expect(errorText(fixture, 'signers')).toBeNull();
-      enter(fixture, 'signers', '0');
-      expect(errorText(fixture, 'signers')).toBe('Enter a whole number from 1 to 50.');
-      enter(fixture, 'signers', '51');
-      expect(errorText(fixture, 'signers')).toBe('Enter a whole number from 1 to 50.');
-      enter(fixture, 'signers', '1.5');
-      expect(errorText(fixture, 'signers')).toBe('Enter a whole number from 1 to 50.');
-      enter(fixture, 'signers', '2');
-      expect(errorText(fixture, 'signers')).toBeNull();
+      for (const bad of ['0', '00', '51', '999']) {
+        enter(fixture, 'signers', bad);
+        expect(errorText(fixture, 'signers')).toBe('Enter a whole number from 1 to 50.');
+      }
+      for (const ok of ['1', '2', '12', '50', '050', '001']) {
+        enter(fixture, 'signers', ok);
+        expect(errorText(fixture, 'signers')).toBeNull();
+      }
+    });
+
+    it('is a numeric text field: digits only, 3 characters, no spinner', () => {
+      const fixture = setup();
+      const input = field(fixture, 'signers');
+      expect(input.type).toBe('text');
+      expect(input.getAttribute('inputmode')).toBe('numeric');
+      expect(input.getAttribute('maxlength')).toBe('3');
+      for (const [typed, kept] of [
+        ['1a2.', '12'],
+        ['-5', '5'],
+        ['+3', '3'],
+        ['1e1', '11'],
+        ['4 5', '45'],
+        ['1234', '123'],
+        ['abc', ''],
+      ]) {
+        input.value = typed;
+        input.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        expect(input.value).toBe(kept);
+      }
+    });
+
+    it('sanitizes a paste into Number of Signers', () => {
+      const fixture = setup();
+      const event = new Event('paste', { bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'clipboardData', { value: { getData: () => '1,2e5' } });
+      field(fixture, 'signers').dispatchEvent(event);
+      fixture.detectChanges();
+      expect(event.defaultPrevented).toBe(true);
+      expect(field(fixture, 'signers').value).toBe('125');
+    });
+
+    it('sends the signers count as a normalized integer', () => {
+      const fixture = setup();
+      const http = TestBed.inject(HttpTestingController);
+      fillValid(fixture);
+      set(fixture, 'signers', '007');
+      giveToken(fixture, 't');
+      submit(fixture);
+      const request = http.expectOne('/api/appointments');
+      const payload = JSON.parse((request.request.body as FormData).get('payload') as string);
+      expect(payload.numberOfSigners).toBe(7);
+      request.flush({ success: true });
     });
 
     it('limits additional details to 3000 characters and shows a counter', () => {
@@ -801,6 +990,127 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
       submit(fixture);
       expect(submitButton(fixture).disabled).toBe(true);
       http.expectOne('/api/appointments').flush({ success: true });
+    });
+  });
+
+  describe('why Submit is disabled', () => {
+    const reason = (fixture: ComponentFixture<ContactComponent>): string | null =>
+      (
+        fixture.nativeElement.querySelector('#submit-help') as HTMLElement | null
+      )?.textContent?.trim() ?? null;
+
+    it('empty form: disabled, with the combined helper (small, red, tied to the button)', () => {
+      const fixture = setup();
+      expect(submitButton(fixture).disabled).toBe(true);
+      expect(reason(fixture)).toBe('Complete the required fields and agree to be contacted.');
+      expect(submitButton(fixture).getAttribute('aria-describedby')).toBe('submit-help');
+      // no field is flagged on initial load
+      expect(fixture.nativeElement.querySelectorAll('.error')).toHaveLength(0);
+      expect(fixture.nativeElement.querySelector('[aria-invalid="true"]')).toBeNull();
+    });
+
+    it('all fields valid but consent unchecked: disabled, consent-only helper', () => {
+      const fixture = setup();
+      fillValid(fixture);
+      check(fixture, 'consent', false);
+      expect(submitButton(fixture).disabled).toBe(true);
+      expect(reason(fixture)).toBe('Please agree to be contacted before submitting.');
+    });
+
+    it('unchecking consent on an otherwise valid form disables Submit again (regression)', () => {
+      const fixture = setup();
+      fillValid(fixture);
+      expect(submitButton(fixture).disabled).toBe(false);
+      expect(reason(fixture)).toBeNull();
+      expect(submitButton(fixture).getAttribute('aria-describedby')).toBeNull();
+
+      check(fixture, 'consent', false);
+      expect(submitButton(fixture).disabled).toBe(true);
+      check(fixture, 'consent', true);
+      expect(submitButton(fixture).disabled).toBe(false);
+      check(fixture, 'consent', false);
+      expect(submitButton(fixture).disabled).toBe(true);
+    });
+
+    it('consent checked but another required field invalid: disabled, fields helper', () => {
+      const fixture = setup();
+      fillValid(fixture);
+      set(fixture, 'email', '');
+      fixture.detectChanges();
+      expect(submitButton(fixture).disabled).toBe(true);
+      expect(reason(fixture)).toBe('Please complete the required fields correctly.');
+    });
+
+    it('fields invalid and consent unchecked together show only the combined message', () => {
+      const fixture = setup();
+      fillValid(fixture);
+      check(fixture, 'consent', false);
+      set(fixture, 'email', '');
+      fixture.detectChanges();
+      expect(reason(fixture)).toBe('Complete the required fields and agree to be contacted.');
+      expect(fixture.nativeElement.querySelectorAll('#submit-help')).toHaveLength(1);
+    });
+
+    it('a missing/invalid Specific Time alone gives the appointment-time reason', () => {
+      const fixture = setup();
+      fillValid(fixture);
+      set(fixture, 'timePreference', 'specific');
+      fixture.detectChanges();
+      expect(submitButton(fixture).disabled).toBe(true);
+      expect(reason(fixture)).toBe('Please choose a valid appointment time.');
+      set(fixture, 'specificTime', '21:00');
+      fixture.detectChanges();
+      expect(reason(fixture)).toBe('Please choose a valid appointment time.');
+      set(fixture, 'specificTime', '14:00');
+      fixture.detectChanges();
+      expect(submitButton(fixture).disabled).toBe(false);
+      expect(reason(fixture)).toBeNull();
+    });
+
+    it('a rejected photo selection blocks Submit with the photo reason until a new attempt', () => {
+      const fixture = setup();
+      fillValid(fixture);
+      const input = field(fixture, 'photos');
+      Object.defineProperty(input, 'files', {
+        value: [new File([new Uint8Array(10)], 'a.pdf', { type: 'application/pdf' })],
+        configurable: true,
+      });
+      input.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      expect(submitButton(fixture).disabled).toBe(true);
+      expect(reason(fixture)).toBe('Please fix the photo upload before submitting.');
+
+      input.dispatchEvent(new Event('click')); // opening the picker starts a new attempt
+      fixture.detectChanges();
+      expect(submitButton(fixture).disabled).toBe(false);
+      expect(reason(fixture)).toBeNull();
+    });
+
+    it('stays enabled for a valid same-day or Sunday request', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-05T19:00:00Z'));
+      try {
+        const fixture = setup();
+        fillValid(fixture);
+        for (const date of ['2026-10-05', '2026-10-11']) {
+          set(fixture, 'preferredDate', date);
+          fixture.detectChanges();
+          expect(submitButton(fixture).disabled).toBe(false);
+          expect(reason(fixture)).toBeNull();
+        }
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('never clickable while disabled: the helper explains instead of an error list', () => {
+      const fixture = setup();
+      const http = TestBed.inject(HttpTestingController);
+      expect(submitButton(fixture).tagName).toBe('BUTTON');
+      submitButton(fixture).click();
+      fixture.detectChanges();
+      http.expectNone('/api/appointments');
+      expect(fixture.nativeElement.querySelectorAll('.error')).toHaveLength(0);
     });
   });
 

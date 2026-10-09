@@ -19,7 +19,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute, ParamMap } from '@angular/router';
-import { map } from 'rxjs';
+import { merge, scan } from 'rxjs';
 import {
   APPOINTMENT_LANGUAGES,
   APPOINTMENT_LIMITS,
@@ -50,11 +50,20 @@ import {
   validatePhotos,
 } from '../../../shared/photos';
 import { normalizeZipCode } from '../../../shared/service-area';
+import {
+  MAX_SIGNERS,
+  SIGNERS_INPUT_MAX_LENGTH,
+  formatPhone,
+  normalizePhone,
+  parseSigners,
+} from '../../../shared/validation';
 import { BUSINESS } from '../../core/config/business.config';
 import { SITE, TURNSTILE_DEV_SITE_KEY } from '../../core/config/site.config';
 import { AppointmentRequestService } from '../../core/services/appointment-request.service';
 import { ContactCardComponent } from '../../shared/components/contact-card/contact-card.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { DigitsInputDirective } from '../../shared/directives/digits-input.directive';
+import { NameInputDirective } from '../../shared/directives/name-input.directive';
 import { ZipInputDirective } from '../../shared/directives/zip-input.directive';
 import { TurnstileComponent } from '../../shared/components/turnstile/turnstile.component';
 import {
@@ -63,7 +72,7 @@ import {
   phoneValidator,
   preferredDateValidator,
   requiredTrimmed,
-  wholeNumberValidator,
+  signersValidator,
   zipValidator,
 } from '../../shared/validators/form-validators';
 
@@ -146,6 +155,20 @@ export const PHONE_SUCCESS_COPY: Record<PhoneSuccessKind, string> = {
   generic: `Mira has received your request, but this does not confirm an appointment. Please call ${PHONE_TEXT} to confirm availability.`,
 };
 
+/** Why Submit is unavailable (one short message, chosen by priority). */
+export const SUBMIT_BLOCK_MESSAGES = {
+  fieldsAndConsent: 'Complete the required fields and agree to be contacted.',
+  consentOnly: 'Please agree to be contacted before submitting.',
+  fields: 'Please complete the required fields correctly.',
+  photos: 'Please fix the photo upload before submitting.',
+  time: 'Please choose a valid appointment time.',
+} as const;
+export type SubmitBlockReason = keyof typeof SUBMIT_BLOCK_MESSAGES;
+
+export const NAME_INVALID_MESSAGE =
+  'Use letters only; apostrophes, hyphens and spaces are allowed.';
+export const SIGNERS_MESSAGE = `Enter a whole number from 1 to ${MAX_SIGNERS}.`;
+
 export const SPECIFIC_TIME_RANGE_MESSAGE = `Choose a time between ${STANDARD_HOURS_LABEL}.`;
 
 /**
@@ -179,6 +202,8 @@ export const UNCONFIRMED_ZIP_MESSAGE =
     IconComponent,
     TurnstileComponent,
     ZipInputDirective,
+    NameInputDirective,
+    DigitsInputDirective,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './contact.component.html',
@@ -195,6 +220,7 @@ export class ContactComponent {
   protected readonly photoAccept = PHOTO_ACCEPT;
   protected readonly photoLimits = PHOTO_LIMITS;
   protected readonly consentHelp = CONSENT_HELP_MESSAGE;
+  protected readonly signersMaxLength = SIGNERS_INPUT_MAX_LENGTH;
   protected readonly standardHours = STANDARD_HOURS;
   protected readonly standardHoursLabel = STANDARD_HOURS_LABEL;
   protected readonly timeOptions = TIME_PREFERENCES.map((value) => ({
@@ -220,16 +246,16 @@ export class ContactComponent {
       nonNullable: true,
       validators: [
         requiredTrimmed,
-        nameValidator,
         Validators.maxLength(APPOINTMENT_LIMITS.firstName),
+        nameValidator,
       ],
     }),
     lastName: new FormControl('', {
       nonNullable: true,
       validators: [
         requiredTrimmed,
-        nameValidator,
         Validators.maxLength(APPOINTMENT_LIMITS.lastName),
+        nameValidator,
       ],
     }),
     phone: new FormControl('', {
@@ -238,7 +264,7 @@ export class ContactComponent {
     }),
     email: new FormControl('', {
       nonNullable: true,
-      validators: [requiredTrimmed, emailValidator],
+      validators: [requiredTrimmed, Validators.maxLength(APPOINTMENT_LIMITS.email), emailValidator],
     }),
     service: new FormControl<string>(DEFAULT_APPOINTMENT_SERVICE, {
       nonNullable: true,
@@ -254,11 +280,7 @@ export class ContactComponent {
     }),
     timePreference: new FormControl('', { nonNullable: true, validators: [requiredTrimmed] }),
     specificTime: new FormControl('', { nonNullable: true, validators: [specificTimeValidator] }),
-    signers: new FormControl<number | null>(null, [
-      wholeNumberValidator,
-      Validators.min(1),
-      Validators.max(APPOINTMENT_LIMITS.maxSigners),
-    ]),
+    signers: new FormControl('', { nonNullable: true, validators: [signersValidator] }),
     language: new FormControl<string>('English', { nonNullable: true }),
     details: new FormControl('', {
       nonNullable: true,
@@ -273,10 +295,46 @@ export class ContactComponent {
   protected readonly timePreference = toSignal(this.form.controls.timePreference.valueChanges, {
     initialValue: '',
   });
-  /** Mirrors the form validity (consent and a required specific time included). */
-  protected readonly formValid = toSignal(
-    this.form.statusChanges.pipe(map((status) => status === 'VALID')),
-    { initialValue: this.form.valid },
+  /**
+   * Ticks on every value/status change, so the computed submit state below always re-reads the
+   * controls (consent included) instead of mirroring a stale copy of the form's validity.
+   */
+  private readonly formTick = toSignal(
+    merge(this.form.valueChanges, this.form.statusChanges).pipe(scan((count) => count + 1, 0)),
+    { initialValue: 0 },
+  );
+
+  /**
+   * The single source of truth for "why can't I submit?" (null = nothing blocks). Priority:
+   * photo problem → (fields + consent) → consent only → a bad Specific Time alone → other fields.
+   */
+  protected readonly submitBlockReason = computed<SubmitBlockReason | null>(() => {
+    this.formTick();
+    if (this.photoError() !== null) {
+      return 'photos';
+    }
+    const controls = this.form.controls;
+    const consentOk = controls.consent.value === true;
+    const others = Object.entries(controls).filter(([key]) => key !== 'consent');
+    const invalid = others.filter(([, control]) => control.invalid).map(([key]) => key);
+    if (invalid.length > 0 && !consentOk) {
+      return 'fieldsAndConsent';
+    }
+    if (invalid.length === 0 && !consentOk) {
+      return 'consentOnly';
+    }
+    if (invalid.length > 0) {
+      return invalid.length === 1 && invalid[0] === 'specificTime' ? 'time' : 'fields';
+    }
+    return null;
+  });
+  protected readonly submitBlockMessage = computed(() => {
+    const reason = this.submitBlockReason();
+    return reason === null ? null : SUBMIT_BLOCK_MESSAGES[reason];
+  });
+  /** Submit is available only when nothing blocks it and no request is in flight. */
+  protected readonly canSubmit = computed(
+    () => this.state() !== 'sending' && this.submitBlockReason() === null,
   );
 
   /**
@@ -348,20 +406,26 @@ export class ContactComponent {
     switch (key) {
       case 'firstName':
         return has('required')
-          ? 'Enter your first name.'
+          ? 'First name is required.'
           : has('maxlength')
             ? `First name must be ${APPOINTMENT_LIMITS.firstName} characters or fewer.`
-            : 'Enter a valid first name.';
+            : NAME_INVALID_MESSAGE;
       case 'lastName':
         return has('required')
-          ? 'Enter your last name.'
+          ? 'Last name is required.'
           : has('maxlength')
             ? `Last name must be ${APPOINTMENT_LIMITS.lastName} characters or fewer.`
-            : 'Enter a valid last name.';
+            : NAME_INVALID_MESSAGE;
       case 'phone':
-        return has('required') ? 'Enter your phone number.' : 'Enter a valid phone number.';
+        return has('required')
+          ? 'Enter your phone number.'
+          : 'Enter a valid 10-digit phone number.';
       case 'email':
-        return has('required') ? 'Enter your email address.' : 'Enter a valid email address.';
+        return has('required')
+          ? 'Enter your email address.'
+          : has('maxlength')
+            ? `Email must be ${APPOINTMENT_LIMITS.email} characters or fewer.`
+            : 'Enter a valid email address.';
       case 'service':
         return 'Choose a service.';
       case 'zip':
@@ -383,7 +447,7 @@ export class ContactComponent {
       case 'specificTime':
         return has('outsideHours') ? SPECIFIC_TIME_RANGE_MESSAGE : 'Enter a specific time.';
       case 'signers':
-        return `Enter a whole number from 1 to ${APPOINTMENT_LIMITS.maxSigners}.`;
+        return SIGNERS_MESSAGE;
       case 'consent':
         return CONSENT_ERROR_MESSAGE;
       case 'details':
@@ -432,6 +496,11 @@ export class ContactComponent {
         previewUrl: this.previewFor(file),
       })),
     ]);
+  }
+
+  /** Opening the picker again starts a new attempt: the previous rejection no longer blocks. */
+  protected onPhotoPickerOpen(): void {
+    this.photoError.set(null);
   }
 
   protected removePhoto(id: number): void {
@@ -483,6 +552,9 @@ export class ContactComponent {
       this.form.markAllAsTouched();
       this.errorMessage.set(GLOBAL_MESSAGES.invalid);
       this.focusFirstInvalid();
+      return;
+    }
+    if (this.photoError() !== null) {
       return;
     }
     if (!this.turnstileEnabled) {
@@ -546,14 +618,16 @@ export class ContactComponent {
     return {
       firstName: value.firstName.trim(),
       lastName: value.lastName.trim(),
-      phone: value.phone.trim(),
+      phone: formatPhone(normalizePhone(value.phone) ?? value.phone.trim()),
       email: value.email.trim(),
       service: value.service as AppointmentService,
       locationZip: normalizeZipCode(value.zip) ?? value.zip.trim(),
       preferredDate: value.preferredDate,
       timePreference,
       specificTime: timePreference === 'specific' ? value.specificTime : null,
-      ...(value.signers ? { numberOfSigners: value.signers } : {}),
+      ...(parseSigners(value.signers) !== null
+        ? { numberOfSigners: parseSigners(value.signers) as number }
+        : {}),
       ...(language ? { preferredLanguage: language } : {}),
       ...(details ? { additionalDetails: details } : {}),
       contactConsent: true,

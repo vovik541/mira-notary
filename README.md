@@ -128,9 +128,31 @@ third-party requests (other than the Turnstile script on `/contact`, see below):
 - **Required fields:** First Name, Last Name, Phone, Email, Service, ZIP Code, Preferred Date,
   Preferred Time (a structured choice, see below), and the contact-permission checkbox. Optional: number of signers, language,
   details (≤ 3000 chars), photos. (The old "Number of Documents" field was removed everywhere.)
-- **Names:** trimmed, ≤ 80 chars, must contain at least one letter in any script (O'Connor,
-  Anne-Marie, José, Мирослава are fine). **Phone:** 10–15 digits, any normal formatting. **Email:**
-  required, ≤ 254 chars, same pattern on both sides.
+- **Names (first and last):** required, ≤ 50 characters, Unicode letters of any script with single
+  separators — a space, an apostrophe (' or ’) or a hyphen — only BETWEEN letter groups: Mira,
+  O'Connor, O’Connor, Anne-Marie, Smith-Jones, Anna Maria, José, Мирослава are valid; digits, any other
+  punctuation, and leading/trailing or doubled separators are not (John123, Mira@, John_Doe, 'John,
+  John-, -John, John--Smith, John''Smith, John  Smith). The `appNameInput` directive filters while typing and
+  pasting (keeps letters, spaces and both apostrophes, never changes case, caps at 50, trims on blur);
+  the Worker re-validates with the same shared pattern and rejects (never trims or truncates).
+- **Email:** required, ≤ 120 characters (`maxlength="120"`, client and Worker), no spaces, same
+  `local@domain.tld` pattern on both sides. An over-long email is rejected, not truncated.
+- **Phone:** a U.S. number **without** country code — exactly ten digits after removing spaces, "(", ")"
+  and "-". `+1 …`, `1…` (11 digits), letters and other symbols are invalid; nothing is silently stripped.
+  Plain `type="tel"`, no live mask, raw length ≤ 14 (the length of `(279) 555-0100`). The Worker stores
+  and emails it normalized as `(279) 555-0100`.
+- **Number of Signers:** optional; a numeric **text** field (`appDigitsInput`: digits only, 3 characters,
+  no spinner), valid when 1–50. Leading zeros are normalized (`007` → 7); the client sends an integer and
+  the Worker accepts only an integer from 1 to 50.
+- Limits live in `src/shared/validation.ts` (`NAME_MAX_LENGTH`, `EMAIL_MAX_LENGTH`,
+  `PHONE_DIGIT_COUNT`, `PHONE_INPUT_MAX_LENGTH`, `MIN_SIGNERS`, `MAX_SIGNERS`, `SIGNERS_INPUT_MAX_LENGTH`) and
+  are imported by both sides.
+- **Submit button:** one computed `canSubmit` (not sending, every field valid incl. consent and a valid
+  Specific Time, no rejected photo selection). When it is disabled a single small red line under the
+  button says why, by priority: photo problem → "Complete the required fields and agree to be contacted."
+  → "Please agree to be contacted before submitting." → "Please choose a valid appointment time." (only a
+  bad Specific Time) → "Please complete the required fields correctly." Same-day and Sunday requests never
+  disable it. The consent field keeps its own helper.
 - **UX:** errors appear after a field is left or on a submit attempt (never on page load), clear as
   soon as the value is corrected, use `aria-invalid` + `aria-describedby`, and an invalid submit
   focuses the first invalid field without calling the API.

@@ -6,6 +6,7 @@ import {
   isPlausibleDate,
   isValidEmail,
   isValidPhone,
+  parseSigners,
 } from '../../../shared/validation';
 
 /**
@@ -83,6 +84,10 @@ export const preferredDateValidator: ValidatorFn = (
   }
   return isPlausibleDate(value, now) ? null : { dateFormat: true };
 };
+
+/** Number of Signers (text field): empty is fine, otherwise 1–50 as plain digits. */
+export const signersValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null =>
+  isEmpty(control.value) || parseSigners(String(control.value)) !== null ? null : { signers: true };
 
 /** Optional whole-number field (empty is fine). */
 export const wholeNumberValidator: ValidatorFn = (

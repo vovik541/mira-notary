@@ -1,4 +1,10 @@
 import { TimePreference } from './appointment-timing';
+import {
+  EMAIL_MAX_LENGTH,
+  MAX_SIGNERS,
+  NAME_MAX_LENGTH,
+  PHONE_INPUT_MAX_LENGTH,
+} from './validation';
 
 /**
  * Appointment request contract shared by the Angular form and the Cloudflare Worker API.
@@ -46,14 +52,14 @@ export const APPOINTMENT_LANGUAGES = ['English', 'Ukrainian', 'Russian'] as cons
 export type AppointmentLanguage = (typeof APPOINTMENT_LANGUAGES)[number];
 
 export const APPOINTMENT_LIMITS = {
-  firstName: 80,
-  lastName: 80,
-  phone: 40,
-  email: 254,
+  firstName: NAME_MAX_LENGTH,
+  lastName: NAME_MAX_LENGTH,
+  phone: PHONE_INPUT_MAX_LENGTH,
+  email: EMAIL_MAX_LENGTH,
   zip: 5,
   additionalDetails: 3000,
   turnstileToken: 2048,
-  maxSigners: 50,
+  maxSigners: MAX_SIGNERS,
 } as const;
 
 /** Body of `POST /api/appointments`. */

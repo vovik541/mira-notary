@@ -17,10 +17,11 @@ import { checkZip } from '../shared/service-area';
 import {
   BAD_TEXT_CHARS,
   CONTROL_CHARS,
+  formatPhone,
   isMeaningfulName,
+  normalizePhone,
   isPlausibleDate,
   isValidEmail,
-  isValidPhone,
 } from '../shared/validation';
 
 export type ValidationResult =
@@ -69,20 +70,25 @@ export function validateAppointmentRequest(
     return value;
   };
 
-  const firstName = line('firstName', APPOINTMENT_LIMITS.firstName, true);
-  if (firstName !== undefined && !isMeaningfulName(firstName)) {
-    invalid.push('firstName');
-  }
+  // Names are checked exactly as sent: surrounding whitespace is invalid, never silently trimmed.
+  const name = (key: 'firstName' | 'lastName'): string | undefined => {
+    const raw = body[key];
+    if (typeof raw !== 'string' || !isMeaningfulName(raw)) {
+      invalid.push(key);
+      return undefined;
+    }
+    return raw;
+  };
+  const firstName = name('firstName');
+  const lastName = name('lastName');
 
-  const lastName = line('lastName', APPOINTMENT_LIMITS.lastName, true);
-  if (lastName !== undefined && !isMeaningfulName(lastName)) {
-    invalid.push('lastName');
-  }
-
-  const phone = line('phone', APPOINTMENT_LIMITS.phone, true);
-  if (phone !== undefined && !isValidPhone(phone)) {
+  // Phone: ten digits, formatting limited to spaces ( ) -; stored in one canonical format.
+  const phoneRaw = line('phone', APPOINTMENT_LIMITS.phone, true);
+  const phoneDigits = phoneRaw === undefined ? null : normalizePhone(phoneRaw);
+  if (phoneRaw !== undefined && phoneDigits === null) {
     invalid.push('phone');
   }
+  const phone = phoneDigits === null ? undefined : formatPhone(phoneDigits);
 
   const email = line('email', APPOINTMENT_LIMITS.email, true);
   if (email !== undefined && !isValidEmail(email)) {
