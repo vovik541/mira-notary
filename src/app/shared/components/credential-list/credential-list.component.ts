@@ -2,8 +2,9 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { IconComponent } from '../icon/icon.component';
 
 /**
- * NNA badge next to a short checklist of credentials. The badge is used once per page region
- * where credentials are discussed (home hero, loan signing, about) — never as a logo or decoration.
+ * The two NNA badges (Certified Notary Signing Agent, Member) stacked next to a short checklist of
+ * credentials. They are used once per page region where credentials are discussed (home hero,
+ * loan signing) — never as a logo or decoration.
  */
 @Component({
   selector: 'app-credential-list',
@@ -11,15 +12,24 @@ import { IconComponent } from '../icon/icon.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="panel card">
-      <img
-        class="badge"
-        src="assets/credentials/nna-certified-2026.webp"
-        width="300"
-        height="300"
-        alt="2026 NNA Certified Notary Signing Agent"
-        loading="lazy"
-        decoding="async"
-      />
+      <div class="badges">
+        <img
+          src="assets/credentials/nna_certified_global.webp"
+          width="332"
+          height="303"
+          alt="NNA Certified Notary Signing Agent badge"
+          loading="lazy"
+          decoding="async"
+        />
+        <img
+          src="assets/credentials/national_notary_association.webp"
+          width="618"
+          height="522"
+          alt="National Notary Association member badge"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
       <ul class="items">
         @for (item of items(); track item) {
           <li>
@@ -52,11 +62,16 @@ import { IconComponent } from '../icon/icon.component';
       text-decoration: underline;
       text-underline-offset: 0.2em;
     }
-    .badge {
+    .badges {
+      display: flex;
       flex: none;
-      width: 3.5rem;
-      height: 3.5rem;
-      object-fit: contain;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .badges img {
+      width: 4.25rem;
+      height: auto;
     }
     .items {
       display: grid;
@@ -74,9 +89,8 @@ import { IconComponent } from '../icon/icon.component';
       color: var(--color-gold);
     }
     @media (min-width: 640px) {
-      .badge {
-        width: 4rem;
-        height: 4rem;
+      .badges img {
+        width: 5rem;
       }
     }
   `,

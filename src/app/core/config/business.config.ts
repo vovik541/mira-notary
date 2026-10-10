@@ -1,6 +1,8 @@
 export interface PhoneNumber {
   readonly display: string;
   readonly href: string;
+  /** `sms:` link for the same number (a separate, real Text action). */
+  readonly smsHref: string;
 }
 
 /** External profile links (open in a new tab with `rel="noopener noreferrer"`). */
@@ -21,10 +23,18 @@ export const BUSINESS = {
    * or structured data.
    */
   phones: {
-    primary: { display: '(279) 529-8754', href: 'tel:+12795298754' } satisfies PhoneNumber,
-    secondary: { display: '(916) 759-0383', href: 'tel:+19167590383' } satisfies PhoneNumber,
+    primary: {
+      display: '(279) 529-8754',
+      href: 'tel:+12795298754',
+      smsHref: 'sms:+12795298754',
+    } satisfies PhoneNumber,
+    secondary: {
+      display: '(916) 759-0383',
+      href: 'tel:+19167590383',
+      smsHref: 'sms:+19167590383',
+    } satisfies PhoneNumber,
   },
-  email: 'MiraNotary@gmail.com',
+  email: 'contact@miranotary.com',
   languages: ['English', 'Ukrainian', 'Russian'],
   credentials: ['NNA Certified Signing Agent', 'Background Screened', '$1M E&O Insurance'],
   disclaimer:

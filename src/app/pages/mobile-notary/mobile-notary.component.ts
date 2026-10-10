@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { CallTextComponent } from '../../shared/components/call-text/call-text.component';
 import { RouterLink } from '@angular/router';
 import { BUSINESS } from '../../core/config/business.config';
 import { SEO_PAGES } from '../../core/seo/seo-pages';
-import { TRAVEL_FEES } from '../../data/pricing.data';
+import { TRAVEL_FEES, TRAVEL_FEE_NOTE } from '../../data/pricing.data';
 import { COMMON_NOTARY_SERVICES } from '../../data/services.data';
 import { CheckListComponent } from '../../shared/components/check-list/check-list.component';
 import { CtaBandComponent } from '../../shared/components/cta-band/cta-band.component';
@@ -13,6 +14,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
 @Component({
   selector: 'app-mobile-notary',
   imports: [
+    CallTextComponent,
     RouterLink,
     CheckListComponent,
     CtaBandComponent,
@@ -33,7 +35,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
         <a class="btn btn--gold" routerLink="/contact" [queryParams]="{ service: 'general-notary' }"
           >Request a Mobile Notary</a
         >
-        <a class="btn btn--outline" [href]="phone.href">Call Mira: {{ phone.display }}</a>
+        <app-call-text variant="outline" />
       </div>
     </app-page-hero>
 
@@ -79,6 +81,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
         <div class="intro">
           <h2 id="travel-heading">Mobile Travel</h2>
           <p class="muted">Final pricing is confirmed before service.</p>
+          <p class="fee-note">{{ travelNote }}</p>
           <p>
             <a class="btn btn--navy" routerLink="/pricing">See Full Pricing</a>
           </p>
@@ -100,6 +103,10 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
       text-decoration: underline;
       text-underline-offset: 2px;
     }
+    .fee-note {
+      font-size: 0.875rem;
+      color: var(--color-text-muted);
+    }
     .intro > * + * {
       margin-top: 1rem;
     }
@@ -113,4 +120,5 @@ export class MobileNotaryComponent {
   protected readonly crumbs = SEO_PAGES.mobileNotary.breadcrumbs;
   protected readonly services = COMMON_NOTARY_SERVICES;
   protected readonly travel = TRAVEL_FEES;
+  protected readonly travelNote = TRAVEL_FEE_NOTE;
 }

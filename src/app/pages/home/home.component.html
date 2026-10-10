@@ -19,12 +19,11 @@
     </p>
     <div class="page-actions">
       <a class="btn btn--gold" routerLink="/contact">Book an Appointment</a>
-      <a class="btn btn--outline" [href]="phone.href">
-        <app-icon name="phone" style="--icon-size: 1rem" />
-        Call {{ phone.display }}
-      </a>
+      <app-call-text variant="outline" />
     </div>
-    <p class="microcopy">Same-day or urgent? Please call {{ phone.display }}.</p>
+    <p class="microcopy">
+      Same-day or urgent? Call or text Mira &amp; Team at {{ phone.display }}.
+    </p>
   </div>
 
   <div class="hero-visual">

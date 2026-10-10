@@ -16,7 +16,7 @@ import { ResendEmailSender } from './resend-email-sender';
 import { FetchLike, verifyTurnstileToken } from './turnstile';
 
 const PHONE = BUSINESS.phones.primary.display;
-const FALLBACK = `Please call or text Mira at ${PHONE}.`;
+const FALLBACK = `Please call or text Mira & Team at ${PHONE}.`;
 
 const MESSAGES: Record<AppointmentErrorCode, string> = {
   validation: 'Please check the form and try again.',

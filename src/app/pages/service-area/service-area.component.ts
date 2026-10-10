@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { CallTextComponent } from '../../shared/components/call-text/call-text.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -15,7 +16,14 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
 
 @Component({
   selector: 'app-service-area',
-  imports: [ReactiveFormsModule, RouterLink, IconComponent, PageHeroComponent, ZipInputDirective],
+  imports: [
+    CallTextComponent,
+    ReactiveFormsModule,
+    RouterLink,
+    IconComponent,
+    PageHeroComponent,
+    ZipInputDirective,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-hero
@@ -109,14 +117,12 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
                     This ZIP code is outside Mira's currently confirmed online service area.
                   </p>
                   <p class="muted">
-                    Contact Mira to ask about availability in other nearby communities.
+                    Call or text Mira &amp; Team to ask about availability in other nearby
+                    communities.
                   </p>
                   <div class="page-actions">
-                    <a class="btn btn--gold" [href]="phone.href">
-                      <app-icon name="phone" style="--icon-size: 1rem" />
-                      Call Mira
-                    </a>
-                    <a class="btn btn--outline" routerLink="/contact">Contact Mira</a>
+                    <app-call-text variant="gold" />
+                    <a class="btn btn--outline" routerLink="/contact">Contact Mira &amp; Team</a>
                   </div>
                 </div>
               }

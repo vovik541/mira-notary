@@ -78,7 +78,7 @@ describe('ServiceAreaComponent ZIP checker', () => {
       "This ZIP code is outside Mira's currently confirmed online service area.",
     );
     expect(content).toContain(
-      'Contact Mira to ask about availability in other nearby communities.',
+      'Call or text Mira & Team to ask about availability in other nearby communities.',
     );
     expect(content).not.toMatch(/does not serve|not serve/i);
     // Future-proof fallback: no county is named.

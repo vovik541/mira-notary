@@ -15,7 +15,7 @@ export type AppointmentSubmitResult =
   | { readonly ok: true; readonly phoneConfirmationRequired: boolean }
   | { readonly ok: false; readonly code: AppointmentErrorCode; readonly message: string };
 
-const NETWORK_FAILURE_MESSAGE = `We couldn't send your request right now. Please call or text Mira at ${BUSINESS.phones.primary.display}.`;
+const NETWORK_FAILURE_MESSAGE = `We couldn't send your request right now. Please call or text Mira & Team at ${BUSINESS.phones.primary.display}.`;
 
 /**
  * Sends appointment requests to the same-origin Worker endpoint (`POST /api/appointments`),

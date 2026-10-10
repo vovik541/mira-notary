@@ -47,14 +47,24 @@
     <section class="card credentials" aria-labelledby="credentials-heading">
       <h2 id="credentials-heading">Professional Credentials</h2>
       <div class="credentials-body">
-        <img
-          src="assets/credentials/nna-certified-2026.webp"
-          width="300"
-          height="300"
-          alt="2026 NNA Certified Notary Signing Agent"
-          loading="lazy"
-          decoding="async"
-        />
+        <div class="badges">
+          <img
+            src="assets/credentials/nna_certified_global.webp"
+            width="332"
+            height="303"
+            alt="NNA Certified Notary Signing Agent badge"
+            loading="lazy"
+            decoding="async"
+          />
+          <img
+            src="assets/credentials/national_notary_association.webp"
+            width="618"
+            height="522"
+            alt="National Notary Association member badge"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
         <ul>
           @for (item of credentials; track item) {
             <li>

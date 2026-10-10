@@ -29,6 +29,7 @@ export interface FaqItem {
 
 const PHONE = BUSINESS.phones.primary;
 const phoneLink: FaqLink = { text: PHONE.display, href: PHONE.href };
+const textLink: FaqLink = { text: 'text the same number', href: PHONE.smsHref };
 
 /** The single FAQ dataset: the /faq page and the Home preview both use it. */
 export const FAQ_ITEMS: readonly FaqItem[] = [
@@ -48,14 +49,14 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     id: 'same-day',
     question: 'Can I request a same-day appointment?',
-    answer: `Same-day and urgent appointments must be booked by phone. Call Mira at ${PHONE.display} to check availability.`,
-    links: [phoneLink],
+    answer: `Same-day and urgent appointments must be booked by phone. Call Mira & Team at ${PHONE.display} to check availability, or text the same number.`,
+    links: [phoneLink, textLink],
   },
   {
     id: 'service-hours',
     question: 'What are your service hours?',
-    answer: `Mira is available Monday through Saturday. Sunday appointments may be available for urgent requests and must be arranged by phone. Call Mira at ${PHONE.display}.`,
-    links: [phoneLink],
+    answer: `Mira is available Monday through Saturday. Sunday appointments may be available for urgent requests and must be arranged by phone. Call Mira & Team at ${PHONE.display}, or text the same number.`,
+    links: [phoneLink, textLink],
   },
   {
     id: 'pricing',
@@ -67,7 +68,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     id: 'payment-methods',
     question: 'How can I pay?',
-    answer: 'Mira accepts Zelle, Cash App, Venmo, and cash.',
+    answer: 'We can accept payment by Zelle, Cash App, Venmo, and cash.',
   },
   {
     id: 'languages',
@@ -86,7 +87,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
     id: 'apostille-timing',
     question: 'How long does a California apostille take?',
     answer:
-      'Processing time varies depending on the document and the current California Secretary of State processing schedule. Contact Mira with your document type and deadline for an estimated turnaround time and available expedited options.',
+      'Timing depends on the document, destination, and processing requirements. In some cases, a California apostille may be completed the same day, but timing is not guaranteed. Contact Mira & Team to confirm the options for your document.',
   },
   {
     id: 'apostille-original-document',

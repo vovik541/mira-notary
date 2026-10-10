@@ -102,11 +102,17 @@ h2 {
   gap: 1.5rem;
   margin-top: 1.25rem;
 
-  img {
+  .badges {
+    display: flex;
     flex: none;
-    width: 5.5rem;
-    height: 5.5rem;
-    object-fit: contain;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.625rem;
+
+    img {
+      width: 5rem;
+      height: auto;
+    }
   }
 
   ul {

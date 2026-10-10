@@ -631,7 +631,7 @@ describe('ContactComponent', () => {
 
       const element = note(fixture) as HTMLElement;
       expect(element.textContent?.trim()).toBe(
-        'Outside standard service area — you can still submit. Mira will confirm travel availability and fee.',
+        'Outside standard service area — you can still submit. Mira & Team will confirm travel availability and the applicable fee.',
       );
       expect(OUTSIDE_AREA_NOTE).toBe(element.textContent?.trim());
       // not error semantics or styling
@@ -642,7 +642,7 @@ describe('ContactComponent', () => {
       expect(fixture.nativeElement.querySelectorAll('.error')).toHaveLength(0);
       // short: one compact sentence pair, no county or "does not serve" wording
       expect(element.textContent).not.toMatch(/does not serve|County|Placer|Yolo|El Dorado/i);
-      expect(element.textContent?.length).toBeLessThan(110);
+      expect(element.textContent?.length).toBeLessThan(130);
     });
 
     it('shows the note as soon as five digits are typed, without leaving the field', () => {
@@ -945,7 +945,9 @@ describe('ContactComponent', () => {
 
       const content = text(fixture);
       expect(content).toContain('Thank you. Your request has been sent to Mira.');
-      expect(content).toContain('Mira will contact you to confirm availability and final pricing.');
+      expect(content).toContain(
+        'Mira & Team will contact you to confirm availability and final pricing.',
+      );
       expect(fixture.nativeElement.querySelector('form')).toBeNull();
 
       (fixture.nativeElement.querySelector('.notice button') as HTMLButtonElement).click();
@@ -965,7 +967,7 @@ describe('ContactComponent', () => {
           success: false,
           error: 'delivery',
           message:
-            "We couldn't send your request right now. Please call or text Mira at (279) 529-8754.",
+            "We couldn't send your request right now. Please call or text Mira & Team at (279) 529-8754.",
         },
         { status: 502, statusText: 'Bad Gateway' },
       );
@@ -973,7 +975,7 @@ describe('ContactComponent', () => {
 
       expect(
         (fixture.nativeElement.querySelector('.form-error') as HTMLElement).textContent,
-      ).toContain('call or text Mira at (279) 529-8754');
+      ).toContain('call or text Mira & Team at (279) 529-8754');
       expect(field(fixture, 'firstName').value).toBe('Jane');
       const button = fixture.nativeElement.querySelector(
         'button[type="submit"]',
@@ -1303,7 +1305,7 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
 
       const help = fixture.nativeElement.querySelector('#specificTime-help') as HTMLElement;
       expect(help.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-        'Standard appointment hours: 8:00 AM–8:00 PM. Need another time? Call Mira to check availability.',
+        'Standard appointment hours: 8:00 AM–8:00 PM. Need another time? Call or text Mira & Team to check availability.',
       );
       expect(help.classList.contains('error')).toBe(false);
       expect(help.querySelector('a')?.getAttribute('href')).toBe('tel:+12795298754');
@@ -1331,7 +1333,7 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
         // the advisory note: same look as the ZIP note, role=note, exact copy
         const note = timeNote(fixture) as HTMLElement;
         expect(note.textContent?.trim()).toBe(
-          'Outside standard hours — you can still submit. Mira will confirm availability and any additional after-hours fee.',
+          'Outside standard hours — you can still submit. Mira & Team will confirm availability and any additional after-hours fee.',
         );
         expect(note.getAttribute('role')).toBe('note');
         expect(note.classList.contains('advisory-note')).toBe(true);
@@ -1490,7 +1492,7 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
       expect(callouts(fixture)).toHaveLength(0);
     });
 
-    it('shows the same-day callout for today, with a Call Mira link and no error styling', () => {
+    it('shows the same-day callout for today, with separate Call and Text links and no error styling', () => {
       const fixture = setup();
       set(fixture, 'preferredDate', TODAY);
       fixture.detectChanges();
@@ -1498,11 +1500,13 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
       const callout = callouts(fixture)[0];
       expect(callout.querySelector('.phone-callout-title')?.textContent).toBe('Same-day request');
       expect(callout.textContent).toContain(
-        "You may submit your request so Mira can review the details, but submitting this form does not confirm an appointment. Please call Mira at (279) 529-8754 to confirm today's availability.",
+        "You may submit your request so Mira & Team can review the details, but submitting this form does not confirm an appointment. Please call or text Mira & Team at (279) 529-8754 to confirm today's availability.",
       );
-      const call = callout.querySelector('a') as HTMLAnchorElement;
-      expect(call.textContent).toContain('Call Mira');
+      const [call, text] = Array.from(callout.querySelectorAll('a'));
+      expect(call.textContent).toContain('Call');
       expect(call.getAttribute('href')).toBe('tel:+12795298754');
+      expect(text.textContent).toContain('Text');
+      expect(text.getAttribute('href')).toBe('sms:+12795298754');
       expect(callout.classList.contains('error')).toBe(false);
       expect(callout.getAttribute('role')).toBe('status');
       expect(fixture.nativeElement.querySelector('#urgent')).toBeNull();
@@ -1558,7 +1562,7 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
         'Sunday availability',
       );
       expect(callout.textContent).toContain(
-        'Sunday appointments may be available by request and must be confirmed by phone. You may submit your request for Mira to review, then call (279) 529-8754 to confirm availability.',
+        'Sunday appointments may be available by request and must be confirmed by phone. You may submit your request for Mira & Team to review, then call or text (279) 529-8754 to confirm availability.',
       );
       expect(callout.querySelector('a')?.getAttribute('href')).toBe('tel:+12795298754');
       expect(submitButton(fixture).disabled).toBe(false);
@@ -1575,7 +1579,7 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
         'Same-day Sunday request',
       );
       expect(callout.textContent).toContain(
-        'You may submit your request so Mira can review the details, but same-day Sunday availability must be confirmed by phone. Please call Mira at (279) 529-8754 after submitting.',
+        'You may submit your request so Mira & Team can review the details, but same-day Sunday availability must be confirmed by phone. Please call or text Mira & Team at (279) 529-8754 after submitting.',
       );
     });
 
@@ -1597,9 +1601,11 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
       expect(notice.querySelector('h2')?.textContent).toBe('Request sent');
       expect(notice.textContent).toContain(phrase);
       expect(notice.textContent).toContain('(279) 529-8754');
-      const call = notice.querySelector('a.btn--gold') as HTMLAnchorElement;
-      expect(call.textContent).toContain('Call Mira Now');
+      const [call, text] = Array.from(notice.querySelectorAll('a.btn--gold'));
+      expect(call.textContent).toContain('Call');
       expect(call.getAttribute('href')).toBe('tel:+12795298754');
+      expect(text.textContent).toContain('Text');
+      expect(text.getAttribute('href')).toBe('sms:+12795298754');
       expect(notice.classList.contains('error')).toBe(false);
     });
 
@@ -1765,6 +1771,96 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
         URL.createObjectURL = original.create;
         URL.revokeObjectURL = original.revoke;
       }
+    });
+
+    describe('thumbnail previews', () => {
+      const stubUrls = (): { created: string[]; revoked: string[]; restore: () => void } => {
+        const created: string[] = [];
+        const revoked: string[] = [];
+        const original = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
+        URL.createObjectURL = (): string => {
+          const url = `blob:test/${created.length}`;
+          created.push(url);
+          return url;
+        };
+        URL.revokeObjectURL = (url: string): void => {
+          revoked.push(url);
+        };
+        return {
+          created,
+          revoked,
+          restore: (): void => {
+            URL.createObjectURL = original.create;
+            URL.revokeObjectURL = original.revoke;
+          },
+        };
+      };
+
+      it.each([
+        ['a.jpg', 'image/jpeg'],
+        ['b.png', 'image/png'],
+        ['c.webp', 'image/webp'],
+      ])('renders a compact thumbnail with filename and remove control for %s', (name, type) => {
+        const urls = stubUrls();
+        try {
+          const fixture = setup();
+          pickPhotos(fixture, [photo(name, type)]);
+          const item = fixture.nativeElement.querySelector('.photo-list li') as HTMLElement;
+          const img = item.querySelector('img') as HTMLImageElement;
+          expect(img.getAttribute('src')).toBe('blob:test/0');
+          expect(img.getAttribute('alt')).toBe(''); // decorative: the filename is read once, next to it
+          expect(img.getAttribute('width')).toBe('48');
+          expect(img.getAttribute('height')).toBe('48');
+          expect(item.querySelector('.photo-name')?.textContent).toBe(name);
+          expect(item.querySelector('.thumb-fallback')).toBeNull();
+          const remove = item.querySelector('.photo-remove') as HTMLButtonElement;
+          expect(remove.getAttribute('aria-label')).toBe(`Remove ${name}`);
+        } finally {
+          urls.restore();
+        }
+      });
+
+      it.each([
+        ['IMG_0001.HEIC', 'image/heic'],
+        ['IMG_0002.heif', 'image/heif'],
+        ['IMG_0003.HEIC', ''],
+      ])(
+        'HEIC / HEIF (%s) is accepted and shows the placeholder, with no object URL',
+        (name, type) => {
+          const urls = stubUrls();
+          try {
+            const fixture = setup();
+            pickPhotos(fixture, [photo(name, type)]);
+            const item = fixture.nativeElement.querySelector('.photo-list li') as HTMLElement;
+            expect(item.querySelector('img')).toBeNull();
+            expect(item.querySelector('.thumb-fallback')?.textContent?.trim()).toBe('IMG');
+            expect(item.querySelector('.photo-name')?.textContent).toBe(name);
+            expect(urls.created).toHaveLength(0);
+            expect(fixture.nativeElement.querySelector('#photos-error')).toBeNull();
+          } finally {
+            urls.restore();
+          }
+        },
+      );
+
+      it('revokes every thumbnail URL after a successful submission (form reset)', () => {
+        const urls = stubUrls();
+        try {
+          const fixture = setup();
+          const http = TestBed.inject(HttpTestingController);
+          fillValid(fixture);
+          giveToken(fixture, 't');
+          pickPhotos(fixture, [photo('a.jpg'), photo('b.png', 'image/png')]);
+          expect(urls.created).toHaveLength(2);
+          submit(fixture);
+          http.expectOne('/api/appointments').flush({ success: true });
+          fixture.detectChanges();
+          expect(urls.revoked.sort()).toEqual(['blob:test/0', 'blob:test/1']);
+          expect(fixture.nativeElement.querySelectorAll('.photo-list li')).toHaveLength(0);
+        } finally {
+          urls.restore();
+        }
+      });
     });
   });
 });

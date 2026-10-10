@@ -829,7 +829,9 @@ describe('handleAppointmentRequest', () => {
       const { provider } = makeProvider();
       const response = await run(body, makeEnv(overrides), provider);
       expect(response.status).toBe(503);
-      expect((await errorOf(response)).message).toContain('call or text Mira at (279) 529-8754');
+      expect((await errorOf(response)).message).toContain(
+        'call or text Mira & Team at (279) 529-8754',
+      );
       expect(provider.send).not.toHaveBeenCalled();
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining(`email_not_configured missing=${name}`),
@@ -859,7 +861,7 @@ describe('handleAppointmentRequest', () => {
       const payload = await errorOf(response);
       expect(payload.error).toBe('delivery');
       expect(payload.message).toBe(
-        "We couldn't send your request right now. Please call or text Mira at (279) 529-8754.",
+        "We couldn't send your request right now. Please call or text Mira & Team at (279) 529-8754.",
       );
       expect(JSON.stringify(payload)).not.toMatch(/resend|422|503|api/i);
       expect(console.error).toHaveBeenCalledWith(

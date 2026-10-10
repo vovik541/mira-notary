@@ -6,10 +6,14 @@ export interface PriceRow {
 }
 
 export const TRAVEL_FEES: readonly PriceRow[] = [
-  { label: 'Sacramento Travel Fee', detail: '8:00 AM–8:00 PM', price: '$70' },
+  { label: 'Sacramento Travel Fee', detail: '8:00 AM–8:00 PM', price: '~$50' },
   { label: 'After-Hours Travel', price: '+$70' },
   { label: 'Hospital Travel', price: '+$10' },
 ];
+
+/** Quiet expectation-setting note shown next to the travel fees. */
+export const TRAVEL_FEE_NOTE =
+  'Travel fees may vary based on the meeting location. Mira & Team will confirm the applicable travel fee before the appointment.';
 
 export const NOTARIAL_FEES: readonly PriceRow[] = [
   { label: 'Acknowledgment', price: '$15', unit: 'per signature' },

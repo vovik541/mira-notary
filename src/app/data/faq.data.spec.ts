@@ -77,7 +77,9 @@ describe('FAQ_ITEMS', () => {
   });
 
   it('lists the current payment methods and no card / check wording', () => {
-    expect(byId('payment-methods').answer).toBe('Mira accepts Zelle, Cash App, Venmo, and cash.');
+    expect(byId('payment-methods').answer).toBe(
+      'We can accept payment by Zelle, Cash App, Venmo, and cash.',
+    );
     expect(PAYMENT_METHODS).toEqual(['Zelle', 'Cash App', 'Venmo', 'Cash']);
     for (const text of [byId('payment-methods').answer, ...PAYMENT_METHODS]) {
       expect(text).not.toMatch(/check|visa|mastercard|american express|credit|debit/i);
@@ -155,5 +157,33 @@ describe('production-facing payment copy', () => {
       /Mastercard|American Express|\bVisa\b|'Check'/.test(readFileSync(file, 'utf8')),
     );
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('FAQ copy', () => {
+  const answer = (id: string): string => FAQ_ITEMS.find((item) => item.id === id)?.answer ?? '';
+
+  it('apostille timing allows for same-day completion without guaranteeing it', () => {
+    const text = answer('apostille-timing');
+    expect(text).toContain('may be completed the same day');
+    expect(text).toContain('timing is not guaranteed');
+    expect(text).toContain('Mira & Team');
+    expect(text).not.toMatch(/guarantee(d)? (same|within)|within \d+ (hours|days)/i);
+  });
+
+  it('payment answer uses "We can accept" with exactly the approved methods', () => {
+    expect(answer('payment-methods')).toBe(
+      'We can accept payment by Zelle, Cash App, Venmo, and cash.',
+    );
+    expect(answer('payment-methods')).not.toMatch(/card|check|paypal|apple pay/i);
+  });
+
+  it('same-day and hours answers invite a call or text to Mira & Team', () => {
+    expect(answer('same-day')).toContain(
+      'Call Mira & Team at (279) 529-8754 to check availability, or text the same number.',
+    );
+    expect(answer('service-hours')).toContain(
+      'Call Mira & Team at (279) 529-8754, or text the same number.',
+    );
   });
 });

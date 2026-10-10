@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { CallTextComponent } from '../call-text/call-text.component';
 import { RouterLink } from '@angular/router';
 import { AppointmentServiceSlug } from '../../../../shared/appointment.model';
 import { BUSINESS } from '../../../core/config/business.config';
-import { IconComponent } from '../icon/icon.component';
 
 @Component({
   selector: 'app-cta-band',
-  imports: [RouterLink, IconComponent],
+  imports: [CallTextComponent, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="band" aria-labelledby="cta-heading">
@@ -18,10 +18,7 @@ import { IconComponent } from '../icon/icon.component';
           <a class="btn btn--gold" routerLink="/contact" [queryParams]="contactQuery()">
             Book an Appointment
           </a>
-          <a class="btn btn--outline-light" [href]="phone.href">
-            <app-icon name="phone" style="--icon-size: 1rem" />
-            Call {{ phone.display }}
-          </a>
+          <app-call-text variant="outline-light" />
         </div>
       </div>
     </section>

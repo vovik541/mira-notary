@@ -12,7 +12,7 @@ import { BUSINESS } from '../../core/config/business.config';
       <h1>Page Not Found</h1>
       <p class="lead">
         The page you were looking for doesn’t exist or may have moved. Try one of these instead, or
-        call Mira at {{ phone.display }}.
+        call or text Mira &amp; Team at {{ phone.display }}.
       </p>
       <div class="page-actions">
         <a class="btn btn--gold" routerLink="/">Back to Home</a>

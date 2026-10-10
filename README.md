@@ -94,7 +94,7 @@ docs/reference/source-assets/  original, unmodified client asset files
 | `public/assets/brand/local-notary-signings-logo.webp` | header + footer logo (800×332, transparent) |
 | `public/assets/images/mira-portrait.webp` | home hero, About |
 | `public/assets/images/mira-mobile-office.webp` | Loan Signing "Fully Equipped Mobile Office", About "Mobile & Ready to Work" |
-| `public/assets/credentials/nna-certified-2026.webp` | home credential panel, Loan Signing, About |
+| `public/assets/credentials/nna_certified_global.webp`, `national_notary_association.webp` | home credential panel, Loan Signing, About |
 | `public/*.png`, `favicon.ico`, `site.webmanifest` | favicons / app icons |
 
 Original, unmodified source files are kept in `docs/reference/source-assets/`. The app makes no
@@ -365,7 +365,7 @@ appears anywhere else in `src/`.
 | `RESEND_API_KEY` | **secret** | `npx wrangler secret put RESEND_API_KEY` (restricted "sending access" key) |
 | `TURNSTILE_SECRET_KEY` | **secret** | `npx wrangler secret put TURNSTILE_SECRET_KEY` |
 | `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME` | non-secret | `wrangler.jsonc` → `vars` |
-| `APPOINTMENT_RECIPIENT` | non-secret, server-only | `wrangler.jsonc` → `vars` (`miranotary@gmail.com`; `.dev.vars` overrides it locally) |
+| `APPOINTMENT_RECIPIENT` | non-secret, server-only | `wrangler.jsonc` → `vars` (`contact@miranotary.com`; `.dev.vars` overrides it locally) |
 | Turnstile **site key** | public | `SITE.turnstileSiteKey` (production) and `TURNSTILE_DEV_SITE_KEY` (local) in `src/app/core/config/site.config.ts`; `turnstileSiteKeyFor(hostname)` picks one |
 | `TURNSTILE_SECRET_KEY` | **secret**, Worker-only | `npx wrangler secret put TURNSTILE_SECRET_KEY` (local: `.dev.vars`); never in code, config, docs or tests |
 
@@ -379,7 +379,7 @@ the "please call Mira" fallback and sends nothing.
 
 - Resend handles **outgoing transactional messages only** (the appointment notification).
 - **Production sender:** `appointments@notify.miranotary.com` (the isolated `notify.` subdomain of
-  `miranotary.com`), recipient `miranotary@gmail.com`; both are non-secret `vars` in `wrangler.jsonc`.
+  `miranotary.com`), recipient `contact@miranotary.com`; both are non-secret `vars` in `wrangler.jsonc`.
   The sending domain must be **verified in Resend** (DNS records added) before the first production
   send; until then Resend rejects the message and the form shows the "please call Mira" fallback.
   `notify.reiskra.com` was earlier test infrastructure (ReIskra's domain) and is no longer used.

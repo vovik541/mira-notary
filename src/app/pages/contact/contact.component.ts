@@ -9,6 +9,8 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { PhotoLightboxComponent } from '../../shared/components/photo-lightbox/photo-lightbox.component';
+import { CallTextComponent } from '../../shared/components/call-text/call-text.component';
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
@@ -20,8 +22,8 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms';
-import { ActivatedRoute, ParamMap } from '@angular/router';
-import { merge, scan } from 'rxjs';
+import { ActivatedRoute, ParamMap, Router, Scroll } from '@angular/router';
+import { filter, merge, scan } from 'rxjs';
 import {
   APPOINTMENT_LANGUAGES,
   APPOINTMENT_LIMITS,
@@ -64,7 +66,6 @@ import { turnstileSiteKeyFor } from '../../core/config/site.config';
 import { AppointmentRequestService } from '../../core/services/appointment-request.service';
 import { WizardHistory, WizardStepNumber } from './wizard-history';
 import { ContactCardComponent } from '../../shared/components/contact-card/contact-card.component';
-import { IconComponent } from '../../shared/components/icon/icon.component';
 import { DigitsInputDirective } from '../../shared/directives/digits-input.directive';
 import { NameInputDirective } from '../../shared/directives/name-input.directive';
 import { PhoneInputDirective } from '../../shared/directives/phone-input.directive';
@@ -216,24 +217,24 @@ const PHONE_TEXT = BUSINESS.phones.primary.display;
  */
 export const SAME_DAY_NOTICE: PhoneNotice = {
   title: 'Same-day request',
-  body: `You may submit your request so Mira can review the details, but submitting this form does not confirm an appointment. Please call Mira at ${PHONE_TEXT} to confirm today's availability.`,
+  body: `You may submit your request so Mira & Team can review the details, but submitting this form does not confirm an appointment. Please call or text Mira & Team at ${PHONE_TEXT} to confirm today's availability.`,
 };
 export const SUNDAY_NOTICE: PhoneNotice = {
   title: 'Sunday availability',
-  body: `Sunday appointments may be available by request and must be confirmed by phone. You may submit your request for Mira to review, then call ${PHONE_TEXT} to confirm availability.`,
+  body: `Sunday appointments may be available by request and must be confirmed by phone. You may submit your request for Mira & Team to review, then call or text ${PHONE_TEXT} to confirm availability.`,
 };
 export const SAME_DAY_SUNDAY_NOTICE: PhoneNotice = {
   title: 'Same-day Sunday request',
-  body: `You may submit your request so Mira can review the details, but same-day Sunday availability must be confirmed by phone. Please call Mira at ${PHONE_TEXT} after submitting.`,
+  body: `You may submit your request so Mira & Team can review the details, but same-day Sunday availability must be confirmed by phone. Please call or text Mira & Team at ${PHONE_TEXT} after submitting.`,
 };
 
 /** What the success state says; submitting never confirms a same-day or Sunday appointment. */
 export type PhoneSuccessKind = 'same-day' | 'sunday' | 'same-day-sunday' | 'generic';
 export const PHONE_SUCCESS_COPY: Record<PhoneSuccessKind, string> = {
-  'same-day': `Mira has received your request, but this does not confirm a same-day appointment. Please call ${PHONE_TEXT} now to confirm availability.`,
-  sunday: `Mira has received your request, but this does not confirm a Sunday appointment. Please call ${PHONE_TEXT} to confirm availability.`,
-  'same-day-sunday': `Mira has received your request, but this does not confirm a same-day Sunday appointment. Please call ${PHONE_TEXT} now to confirm availability.`,
-  generic: `Mira has received your request, but this does not confirm an appointment. Please call ${PHONE_TEXT} to confirm availability.`,
+  'same-day': `Your request has been received, but this does not confirm a same-day appointment. Please call or text Mira & Team at ${PHONE_TEXT} now to confirm availability.`,
+  sunday: `Your request has been received, but this does not confirm a Sunday appointment. Please call or text Mira & Team at ${PHONE_TEXT} to confirm availability.`,
+  'same-day-sunday': `Your request has been received, but this does not confirm a same-day Sunday appointment. Please call or text Mira & Team at ${PHONE_TEXT} now to confirm availability.`,
+  generic: `Your request has been received, but this does not confirm an appointment. Please call or text Mira & Team at ${PHONE_TEXT} to confirm availability.`,
 };
 
 /** Why Submit is unavailable (one short message, chosen by priority). */
@@ -252,7 +253,7 @@ export const SIGNERS_MESSAGE = `Enter a whole number from 1 to ${MAX_SIGNERS}.`;
 
 /** Non-blocking note for a well-formed specific time outside standard hours (not an error). */
 export const OUTSIDE_HOURS_NOTE =
-  'Outside standard hours — you can still submit. Mira will confirm availability and any additional after-hours fee.';
+  'Outside standard hours — you can still submit. Mira & Team will confirm availability and any additional after-hours fee.';
 
 /**
  * The real validation of the conditional Specific Time field (no HTML `required`/`min`/`max` is
@@ -268,20 +269,21 @@ const specificTimeValidator: ValidatorFn = (control: AbstractControl): Validatio
 
 const GLOBAL_MESSAGES = {
   verify: 'Please complete the verification check before sending.',
-  unavailable: `We couldn't send your request right now. Please call or text Mira at ${BUSINESS.phones.primary.display}.`,
+  unavailable: `We couldn't send your request right now. Please call or text Mira & Team at ${BUSINESS.phones.primary.display}.`,
   invalid: 'Please check the form and try again.',
 } as const;
 
 /** Non-blocking note for a well-formed ZIP outside the confirmed area (not an error). */
 export const OUTSIDE_AREA_NOTE =
-  'Outside standard service area — you can still submit. Mira will confirm travel availability and fee.';
+  'Outside standard service area — you can still submit. Mira & Team will confirm travel availability and the applicable fee.';
 
 @Component({
   selector: 'app-contact',
   imports: [
+    CallTextComponent,
+    PhotoLightboxComponent,
     ReactiveFormsModule,
     ContactCardComponent,
-    IconComponent,
     TurnstileComponent,
     WizardProgressComponent,
     ZipInputDirective,
@@ -529,11 +531,20 @@ export class ContactComponent {
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed())
       .subscribe((params) => this.applyQuery(params));
+    // The router's scroll restoration runs on every popstate (even to the same URL) and scrolls to
+    // the top; it emits `Scroll` right after doing so. That is the moment to put a closed (or
+    // reopened) photo preview's page position back.
+    inject(Router)
+      .events.pipe(
+        filter((event): event is Scroll => event instanceof Scroll),
+        takeUntilDestroyed(),
+      )
+      .subscribe(() => this.applyHeldScroll());
 
     if (this.isBrowser) {
       // A (re)loaded page always starts at step 1; the history entry only carries the step number.
       this.wizardHistory.replace(1);
-      const stop = this.wizardHistory.listen((target) => this.onHistoryStep(target));
+      const stop = this.wizardHistory.listen((target) => this.onPopState(target));
       inject(DestroyRef).onDestroy(stop);
     }
   }
@@ -665,6 +676,120 @@ export class ContactComponent {
     this.photoError.set(null);
   }
 
+  // ---- photo preview (lightbox) ----------------------------------------------------------
+  // UI state only: it adds ONE history entry ("same step, preview open") so browser Back closes the
+  // preview first. Closing by X / Escape / backdrop goes back over that entry, so no phantom
+  // "preview" entry is ever left behind. The URL never changes and no photo data is stored.
+
+  protected readonly previewId = signal<number | null>(null);
+  /** The previewed photo, or null (also when it was removed — the URL is never used after that). */
+  protected readonly preview = computed(() => {
+    const item = this.photos().find((candidate) => candidate.id === this.previewId());
+    return item?.previewUrl ? { url: item.previewUrl, name: item.file.name } : null;
+  });
+  private previewTrigger: HTMLElement | null = null;
+  /** Page scroll position when the preview opened (component memory only; refreshed on every open). */
+  private previewOriginScrollY = 0;
+  /** Scroll position to re-apply once the router's popstate scroll reset has happened. */
+  private heldScrollY: number | null = null;
+  private heldScrollTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Last closed-by-Back preview, so browser Forward can reopen exactly that photo. */
+  private lastPreview: { id: number; trigger: HTMLElement | null } | null = null;
+
+  protected openPreview(id: number, event: Event): void {
+    this.previewTrigger = event.currentTarget as HTMLElement;
+    this.previewOriginScrollY = this.isBrowser ? window.scrollY : 0;
+    this.previewId.set(id);
+    if (!this.wizardHistory.isPreviewEntry()) {
+      this.wizardHistory.pushPreview(this.step());
+    }
+  }
+
+  /** Close / Escape / backdrop: step back over the preview entry; popstate then closes the UI. */
+  protected closePreview(): void {
+    if (this.previewId() === null) {
+      return;
+    }
+    if (this.wizardHistory.isPreviewEntry()) {
+      this.wizardHistory.back();
+    } else {
+      this.dismissPreview();
+    }
+  }
+
+  private dismissPreview(): void {
+    this.lastPreview = { id: this.previewId() ?? -1, trigger: this.previewTrigger };
+    this.previewId.set(null);
+    const trigger = this.previewTrigger;
+    this.previewTrigger = null;
+    if (trigger?.isConnected) {
+      trigger.focus({ preventScroll: true }); // focusing must never move the page
+    }
+  }
+
+  /** Keeps `y` as the page position across the router's scroll reset that follows a popstate. */
+  private holdScroll(y: number): void {
+    if (!this.isBrowser) {
+      return;
+    }
+    this.releaseHeldScroll();
+    this.heldScrollY = y;
+    // Safety net: never leave a stale position behind if no scroll event ever arrives.
+    this.heldScrollTimer = setTimeout(() => this.releaseHeldScroll(), 1000);
+    this.scrollNow(y);
+  }
+
+  private releaseHeldScroll(): void {
+    this.heldScrollY = null;
+    if (this.heldScrollTimer !== null) {
+      clearTimeout(this.heldScrollTimer);
+      this.heldScrollTimer = null;
+    }
+  }
+
+  /**
+   * Runs inside the router's `Scroll` event. The router's own scroller subscribes after this
+   * component and scrolls to the top in the same dispatch, so the position is restored in the
+   * microtask that follows it (still before the next paint, so nothing visibly moves).
+   */
+  private applyHeldScroll(): void {
+    queueMicrotask(() => {
+      const y = this.heldScrollY;
+      this.releaseHeldScroll(); // one popstate = one restore: never leaks into the next navigation
+      if (y !== null) {
+        this.scrollNow(y);
+      }
+    });
+  }
+
+  private scrollNow(y: number): void {
+    window.scrollTo({ left: 0, top: y, behavior: 'instant' }); // 'instant': beats `scroll-behavior: smooth`
+  }
+
+  /** popstate: a Back that lands on a non-preview entry closes the preview and nothing else. */
+  private onPopState(target: WizardStep | null): void {
+    if (this.previewId() !== null && !this.wizardHistory.isPreviewEntry()) {
+      this.holdScroll(this.previewOriginScrollY);
+      this.dismissPreview();
+      return;
+    }
+    if (this.previewId() === null && this.wizardHistory.isPreviewEntry()) {
+      // Forward onto a preview entry: reopen the same photo if it still exists, otherwise step
+      // straight back over the stale entry (never show a modal without a photo).
+      const last = this.lastPreview;
+      if (last && this.photos().some((item) => item.id === last.id && item.previewUrl)) {
+        this.previewOriginScrollY = this.isBrowser ? window.scrollY : 0;
+        this.holdScroll(this.previewOriginScrollY);
+        this.previewTrigger = last.trigger;
+        this.previewId.set(last.id);
+      } else {
+        this.wizardHistory.back();
+      }
+      return;
+    }
+    this.onHistoryStep(target);
+  }
+
   protected removePhoto(id: number): void {
     const item = this.photos().find((candidate) => candidate.id === id);
     if (item?.previewUrl) {
@@ -691,6 +816,7 @@ export class ContactComponent {
   }
 
   private clearPhotos(): void {
+    this.previewId.set(null);
     this.revokeAllPreviews();
     this.photos.set([]);
     this.photoError.set(null);

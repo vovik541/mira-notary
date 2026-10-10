@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { CallTextComponent } from '../../shared/components/call-text/call-text.component';
 import { RouterLink } from '@angular/router';
 import { BUSINESS } from '../../core/config/business.config';
 import {
@@ -7,6 +8,7 @@ import {
   NOTARIAL_FEES,
   PAYMENT_METHODS,
   TRAVEL_FEES,
+  TRAVEL_FEE_NOTE,
 } from '../../data/pricing.data';
 import { CtaBandComponent } from '../../shared/components/cta-band/cta-band.component';
 import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.component';
@@ -14,7 +16,7 @@ import { PriceListComponent } from '../../shared/components/price-list/price-lis
 
 @Component({
   selector: 'app-pricing',
-  imports: [RouterLink, CtaBandComponent, PageHeroComponent, PriceListComponent],
+  imports: [CallTextComponent, RouterLink, CtaBandComponent, PageHeroComponent, PriceListComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-hero heading="Mobile Notary Pricing" eyebrow="Pricing">
@@ -26,7 +28,7 @@ import { PriceListComponent } from '../../shared/components/price-list/price-lis
       >
       <div actions class="page-actions">
         <a class="btn btn--gold" routerLink="/contact">Book an Appointment</a>
-        <a class="btn btn--outline" [href]="phone.href">Call {{ phone.display }}</a>
+        <app-call-text variant="outline" />
       </div>
     </app-page-hero>
 
@@ -41,6 +43,7 @@ import { PriceListComponent } from '../../shared/components/price-list/price-lis
           <section aria-labelledby="travel-heading">
             <h2 id="travel-heading">Mobile Travel</h2>
             <app-price-list [rows]="travel" />
+            <p class="note">{{ travelNote }}</p>
           </section>
 
           <section aria-labelledby="apostille-heading">
@@ -107,6 +110,7 @@ import { PriceListComponent } from '../../shared/components/price-list/price-lis
 export class PricingComponent {
   protected readonly phone = BUSINESS.phones.primary;
   protected readonly travel = TRAVEL_FEES;
+  protected readonly travelNote = TRAVEL_FEE_NOTE;
   protected readonly notarial = NOTARIAL_FEES;
   protected readonly apostille = APOSTILLE_FEES;
   protected readonly apostilleNote = APOSTILLE_NOTE;

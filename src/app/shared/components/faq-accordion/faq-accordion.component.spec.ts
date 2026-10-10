@@ -76,7 +76,9 @@ describe('FaqAccordionComponent', () => {
       expect(hrefs).toEqual([
         '/service-area',
         'tel:+12795298754',
+        'sms:+12795298754',
         'tel:+12795298754',
+        'sms:+12795298754',
         '/pricing',
         '/services/translation',
       ]);

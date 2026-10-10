@@ -38,9 +38,15 @@ describe('MobileCtaComponent', () => {
     expect(host().classList.contains('visible')).toBe(false);
   });
 
-  it('offers a tel: link and a link to the contact page', () => {
+  it('offers separate Call (tel:) and Text (sms:) links plus a link to the contact page', () => {
     const links = Array.from(host().querySelectorAll('a'));
-    expect(links[0].getAttribute('href')).toBe('tel:+12795298754');
-    expect(links[1].getAttribute('href')).toBe('/contact');
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([
+      'tel:+12795298754',
+      'sms:+12795298754',
+      '/contact',
+    ]);
+    expect(links[0].getAttribute('aria-label')).toBe('Call Mira & Team at (279) 529-8754');
+    expect(links[1].getAttribute('aria-label')).toBe('Text Mira & Team at (279) 529-8754');
+    expect(links.map((a) => a.textContent?.trim())).toEqual(['Call', 'Text', 'Book Appointment']);
   });
 });

@@ -12,7 +12,7 @@ TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 RESEND_API_KEY=
 
 # Optional local overrides of the values in wrangler.jsonc `vars` (production sender
-# appointments@notify.miranotary.com, recipient miranotary@gmail.com). For local tests use your own test
+# appointments@notify.miranotary.com, recipient contact@miranotary.com). For local tests use your own test
 # mailbox as the recipient, and a sender on a Resend domain you have verified:
 # EMAIL_FROM_ADDRESS=appointments@notify.<your-verified-domain>
 # EMAIL_FROM_NAME=Local Notary Signings by Mira Derkach

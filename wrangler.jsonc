@@ -26,7 +26,7 @@
 
     // Where appointment notifications are delivered. Server-side only, never sent to the browser
     // and never accepted from a request. (Locally, .dev.vars overrides it with a test mailbox.)
-    "APPOINTMENT_RECIPIENT": "miranotary@gmail.com"
+    "APPOINTMENT_RECIPIENT": "contact@miranotary.com"
   },
 
   // Modest abuse limit: 5 requests / 60 s per client IP, per Cloudflare location (approximate,

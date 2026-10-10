@@ -212,6 +212,19 @@ textarea {
     border-radius: var(--radius-md);
   }
 
+  .thumb {
+    flex: none;
+    padding: 0;
+    line-height: 0;
+    cursor: zoom-in;
+    background: none;
+    border: 0;
+
+    &:focus-visible {
+      outline: 2px solid var(--color-navy);
+    }
+  }
+
   img,
   .thumb-fallback {
     flex: none;

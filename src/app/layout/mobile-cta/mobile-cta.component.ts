@@ -1,4 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
+import { CallTextComponent } from '../../shared/components/call-text/call-text.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -10,23 +11,19 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BUSINESS } from '../../core/config/business.config';
-import { IconComponent } from '../../shared/components/icon/icon.component';
 
 /** Scroll distance (px) after which the sticky bar appears. */
 export const MOBILE_CTA_SCROLL_THRESHOLD = 200;
 
-/** Phone-only bottom bar: Call + Book. Hidden at the top of the page, revealed after scrolling. */
+/** Phone-only bottom bar: Call + Text (two real links) + Book. Hidden at the top of the page, revealed after scrolling. */
 @Component({
   selector: 'app-mobile-cta',
-  imports: [RouterLink, IconComponent],
+  imports: [CallTextComponent, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class.visible]': 'visible()', '[attr.inert]': "visible() ? null : ''" },
   template: `
     <nav class="bar" aria-label="Quick contact">
-      <a class="btn btn--outline btn--sm" [href]="phone.href">
-        <app-icon name="phone" style="--icon-size: 1rem" />
-        Call Mira
-      </a>
+      <app-call-text variant="outline" size="sm" />
       <a class="btn btn--gold btn--sm" routerLink="/contact">Book Appointment</a>
     </nav>
   `,
@@ -54,7 +51,7 @@ export const MOBILE_CTA_SCROLL_THRESHOLD = 200;
     }
     .bar {
       display: grid;
-      grid-template-columns: 1fr 1.4fr;
+      grid-template-columns: 1.35fr 1fr;
       gap: 0.75rem;
       padding: 0.75rem var(--gutter);
       min-height: var(--mobile-cta-height);

@@ -12,22 +12,16 @@
           <h2>Request sent</h2>
           <p>{{ phoneSuccessCopy[successKind] }}</p>
           <div class="page-actions">
-            <a class="btn btn--gold" [href]="phone.href">
-              <app-icon name="phone" style="--icon-size: 1rem" />
-              Call Mira Now
-            </a>
+            <app-call-text variant="gold" />
             <button class="btn btn--outline" type="button" (click)="newRequest()">
               Send Another Request
             </button>
           </div>
         } @else {
           <h2>Thank you. Your request has been sent to Mira.</h2>
-          <p>Mira will contact you to confirm availability and final pricing.</p>
+          <p>Mira & Team will contact you to confirm availability and final pricing.</p>
           <div class="page-actions">
-            <a class="btn btn--outline" [href]="phone.href">
-              <app-icon name="phone" style="--icon-size: 1rem" />
-              Call {{ phone.display }}
-            </a>
+            <app-call-text variant="outline" />
             <button class="btn btn--outline" type="button" (click)="newRequest()">
               Send Another Request
             </button>
@@ -148,7 +142,14 @@
               }
               <p class="help" id="specificTime-help">
                 Standard appointment hours: {{ standardHoursLabel }}. Need another time?
-                <a [href]="phone.href">Call Mira</a> to check availability.
+                <a [href]="phone.href" [attr.aria-label]="'Call Mira & Team at ' + phone.display"
+                  >Call</a
+                >
+                or
+                <a [href]="phone.smsHref" [attr.aria-label]="'Text Mira & Team at ' + phone.display"
+                  >text</a
+                >
+                Mira & Team to check availability.
               </p>
             </div>
           }
@@ -161,10 +162,7 @@
             <div class="phone-callout" role="status" id="phone-notice">
               <p class="phone-callout-title">{{ phoneNotice.title }}</p>
               <p>{{ phoneNotice.body }}</p>
-              <a class="btn btn--gold" [href]="phone.href">
-                <app-icon name="phone" style="--icon-size: 1rem" />
-                Call Mira
-              </a>
+              <app-call-text variant="gold" />
             </div>
           }
 
@@ -369,7 +367,15 @@
                 @for (item of photos(); track item.id) {
                   <li>
                     @if (item.previewUrl) {
-                      <img [src]="item.previewUrl" alt="" width="48" height="48" />
+                      <button
+                        class="thumb"
+                        type="button"
+                        title="Preview photo"
+                        [attr.aria-label]="'Preview ' + item.file.name"
+                        (click)="openPreview(item.id, $event)"
+                      >
+                        <img [src]="item.previewUrl" alt="" width="48" height="48" />
+                      </button>
                     } @else {
                       <span class="thumb-fallback" aria-hidden="true">IMG</span>
                     }
@@ -467,3 +473,7 @@
     <app-contact-card />
   </aside>
 </section>
+
+@if (preview(); as shown) {
+  <app-photo-lightbox [src]="shown.url" [label]="shown.name" (closeRequested)="closePreview()" />
+}

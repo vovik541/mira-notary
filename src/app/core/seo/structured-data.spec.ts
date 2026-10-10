@@ -51,7 +51,7 @@ describe('structured data builders', () => {
     );
     expect(org['knowsLanguage']).toEqual(['en', 'uk', 'ru']);
     expect(org['sameAs']).toEqual(PROFILE_URLS);
-    expect(org['email']).toBe('MiraNotary@gmail.com');
+    expect(org['email']).toBe('contact@miranotary.com');
   });
 
   it('before a domain exists no absolute URL is invented (relative @id fragments only)', () => {

@@ -41,7 +41,11 @@
         <span>{{ phone.display }}</span>
       </a>
       <a class="btn btn--gold btn--sm book" routerLink="/contact">Book an Appointment</a>
-      <a class="call-icon" [href]="phone.href" [attr.aria-label]="'Call ' + phone.display">
+      <a
+        class="call-icon"
+        [href]="phone.href"
+        [attr.aria-label]="'Call Mira & Team at ' + phone.display"
+      >
         <app-icon name="phone" style="--icon-size: 1.5rem" />
       </a>
       <button

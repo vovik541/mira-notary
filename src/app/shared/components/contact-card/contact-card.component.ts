@@ -15,7 +15,16 @@ import { IconComponent } from '../icon/icon.component';
           <a class="primary" [href]="business.phones.primary.href">
             <span class="icon"><app-icon name="phone" /></span>
             <span class="label">
-              <span class="kind">Primary · Call or Text</span>
+              <span class="kind">Primary · Call</span>
+              <span class="value">{{ business.phones.primary.display }}</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="primary" [href]="business.phones.primary.smsHref">
+            <span class="icon"><app-icon name="message" /></span>
+            <span class="label">
+              <span class="kind">Primary · Text</span>
               <span class="value">{{ business.phones.primary.display }}</span>
             </span>
           </a>

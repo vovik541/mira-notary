@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { CallTextComponent } from '../../shared/components/call-text/call-text.component';
 import { RouterLink } from '@angular/router';
 import { BUSINESS, EXTERNAL_LINKS } from '../../core/config/business.config';
 import { SEO_PAGES } from '../../core/seo/seo-pages';
@@ -17,6 +18,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
 @Component({
   selector: 'app-loan-signing',
   imports: [
+    CallTextComponent,
     RouterLink,
     CheckListComponent,
     CredentialListComponent,
