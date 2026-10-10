@@ -305,12 +305,17 @@
           <div class="summary" role="group" aria-label="Appointment summary">
             <p class="summary-main">{{ summary().service }}</p>
             <p>{{ summary().when }}</p>
-            <p>
-              ZIP {{ summary().zip }}
-              @if (summary().outside) {
-                <span class="summary-flag">Outside standard service area</span>
-              }
-            </p>
+            <p>ZIP {{ summary().zip }}</p>
+            @if (summary().outside || summary().outsideHours) {
+              <p class="summary-flags">
+                @if (summary().outside) {
+                  <span class="summary-flag">Outside standard service area</span>
+                }
+                @if (summary().outsideHours) {
+                  <span class="summary-flag">Outside standard hours</span>
+                }
+              </p>
+            }
             <button class="link-button" type="button" (click)="editAppointment()">
               Edit appointment details
             </button>

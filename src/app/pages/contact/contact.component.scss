@@ -447,9 +447,15 @@ textarea {
     color: var(--color-text);
   }
 
+  .summary-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.25rem;
+  }
+
   .summary-flag {
     display: inline-block;
-    margin-left: 0.375rem;
     padding: 0.0625rem 0.5rem;
     font-size: 0.75rem;
     color: #5c4400;

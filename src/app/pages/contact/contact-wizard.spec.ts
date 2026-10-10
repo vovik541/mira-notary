@@ -6,7 +6,7 @@ import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/route
 import { of } from 'rxjs';
 import { TurnstileComponent } from '../../shared/components/turnstile/turnstile.component';
 import { todayInBusinessZone } from '../../../shared/appointment-timing';
-import { ContactComponent } from './contact.component';
+import { ContactComponent, stepSummaryText } from './contact.component';
 
 interface Internals {
   step: () => 1 | 2 | 3;
@@ -393,7 +393,7 @@ describe('ContactComponent wizard', () => {
     });
   });
 
-  describe('step-level "Please complete / fix" summary', () => {
+  describe('step-level validation summary', () => {
     const summary = (fixture: ComponentFixture<ContactComponent>, step: 1 | 2): string | null =>
       (
         fixture.nativeElement.querySelector(
@@ -406,6 +406,36 @@ describe('ContactComponent wizard', () => {
     };
     const goNext = (fixture: ComponentFixture<ContactComponent>, step: 1 | 2): void =>
       click(fixture, `form > .step:nth-of-type(${step}) .wizard-actions .btn--gold`);
+
+    describe('human-friendly copy', () => {
+      it('never shows developer wording on either step', () => {
+        const fixture = setup();
+        const forbidden = /Please fix:|complete or fix|Invalid field|Validation failed|Error:/i;
+        const texts: string[] = [];
+        texts.push(summary(fixture, 1) ?? '');
+        set(fixture, 'zip', '9581');
+        texts.push(summary(fixture, 1) ?? '');
+        fillStep1(fixture);
+        click(fixture, 'form > .step:nth-of-type(1) .wizard-actions button');
+        texts.push(summary(fixture, 2) ?? '');
+        set(fixture, 'phone', '916');
+        set(fixture, 'email', 'broken');
+        texts.push(summary(fixture, 2) ?? '');
+        for (const t of texts) {
+          expect(t).not.toMatch(forbidden);
+        }
+      });
+
+      it('names a single invalid phone number with its own friendly sentence', () => {
+        const fixture = setup();
+        goStep2(fixture);
+        set(fixture, 'firstName', 'Jane');
+        set(fixture, 'lastName', 'Doe');
+        set(fixture, 'email', 'jane@example.com');
+        set(fixture, 'phone', '916');
+        expect(summary(fixture, 2)).toBe('Please enter a valid 10-digit phone number to continue.');
+      });
+    });
 
     describe('Number of Signers label', () => {
       it('is marked optional, without an asterisk, and stays optional', () => {
@@ -422,7 +452,7 @@ describe('ContactComponent wizard', () => {
       it('is visible before any interaction, lists only the missing REQUIRED fields, and flags nothing red', () => {
         const fixture = setup();
         expect(summary(fixture, 1)).toBe(
-          'Please complete: ZIP Code, Preferred Date, Preferred Time.',
+          'Please complete ZIP Code, Preferred Date, and Preferred Time to continue.',
         );
         expect(summary(fixture, 1)).not.toContain('Number of Signers');
         expect(summary(fixture, 1)).not.toContain('Specific Time');
@@ -447,9 +477,11 @@ describe('ContactComponent wizard', () => {
       it('shrinks as fields become valid and disappears completely when the step is valid', () => {
         const fixture = setup();
         set(fixture, 'zip', '95814');
-        expect(summary(fixture, 1)).toBe('Please complete: Preferred Date, Preferred Time.');
+        expect(summary(fixture, 1)).toBe(
+          'Please complete Preferred Date and Preferred Time to continue.',
+        );
         set(fixture, 'preferredDate', futureWeekday());
-        expect(summary(fixture, 1)).toBe('Please complete: Preferred Time.');
+        expect(summary(fixture, 1)).toBe('Please complete Preferred Time to continue.');
         set(fixture, 'timePreference', 'morning');
         expect(summary(fixture, 1)).toBeNull();
         expect(fixture.nativeElement.querySelector('#step-1-validation-summary')).toBeNull();
@@ -461,9 +493,11 @@ describe('ContactComponent wizard', () => {
         const fixture = setup();
         set(fixture, 'zip', '9581');
         set(fixture, 'timePreference', 'morning');
-        expect(summary(fixture, 1)).toBe('Please complete or fix: ZIP Code, Preferred Date.');
+        expect(summary(fixture, 1)).toBe(
+          'Please complete Preferred Date and check ZIP Code before continuing.',
+        );
         set(fixture, 'preferredDate', futureWeekday());
-        expect(summary(fixture, 1)).toBe('Please fix: ZIP Code.');
+        expect(summary(fixture, 1)).toBe('Please enter a valid 5-digit ZIP code to continue.');
         set(fixture, 'zip', '95814');
         expect(summary(fixture, 1)).toBeNull();
       });
@@ -483,7 +517,7 @@ describe('ContactComponent wizard', () => {
         fillStep1(fixture);
         expect(summary(fixture, 1)).toBeNull();
         set(fixture, 'timePreference', 'specific');
-        expect(summary(fixture, 1)).toBe('Please complete: Specific Time.');
+        expect(summary(fixture, 1)).toBe('Please complete Specific Time to continue.');
         set(fixture, 'specificTime', '14:30');
         expect(summary(fixture, 1)).toBeNull();
         set(fixture, 'timePreference', 'morning');
@@ -508,7 +542,7 @@ describe('ContactComponent wizard', () => {
         set(fixture, 'signers', '');
         expect(summary(fixture, 1)).toBeNull();
         set(fixture, 'signers', '99');
-        expect(summary(fixture, 1)).toBe('Please fix: Number of Signers.');
+        expect(summary(fixture, 1)).toBe('Please enter a number of signers from 1 to 50.');
         set(fixture, 'signers', '12');
         expect(summary(fixture, 1)).toBeNull();
       });
@@ -523,7 +557,7 @@ describe('ContactComponent wizard', () => {
         ).form;
         form.controls['service'].setValue('');
         fixture.detectChanges();
-        expect(summary(fixture, 1)).toBe('Please complete: Service Needed.');
+        expect(summary(fixture, 1)).toBe('Please complete Service to continue.');
       });
     });
 
@@ -537,7 +571,7 @@ describe('ContactComponent wizard', () => {
         expect(document.activeElement).toBe(el(fixture, 'zip'));
         expect(fixture.nativeElement.querySelector('#firstName-error')).toBeNull();
         expect(summary(fixture, 1)).toBe(
-          'Please complete: ZIP Code, Preferred Date, Preferred Time.',
+          'Please complete ZIP Code, Preferred Date, and Preferred Time to continue.',
         );
       });
 
@@ -565,7 +599,7 @@ describe('ContactComponent wizard', () => {
         const fixture = setup();
         goStep2(fixture);
         expect(summary(fixture, 2)).toBe(
-          'Please complete: First Name, Last Name, Phone Number, Email.',
+          'Please complete First Name, Last Name, Phone Number, and Email to continue.',
         );
         expect(summary(fixture, 2)).not.toContain('Language');
         expect(fixture.nativeElement.querySelector('#firstName-error')).toBeNull();
@@ -578,11 +612,13 @@ describe('ContactComponent wizard', () => {
         const fixture = setup();
         goStep2(fixture);
         set(fixture, 'firstName', 'Jane');
-        expect(summary(fixture, 2)).toBe('Please complete: Last Name, Phone Number, Email.');
+        expect(summary(fixture, 2)).toBe(
+          'Please complete Last Name, Phone Number, and Email to continue.',
+        );
         set(fixture, 'lastName', 'Doe');
-        expect(summary(fixture, 2)).toBe('Please complete: Phone Number, Email.');
+        expect(summary(fixture, 2)).toBe('Please complete Phone Number and Email to continue.');
         set(fixture, 'phone', '9165550100');
-        expect(summary(fixture, 2)).toBe('Please complete: Email.');
+        expect(summary(fixture, 2)).toBe('Please complete Email to continue.');
         set(fixture, 'email', 'jane@example.com');
         expect(summary(fixture, 2)).toBeNull();
         expect(fixture.nativeElement.querySelector('#step-2-validation-summary')).toBeNull();
@@ -595,12 +631,14 @@ describe('ContactComponent wizard', () => {
         set(fixture, 'lastName', 'Doe');
         set(fixture, 'phone', '916555010'); // 9 digits
         set(fixture, 'email', 'broken');
-        expect(summary(fixture, 2)).toBe('Please fix: Phone Number, Email.');
+        expect(summary(fixture, 2)).toBe('Please check Phone Number and Email before continuing.');
         set(fixture, 'phone', '9165550100');
-        expect(summary(fixture, 2)).toBe('Please fix: Email.');
+        expect(summary(fixture, 2)).toBe('Please enter a valid email address to continue.');
         set(fixture, 'email', '');
         set(fixture, 'phone', '916555010');
-        expect(summary(fixture, 2)).toBe('Please complete or fix: Phone Number, Email.');
+        expect(summary(fixture, 2)).toBe(
+          'Please complete Email and check Phone Number before continuing.',
+        );
       });
 
       it('Continue on an invalid step 2 stays, touches only step 2, focuses the first problem', () => {
@@ -816,6 +854,49 @@ describe('ContactComponent wizard', () => {
       expect(summary).toContain('Outside standard service area');
     });
 
+    describe('advisory badges', () => {
+      const flags = (fixture: ComponentFixture<ContactComponent>): string[] =>
+        Array.from(fixture.nativeElement.querySelectorAll('.summary .summary-flag')).map(
+          (n) => (n as HTMLElement).textContent?.trim() as string,
+        );
+
+      it.each(['07:30', '20:30', '23:00'])('shows "Outside standard hours" for %s', (time) => {
+        const fixture = setup();
+        fillStep1(fixture);
+        set(fixture, 'timePreference', 'specific');
+        set(fixture, 'specificTime', time);
+        expect(flags(fixture)).toEqual(['Outside standard hours']);
+      });
+
+      it.each(['08:00', '12:00', '20:00'])('shows no after-hours badge for %s', (time) => {
+        const fixture = setup();
+        fillStep1(fixture);
+        set(fixture, 'timePreference', 'specific');
+        set(fixture, 'specificTime', time);
+        expect(flags(fixture)).toEqual([]);
+      });
+
+      it.each(['morning', 'afternoon', 'evening', 'flexible'])(
+        'shows no after-hours badge for %s',
+        (preference) => {
+          const fixture = setup();
+          fillStep1(fixture);
+          set(fixture, 'timePreference', preference);
+          expect(flags(fixture)).toEqual([]);
+        },
+      );
+
+      it('shows both badges together, and the time stays valid', () => {
+        const fixture = setup();
+        fillStep1(fixture);
+        set(fixture, 'zip', '90210');
+        set(fixture, 'timePreference', 'specific');
+        set(fixture, 'specificTime', '07:30');
+        expect(flags(fixture)).toEqual(['Outside standard service area', 'Outside standard hours']);
+        expect(fixture.nativeElement.querySelector('#step-1-validation-summary')).toBeNull();
+      });
+    });
+
     it('"Edit appointment details" returns to step 1 with everything intact', () => {
       const fixture = setup();
       fillStep1(fixture);
@@ -1010,5 +1091,48 @@ describe('ContactComponent wizard', () => {
       expect(el(fixture, 'firstName').value).toBe('');
       expect(el(fixture, 'consent').checked).toBe(false);
     });
+  });
+});
+
+describe('stepSummaryText', () => {
+  it.each([
+    [
+      [{ control: 'zip', label: 'ZIP Code', missing: true }],
+      'Please complete ZIP Code to continue.',
+    ],
+    [
+      [
+        { control: 'zip', label: 'ZIP Code', missing: true },
+        { control: 'preferredDate', label: 'Preferred Date', missing: true },
+      ],
+      'Please complete ZIP Code and Preferred Date to continue.',
+    ],
+    [
+      [
+        { control: 'phone', label: 'Phone Number', missing: false },
+        { control: 'email', label: 'Email', missing: false },
+        { control: 'firstName', label: 'First Name', missing: false },
+      ],
+      'Please check Phone Number, Email, and First Name before continuing.',
+    ],
+    [
+      [
+        { control: 'preferredDate', label: 'Preferred Date', missing: true },
+        { control: 'timePreference', label: 'Preferred Time', missing: true },
+        { control: 'email', label: 'Email', missing: false },
+      ],
+      'Please complete Preferred Date and Preferred Time, and check Email before continuing.',
+    ],
+    [
+      [{ control: 'firstName', label: 'First Name', missing: false }],
+      'Please check your first name before continuing.',
+    ],
+    [
+      [{ control: 'specificTime', label: 'Specific Time', missing: false }],
+      'Please choose a valid appointment time to continue.',
+    ],
+    [[], null],
+  ] as const)('stepSummaryText %#', (problems, expected) => {
+    expect(stepSummaryText(problems as never)).toBe(expected);
   });
 });

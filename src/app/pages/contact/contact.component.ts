@@ -116,7 +116,7 @@ export const STEP_TITLES: Record<WizardStep, string> = {
   3: 'Request Details',
 };
 /**
- * What the step-level "Please complete / fix" summary talks about. Only the labels live here:
+ * What the step-level validation summary talks about. Only the labels live here:
  * whether a field is a problem is read from the real form control (its existing validators), so
  * no validation rule is duplicated. A field is listed iff its control is invalid — which is why a
  * ZIP outside the service area, an out-of-hours time, or an empty optional field never appear.
@@ -127,7 +127,7 @@ export interface StepFieldDefinition {
 }
 export const STEP_SUMMARY_FIELDS: Record<1 | 2, readonly StepFieldDefinition[]> = {
   1: [
-    { control: 'service', label: 'Service Needed' },
+    { control: 'service', label: 'Service' },
     { control: 'zip', label: 'ZIP Code' },
     { control: 'preferredDate', label: 'Preferred Date' },
     { control: 'timePreference', label: 'Preferred Time' },
@@ -145,19 +145,51 @@ export const STEP_SUMMARY_FIELDS: Record<1 | 2, readonly StepFieldDefinition[]> 
   ],
 };
 
-/** "Please complete: A, B." / "Please fix: A." / "Please complete or fix: A, B." */
+/** Friendly sentence for the one case where a single populated field is wrong. */
+const SINGLE_INVALID_MESSAGES: Partial<Record<FieldKey, string>> = {
+  phone: 'Please enter a valid 10-digit phone number to continue.',
+  email: 'Please enter a valid email address to continue.',
+  firstName: 'Please check your first name before continuing.',
+  lastName: 'Please check your last name before continuing.',
+  zip: 'Please enter a valid 5-digit ZIP code to continue.',
+  signers: 'Please enter a number of signers from 1 to 50.',
+  specificTime: 'Please choose a valid appointment time to continue.',
+};
+
+function joinNatural(items: readonly string[]): string {
+  return items.length <= 2
+    ? items.join(' and ')
+    : `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
+}
+
+/**
+ * Natural-language sentence for what still blocks Continue; null when nothing does.
+ * "Please complete A, B, and C to continue." / "Please check A and B before continuing." /
+ * "Please complete A and check B before continuing."
+ */
 export function stepSummaryText(
-  problems: readonly { readonly label: string; readonly missing: boolean }[],
+  problems: readonly {
+    readonly control: FieldKey;
+    readonly label: string;
+    readonly missing: boolean;
+  }[],
 ): string | null {
+  const missing = problems.filter((p) => p.missing).map((p) => p.label);
+  const invalid = problems.filter((p) => !p.missing);
   if (problems.length === 0) {
     return null;
   }
-  const lead = problems.every((p) => p.missing)
-    ? 'Please complete'
-    : problems.every((p) => !p.missing)
-      ? 'Please fix'
-      : 'Please complete or fix';
-  return `${lead}: ${problems.map((p) => p.label).join(', ')}.`;
+  if (invalid.length === 0) {
+    return `Please complete ${joinNatural(missing)} to continue.`;
+  }
+  if (missing.length === 0) {
+    return invalid.length === 1
+      ? (SINGLE_INVALID_MESSAGES[invalid[0].control] ??
+          `Please check ${invalid[0].label} before continuing.`)
+      : `Please check ${joinNatural(invalid.map((p) => p.label))} before continuing.`;
+  }
+  const comma = missing.length > 1 ? ',' : '';
+  return `Please complete ${joinNatural(missing)}${comma} and check ${joinNatural(invalid.map((p) => p.label))} before continuing.`;
 }
 
 const STEP_SHORT_LABELS = ['Appointment', 'Your Information', 'Details'] as const;
@@ -460,6 +492,7 @@ export class ContactComponent {
       when: [date, time].filter((part) => part !== '').join(' · '),
       zip: value.zip,
       outside: this.outsideArea(),
+      outsideHours: this.outsideHours(),
     };
   });
 
@@ -469,9 +502,10 @@ export class ContactComponent {
     const summarize = (step: 1 | 2): string | null =>
       stepSummaryText(
         STEP_SUMMARY_FIELDS[step]
-          .map(({ control, label }) => ({ label, control: this.control(control) }))
+          .map(({ control, label }) => ({ key: control, label, control: this.control(control) }))
           .filter(({ control }) => control.invalid)
-          .map(({ label, control }) => ({
+          .map(({ key, label, control }) => ({
+            control: key,
             label,
             missing: String(control.value ?? '').trim() === '',
           })),
