@@ -1,6 +1,11 @@
 import { AppointmentRequestPayload } from '../shared/appointment.model';
 import { checkZip } from '../shared/service-area';
-import { DateTiming, classifyDate, describeTimePreference } from '../shared/appointment-timing';
+import {
+  DateTiming,
+  classifyDate,
+  describeTimePreference,
+  isWithinStandardHours,
+} from '../shared/appointment-timing';
 
 export interface EmailContent {
   subject: string;
@@ -41,6 +46,15 @@ interface Section {
 /** "3 photos attached" / "None" — the photos themselves are attachments, never inlined. */
 export function describeAttachments(photoCount: number): string {
   return photoCount === 0 ? 'None' : `${photoCount} photo${photoCount === 1 ? '' : 's'} attached`;
+}
+
+/** A specific time outside the standard 8:00 AM–8:00 PM hours: advisory, never rejected. */
+function isOutsideStandardHours(request: AppointmentRequestPayload): boolean {
+  return (
+    request.timePreference === 'specific' &&
+    request.specificTime !== null &&
+    !isWithinStandardHours(request.specificTime)
+  );
 }
 
 /** Attention marker for Mira: same-day, Sunday or both. Empty for a normal request. */
@@ -88,6 +102,14 @@ function sectionsFor(
           label: 'Preferred Time',
           value: describeTimePreference(request.timePreference, request.specificTime),
         },
+        ...(isOutsideStandardHours(request)
+          ? [
+              {
+                label: 'Time Window',
+                value: 'Outside standard hours — confirm availability and additional fee',
+              },
+            ]
+          : []),
         { label: 'Preferred Language', value: request.preferredLanguage ?? 'Not specified' },
       ],
     },

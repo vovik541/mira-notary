@@ -6,6 +6,8 @@ import {
   isSunday,
   isTimePreference,
   isValidTimeOfDay,
+  STANDARD_HOURS,
+  STANDARD_HOURS_LABEL,
   isWithinStandardHours,
   minutesSinceMidnight,
   todayInBusinessZone,
@@ -85,33 +87,33 @@ describe('date rules (Los Angeles)', () => {
   });
 });
 
-describe('standard hours (08:30–20:30)', () => {
+describe('standard hours (08:00–20:00)', () => {
   it('converts HH:mm to minutes without any locale-dependent parsing', () => {
     expect(minutesSinceMidnight('00:00')).toBe(0);
-    expect(minutesSinceMidnight('08:30')).toBe(510);
-    expect(minutesSinceMidnight('20:30')).toBe(1230);
+    expect(minutesSinceMidnight('08:00')).toBe(480);
+    expect(minutesSinceMidnight('20:00')).toBe(1200);
     expect(minutesSinceMidnight('23:59')).toBe(1439);
-    expect(minutesSinceMidnight('8:30')).toBeNaN();
+    expect(minutesSinceMidnight('8:00')).toBeNaN();
     expect(minutesSinceMidnight('24:00')).toBeNaN();
+    expect(minutesSinceMidnight('25:99')).toBeNaN();
   });
 
-  it('includes both boundaries and rejects everything outside them', () => {
-    for (const ok of ['08:30', '09:00', '12:00', '14:00', '20:00', '20:30']) {
+  it('is 8:00 AM–8:00 PM, both ends inclusive', () => {
+    expect(STANDARD_HOURS).toEqual({ start: '08:00', end: '20:00' });
+    expect(STANDARD_HOURS_LABEL).toBe('8:00 AM–8:00 PM');
+    for (const ok of ['08:00', '08:01', '12:00', '14:00', '19:59', '20:00']) {
       expect(isWithinStandardHours(ok)).toBe(true);
     }
-    for (const bad of [
-      '08:29',
-      '00:00',
-      '07:59',
-      '20:31',
-      '21:00',
-      '23:59',
-      '12:60',
-      '8:30',
-      '',
-      null,
-    ]) {
+  });
+
+  it('treats everything else as outside (advisory), and malformed values as not within', () => {
+    for (const outside of ['07:59', '07:30', '00:00', '20:01', '20:30', '23:00', '23:59']) {
+      expect(isWithinStandardHours(outside)).toBe(false);
+      expect(isValidTimeOfDay(outside)).toBe(true); // still a perfectly valid time
+    }
+    for (const bad of ['25:99', '12:60', '8:00', '', null]) {
       expect(isWithinStandardHours(bad)).toBe(false);
+      expect(isValidTimeOfDay(bad)).toBe(false);
     }
   });
 });

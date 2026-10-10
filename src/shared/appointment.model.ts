@@ -76,7 +76,7 @@ export interface AppointmentRequestPayload {
   /** Structured choice; replaces the former free-text time. */
   timePreference: TimePreference;
   /**
-   * `HH:mm` within 08:30–20:30; required when `timePreference` is `specific`, otherwise `null`.
+   * A well-formed `HH:mm` (any time of day; outside 08:00–20:00 is only flagged for Mira); required when `timePreference` is `specific`, otherwise `null`.
    * There is no client-controlled "urgent" field: same-day / Sunday status is derived from
    * `preferredDate` by the Worker.
    */

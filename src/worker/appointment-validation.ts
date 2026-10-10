@@ -10,7 +10,7 @@ import {
   TimePreference,
   classifyDate,
   isTimePreference,
-  isWithinStandardHours,
+  isValidTimeOfDay,
   DateTiming,
 } from '../shared/appointment-timing';
 import { checkZip } from '../shared/service-area';
@@ -127,7 +127,8 @@ export function validateAppointmentRequest(
   const rawSpecific = body['specificTime'];
   let specificTime: string | null = null;
   if (timePreference === 'specific') {
-    if (isWithinStandardHours(rawSpecific)) {
+    // Any well-formed HH:mm is accepted; a time outside standard hours is flagged in the email.
+    if (isValidTimeOfDay(rawSpecific)) {
       specificTime = rawSpecific;
     } else {
       invalid.push('specificTime');

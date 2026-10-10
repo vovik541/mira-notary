@@ -35,198 +35,145 @@
         }
       </div>
     } @else {
-      <form class="form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <div class="row two">
-          <div class="field">
-            @let firstNameError = fieldError('firstName');
-            <label for="firstName">First Name <span aria-hidden="true">*</span></label>
-            <input
-              id="firstName"
-              type="text"
-              appNameInput
-              autocomplete="given-name"
-              formControlName="firstName"
-              required
-              [attr.aria-invalid]="firstNameError ? 'true' : null"
-              [attr.aria-describedby]="firstNameError ? 'firstName-error' : null"
-            />
-            @if (firstNameError) {
-              <p class="error" id="firstName-error" aria-live="polite">{{ firstNameError }}</p>
-            }
-          </div>
-          <div class="field">
-            @let lastNameError = fieldError('lastName');
-            <label for="lastName">Last Name <span aria-hidden="true">*</span></label>
-            <input
-              id="lastName"
-              type="text"
-              appNameInput
-              autocomplete="family-name"
-              formControlName="lastName"
-              required
-              [attr.aria-invalid]="lastNameError ? 'true' : null"
-              [attr.aria-describedby]="lastNameError ? 'lastName-error' : null"
-            />
-            @if (lastNameError) {
-              <p class="error" id="lastName-error" aria-live="polite">{{ lastNameError }}</p>
-            }
-          </div>
-        </div>
+      <app-wizard-progress [current]="step()" [labels]="stepShortLabels" />
 
-        <div class="row two">
-          <div class="field">
-            @let phoneError = fieldError('phone');
-            <label for="phone">Phone Number <span aria-hidden="true">*</span></label>
-            <input
-              id="phone"
-              appPhoneInput
-              placeholder="(279) 555-0100"
-              formControlName="phone"
-              required
-              [attr.aria-invalid]="phoneError ? 'true' : null"
-              [attr.aria-describedby]="phoneError ? 'phone-error' : null"
-            />
-            @if (phoneError) {
-              <p class="error" id="phone-error" aria-live="polite">{{ phoneError }}</p>
-            }
-          </div>
-          <div class="field">
-            @let emailError = fieldError('email');
-            <label for="email">Email <span aria-hidden="true">*</span></label>
-            <input
-              id="email"
-              type="email"
-              autocomplete="email"
-              inputmode="email"
-              formControlName="email"
-              required
-              [attr.maxlength]="limits.email"
-              [attr.aria-invalid]="emailError ? 'true' : null"
-              [attr.aria-describedby]="emailError ? 'email-error' : null"
-            />
-            @if (emailError) {
-              <p class="error" id="email-error" aria-live="polite">{{ emailError }}</p>
-            }
-          </div>
-        </div>
+      <div class="step-head">
+        <p class="step-count">Step {{ step() }} of 3</p>
+        <h2 class="step-title" #stepHeading tabindex="-1">{{ stepTitle() }}</h2>
+        @if (draftRestored()) {
+          <p class="draft-note" role="status">Your appointment draft was restored.</p>
+        }
+      </div>
 
-        <div class="field">
-          @let serviceError = fieldError('service');
-          <label for="service">Service Needed <span aria-hidden="true">*</span></label>
-          <select
-            id="service"
-            formControlName="service"
-            required
-            [attr.aria-invalid]="serviceError ? 'true' : null"
-            [attr.aria-describedby]="serviceError ? 'service-error' : null"
-          >
-            @for (option of serviceOptions; track option) {
-              <option [value]="option">{{ option }}</option>
-            }
-          </select>
-          @if (serviceError) {
-            <p class="error" id="service-error" aria-live="polite">{{ serviceError }}</p>
-          }
-        </div>
-
-        <div class="row three">
+      <form
+        class="form"
+        [formGroup]="form"
+        (ngSubmit)="onFormSubmit()"
+        (keydown.enter)="onEnter($event)"
+        novalidate
+      >
+        <!-- ============ STEP 1 — Appointment details ============ -->
+        <div class="step" [hidden]="step() !== 1">
           <div class="field">
-            @let zipError = fieldError('zip');
-            <label for="zip">ZIP Code <span aria-hidden="true">*</span></label>
-            <input
-              id="zip"
-              appZipInput
-              placeholder="e.g. 95814"
-              formControlName="zip"
-              required
-              [attr.aria-invalid]="zipError ? 'true' : null"
-              [attr.aria-describedby]="zipError ? 'zip-error' : outsideArea() ? 'zip-note' : null"
-            />
-            @if (zipError) {
-              <p class="error" id="zip-error" aria-live="polite">{{ zipError }}</p>
-            }
-          </div>
-          <div class="field">
-            @let dateError = fieldError('preferredDate');
-            <label for="preferredDate">Preferred Date <span aria-hidden="true">*</span></label>
-            <input
-              id="preferredDate"
-              type="date"
-              formControlName="preferredDate"
-              required
-              [attr.aria-invalid]="dateError ? 'true' : null"
-              [attr.aria-describedby]="dateError ? 'preferredDate-error' : null"
-            />
-            @if (dateError) {
-              <p class="error" id="preferredDate-error" aria-live="polite">{{ dateError }}</p>
-            }
-          </div>
-          <div class="field">
-            @let timeError = fieldError('timePreference');
-            <label for="timePreference">Preferred Time <span aria-hidden="true">*</span></label>
+            @let serviceError = fieldError('service');
+            <label for="service">Service Needed <span aria-hidden="true">*</span></label>
             <select
-              id="timePreference"
-              formControlName="timePreference"
+              id="service"
+              formControlName="service"
               required
-              [attr.aria-invalid]="timeError ? 'true' : null"
-              [attr.aria-describedby]="timeError ? 'timePreference-error' : null"
+              [attr.aria-invalid]="serviceError ? 'true' : null"
+              [attr.aria-describedby]="serviceError ? 'service-error' : null"
             >
-              <option value="">Select a time</option>
-              @for (option of timeOptions; track option.value) {
-                <option [value]="option.value">{{ option.label }}</option>
+              @for (option of serviceOptions; track option) {
+                <option [value]="option">{{ option }}</option>
               }
             </select>
-            @if (timeError) {
-              <p class="error" id="timePreference-error" aria-live="polite">{{ timeError }}</p>
+            @if (serviceError) {
+              <p class="error" id="service-error" aria-live="polite">{{ serviceError }}</p>
             }
           </div>
-        </div>
 
-        @if (outsideArea()) {
-          <p class="zip-note" id="zip-note" role="note">{{ outsideAreaNote }}</p>
-        }
-
-        @if (timePreference() === 'specific') {
-          <div class="field specific-time">
-            @let specificError = fieldError('specificTime');
-            <label for="specificTime">Specific Time <span aria-hidden="true">*</span></label>
-            <input
-              id="specificTime"
-              type="time"
-              formControlName="specificTime"
-              aria-required="true"
-              [attr.min]="standardHours.start"
-              [attr.max]="standardHours.end"
-              [attr.aria-invalid]="specificError ? 'true' : null"
-              [attr.aria-describedby]="
-                specificError ? 'specificTime-error specificTime-help' : 'specificTime-help'
-              "
-            />
-            @if (specificError) {
-              <p class="error" id="specificTime-error" aria-live="polite">{{ specificError }}</p>
-            }
-            <p class="help" id="specificTime-help">
-              Standard appointment hours: {{ standardHoursLabel }}. Need another time?
-              <a [href]="phone.href">Call Mira</a> to check availability.
-            </p>
+          <div class="row three">
+            <div class="field">
+              @let zipError = fieldError('zip');
+              <label for="zip">ZIP Code <span aria-hidden="true">*</span></label>
+              <input
+                id="zip"
+                appZipInput
+                placeholder="e.g. 95814"
+                formControlName="zip"
+                required
+                [attr.aria-invalid]="zipError ? 'true' : null"
+                [attr.aria-describedby]="zipError ? 'zip-error' : outsideArea() ? 'zip-note' : null"
+              />
+              @if (zipError) {
+                <p class="error" id="zip-error" aria-live="polite">{{ zipError }}</p>
+              }
+            </div>
+            <div class="field">
+              @let dateError = fieldError('preferredDate');
+              <label for="preferredDate">Preferred Date <span aria-hidden="true">*</span></label>
+              <input
+                id="preferredDate"
+                type="date"
+                formControlName="preferredDate"
+                required
+                [attr.aria-invalid]="dateError ? 'true' : null"
+                [attr.aria-describedby]="dateError ? 'preferredDate-error' : null"
+              />
+              @if (dateError) {
+                <p class="error" id="preferredDate-error" aria-live="polite">{{ dateError }}</p>
+              }
+            </div>
+            <div class="field">
+              @let timeError = fieldError('timePreference');
+              <label for="timePreference">Preferred Time <span aria-hidden="true">*</span></label>
+              <select
+                id="timePreference"
+                formControlName="timePreference"
+                required
+                [attr.aria-invalid]="timeError ? 'true' : null"
+                [attr.aria-describedby]="timeError ? 'timePreference-error' : null"
+              >
+                <option value="">Select a time</option>
+                @for (option of timeOptions; track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+              @if (timeError) {
+                <p class="error" id="timePreference-error" aria-live="polite">{{ timeError }}</p>
+              }
+            </div>
           </div>
-        }
 
-        @if (notice(); as phoneNotice) {
-          <div class="phone-callout" role="status" id="phone-notice">
-            <p class="phone-callout-title">{{ phoneNotice.title }}</p>
-            <p>{{ phoneNotice.body }}</p>
-            <a class="btn btn--gold" [href]="phone.href">
-              <app-icon name="phone" style="--icon-size: 1rem" />
-              Call Mira
-            </a>
-          </div>
-        }
+          @if (outsideArea()) {
+            <p class="advisory-note" id="zip-note" role="note">{{ outsideAreaNote }}</p>
+          }
 
-        <div class="row two">
-          <div class="field">
+          @if (timePreference() === 'specific') {
+            <div class="field specific-time">
+              @let specificError = fieldError('specificTime');
+              <label for="specificTime">Specific Time <span aria-hidden="true">*</span></label>
+              <input
+                id="specificTime"
+                type="time"
+                formControlName="specificTime"
+                aria-required="true"
+                [attr.aria-invalid]="specificError ? 'true' : null"
+                [attr.aria-describedby]="
+                  (specificError ? 'specificTime-error ' : '') +
+                  'specificTime-help' +
+                  (outsideHours() ? ' time-note' : '')
+                "
+              />
+              @if (specificError) {
+                <p class="error" id="specificTime-error" aria-live="polite">{{ specificError }}</p>
+              }
+              <p class="help" id="specificTime-help">
+                Standard appointment hours: {{ standardHoursLabel }}. Need another time?
+                <a [href]="phone.href">Call Mira</a> to check availability.
+              </p>
+            </div>
+          }
+
+          @if (outsideHours()) {
+            <p class="advisory-note" id="time-note" role="note">{{ outsideHoursNote }}</p>
+          }
+
+          @if (notice(); as phoneNotice) {
+            <div class="phone-callout" role="status" id="phone-notice">
+              <p class="phone-callout-title">{{ phoneNotice.title }}</p>
+              <p>{{ phoneNotice.body }}</p>
+              <a class="btn btn--gold" [href]="phone.href">
+                <app-icon name="phone" style="--icon-size: 1rem" />
+                Call Mira
+              </a>
+            </div>
+          }
+
+          <div class="field signers">
             @let signersError = fieldError('signers');
-            <label for="signers">Number of Signers</label>
+            <label for="signers">Number of Signers <span class="optional">(optional)</span></label>
             <input
               id="signers"
               [appDigitsInput]="signersMaxLength"
@@ -239,7 +186,99 @@
               <p class="error" id="signers-error" aria-live="polite">{{ signersError }}</p>
             }
           </div>
-          <div class="field">
+
+          <div class="wizard-actions">
+            <button
+              class="btn btn--gold btn--block"
+              type="button"
+              [attr.aria-describedby]="stepSummary()[1] ? 'step-1-validation-summary' : null"
+              (click)="next()"
+            >
+              Continue
+            </button>
+          </div>
+          @if (stepSummary()[1]; as summaryText) {
+            <p class="step-validation-summary" id="step-1-validation-summary">{{ summaryText }}</p>
+          }
+        </div>
+
+        <!-- ============ STEP 2 — Your information ============ -->
+        <div class="step" [hidden]="step() !== 2">
+          <div class="row two">
+            <div class="field">
+              @let firstNameError = fieldError('firstName');
+              <label for="firstName">First Name <span aria-hidden="true">*</span></label>
+              <input
+                id="firstName"
+                type="text"
+                appNameInput
+                autocomplete="given-name"
+                formControlName="firstName"
+                required
+                [attr.aria-invalid]="firstNameError ? 'true' : null"
+                [attr.aria-describedby]="firstNameError ? 'firstName-error' : null"
+              />
+              @if (firstNameError) {
+                <p class="error" id="firstName-error" aria-live="polite">{{ firstNameError }}</p>
+              }
+            </div>
+            <div class="field">
+              @let lastNameError = fieldError('lastName');
+              <label for="lastName">Last Name <span aria-hidden="true">*</span></label>
+              <input
+                id="lastName"
+                type="text"
+                appNameInput
+                autocomplete="family-name"
+                formControlName="lastName"
+                required
+                [attr.aria-invalid]="lastNameError ? 'true' : null"
+                [attr.aria-describedby]="lastNameError ? 'lastName-error' : null"
+              />
+              @if (lastNameError) {
+                <p class="error" id="lastName-error" aria-live="polite">{{ lastNameError }}</p>
+              }
+            </div>
+          </div>
+
+          <div class="row two">
+            <div class="field">
+              @let phoneError = fieldError('phone');
+              <label for="phone">Phone Number <span aria-hidden="true">*</span></label>
+              <input
+                id="phone"
+                appPhoneInput
+                placeholder="(279) 555-0100"
+                formControlName="phone"
+                required
+                [attr.aria-invalid]="phoneError ? 'true' : null"
+                [attr.aria-describedby]="phoneError ? 'phone-error' : null"
+              />
+              @if (phoneError) {
+                <p class="error" id="phone-error" aria-live="polite">{{ phoneError }}</p>
+              }
+            </div>
+            <div class="field">
+              @let emailError = fieldError('email');
+              <label for="email">Email <span aria-hidden="true">*</span></label>
+              <input
+                id="email"
+                type="email"
+                autocomplete="email"
+                inputmode="email"
+                formControlName="email"
+                required
+                [attr.maxlength]="limits.email"
+                [attr.aria-invalid]="emailError ? 'true' : null"
+                [attr.aria-describedby]="emailError ? 'email-error' : null"
+              />
+              @if (emailError) {
+                <p class="error" id="email-error" aria-live="polite">{{ emailError }}</p>
+              }
+            </div>
+          </div>
+
+          <div class="field language">
             <label for="language">Preferred Language</label>
             <select id="language" formControlName="language">
               @for (language of languageOptions; track language) {
@@ -247,141 +286,181 @@
               }
             </select>
           </div>
-        </div>
 
-        <div class="field">
-          @let detailsError = fieldError('details');
-          <label for="details">Additional Details</label>
-          <p class="help" id="details-help">
-            Briefly explain your notary request, the document type, and anything Mira should know
-            before contacting you.
-          </p>
-          <textarea
-            id="details"
-            rows="4"
-            formControlName="details"
-            [attr.aria-invalid]="detailsError ? 'true' : null"
-            [attr.aria-describedby]="
-              'details-help ' + (detailsError ? 'details-error' : 'details-count')
-            "
-          ></textarea>
-          <p class="counter" id="details-count">
-            {{ detailsLength() }} / {{ limits.additionalDetails }}
-          </p>
-          @if (detailsError) {
-            <p class="error" id="details-error" aria-live="polite">{{ detailsError }}</p>
-          }
-        </div>
-
-        <div class="field photos">
-          <label for="photos">Photos (optional)</label>
-          <p class="help" id="photos-help">
-            Add up to {{ photoLimits.maxFiles }} photos that may help Mira understand your request.
-            JPEG, PNG, WebP or HEIC, up to 5 MB each and 15 MB total.
-          </p>
-          <input
-            id="photos"
-            class="photo-input"
-            type="file"
-            multiple
-            [accept]="photoAccept"
-            (click)="onPhotoPickerOpen()"
-            aria-describedby="photos-help"
-            (change)="onPhotosSelected($event)"
-          />
-          @if (photoError(); as photoMessage) {
-            <p class="error" id="photos-error" role="alert">{{ photoMessage }}</p>
-          }
-          @if (photos().length > 0) {
-            <ul class="photo-list">
-              @for (item of photos(); track item.id) {
-                <li>
-                  @if (item.previewUrl) {
-                    <img [src]="item.previewUrl" alt="" width="48" height="48" />
-                  } @else {
-                    <span class="thumb-fallback" aria-hidden="true">IMG</span>
-                  }
-                  <span class="photo-meta">
-                    <span class="photo-name">{{ item.file.name }}</span>
-                    <span class="photo-size">{{ formatSize(item.file.size) }}</span>
-                  </span>
-                  <button
-                    class="photo-remove"
-                    type="button"
-                    [attr.aria-label]="'Remove ' + item.file.name"
-                    (click)="removePhoto(item.id)"
-                  >
-                    Remove
-                  </button>
-                </li>
-              }
-            </ul>
-          }
-        </div>
-
-        <div class="field consent">
-          @let consentError = fieldError('consent');
-          <div class="check">
-            <input
-              id="consent"
-              type="checkbox"
-              formControlName="consent"
-              required
-              aria-describedby="consent-help"
-              [attr.aria-invalid]="consentError ? 'true' : null"
-              (change)="form.controls.consent.markAsTouched()"
-            />
-            <label for="consent"
-              >I agree that Mira may contact me by phone, text message, or email regarding this
-              request. <span aria-hidden="true">*</span></label
+          <div class="wizard-actions two">
+            <button class="btn btn--outline" type="button" (click)="back()">Back</button>
+            <button
+              class="btn btn--gold"
+              type="button"
+              [attr.aria-describedby]="stepSummary()[2] ? 'step-2-validation-summary' : null"
+              (click)="next()"
             >
+              Continue
+            </button>
           </div>
-          <p class="help consent-help" id="consent-help" [class.error]="consentError">
-            {{ consentError ?? consentHelp }}
-          </p>
+          @if (stepSummary()[2]; as summaryText) {
+            <p class="step-validation-summary" id="step-2-validation-summary">{{ summaryText }}</p>
+          }
         </div>
 
-        <details class="privacy">
-          <summary>Privacy Notice</summary>
-          <p>
-            This website does not save appointment submissions in a website database. Information
-            and any photos you submit are sent by email to Mira so she can respond to your request.
-            Messages and attachments may be retained by Mira's email provider and the email delivery
-            service as part of normal email delivery. Please do not send sensitive information that
-            is not necessary for your request.
-          </p>
-        </details>
-
-        @if (turnstileEnabled) {
-          <div class="verify">
-            <app-turnstile
-              [siteKey]="siteKey"
-              (token)="onToken($event)"
-              (loadFailed)="onTurnstileLoadFailed()"
-            />
+        <!-- ============ STEP 3 — Request details & submit ============ -->
+        <div class="step" [hidden]="step() !== 3">
+          <div class="summary" role="group" aria-label="Appointment summary">
+            <p class="summary-main">{{ summary().service }}</p>
+            <p>{{ summary().when }}</p>
+            <p>
+              ZIP {{ summary().zip }}
+              @if (summary().outside) {
+                <span class="summary-flag">Outside standard service area</span>
+              }
+            </p>
+            <button class="link-button" type="button" (click)="editAppointment()">
+              Edit appointment details
+            </button>
           </div>
-        }
 
-        @if (errorMessage(); as message) {
-          <p class="form-error" role="alert" id="form-error">{{ message }}</p>
-        }
+          <div class="field">
+            @let detailsError = fieldError('details');
+            <label for="details">Additional Details</label>
+            <p class="help" id="details-help">
+              Briefly explain your notary request, the document type, and anything Mira should know
+              before contacting you.
+            </p>
+            <textarea
+              id="details"
+              rows="4"
+              formControlName="details"
+              [attr.aria-invalid]="detailsError ? 'true' : null"
+              [attr.aria-describedby]="
+                'details-help ' + (detailsError ? 'details-error' : 'details-count')
+              "
+            ></textarea>
+            <p class="counter" id="details-count">
+              {{ detailsLength() }} / {{ limits.additionalDetails }}
+            </p>
+            @if (detailsError) {
+              <p class="error" id="details-error" aria-live="polite">{{ detailsError }}</p>
+            }
+          </div>
 
-        <button
-          class="btn btn--gold btn--block"
-          type="submit"
-          [disabled]="!canSubmit()"
-          [attr.aria-busy]="state() === 'sending'"
-          [attr.aria-describedby]="submitBlockMessage() ? 'submit-help' : null"
-        >
-          @if (state() === 'sending') {
-            <span class="spinner" aria-hidden="true"></span> Sending…
-          } @else {
-            Request Appointment
+          <div class="field photos">
+            <label for="photos">Photos (optional)</label>
+            <p class="help" id="photos-help">
+              Add up to {{ photoLimits.maxFiles }} photos that may help Mira understand your
+              request. JPEG, PNG, WebP or HEIC, up to 5 MB each and 15 MB total.
+            </p>
+            @if (photosNote() && photos().length === 0) {
+              <p class="help photos-note" id="photos-note">
+                Photos are not saved after a page refresh. Please select them again if needed.
+              </p>
+            }
+            <input
+              id="photos"
+              class="photo-input"
+              type="file"
+              multiple
+              [accept]="photoAccept"
+              (click)="onPhotoPickerOpen()"
+              aria-describedby="photos-help"
+              (change)="onPhotosSelected($event)"
+            />
+            @if (photoError(); as photoMessage) {
+              <p class="error" id="photos-error" role="alert">{{ photoMessage }}</p>
+            }
+            @if (photos().length > 0) {
+              <ul class="photo-list">
+                @for (item of photos(); track item.id) {
+                  <li>
+                    @if (item.previewUrl) {
+                      <img [src]="item.previewUrl" alt="" width="48" height="48" />
+                    } @else {
+                      <span class="thumb-fallback" aria-hidden="true">IMG</span>
+                    }
+                    <span class="photo-meta">
+                      <span class="photo-name">{{ item.file.name }}</span>
+                      <span class="photo-size">{{ formatSize(item.file.size) }}</span>
+                    </span>
+                    <button
+                      class="photo-remove"
+                      type="button"
+                      [attr.aria-label]="'Remove ' + item.file.name"
+                      (click)="removePhoto(item.id)"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+
+          <div class="field consent">
+            @let consentError = fieldError('consent');
+            <div class="check">
+              <input
+                id="consent"
+                type="checkbox"
+                formControlName="consent"
+                required
+                aria-describedby="consent-help"
+                [attr.aria-invalid]="consentError ? 'true' : null"
+                (change)="form.controls.consent.markAsTouched()"
+              />
+              <label for="consent"
+                >I agree that Mira may contact me by phone, text message, or email regarding this
+                request. <span aria-hidden="true">*</span></label
+              >
+            </div>
+            <p class="help consent-help" id="consent-help" [class.error]="consentError">
+              {{ consentError ?? consentHelp }}
+            </p>
+          </div>
+
+          <details class="privacy">
+            <summary>Privacy Notice</summary>
+            <p>
+              This website does not save appointment submissions in a website database. Information
+              and any photos you submit are sent by email to Mira so she can respond to your
+              request. Messages and attachments may be retained by Mira's email provider and the
+              email delivery service as part of normal email delivery. Please do not send sensitive
+              information that is not necessary for your request.
+            </p>
+          </details>
+
+          @if (step() === 3 && turnstileEnabled) {
+            <div class="verify">
+              <app-turnstile
+                [siteKey]="siteKey"
+                (token)="onToken($event)"
+                (loadFailed)="onTurnstileLoadFailed()"
+              />
+            </div>
           }
-        </button>
-        @if (submitBlockMessage(); as blockMessage) {
-          <p class="submit-help" id="submit-help">{{ blockMessage }}</p>
-        }
+
+          @if (errorMessage(); as message) {
+            <p class="form-error" role="alert" id="form-error">{{ message }}</p>
+          }
+
+          <div class="wizard-actions final">
+            <button class="btn btn--outline" type="button" (click)="back()">Back</button>
+            <button
+              class="btn btn--gold"
+              type="submit"
+              [disabled]="!canSubmit()"
+              [attr.aria-busy]="state() === 'sending'"
+              [attr.aria-describedby]="submitBlockMessage() ? 'submit-help' : null"
+            >
+              @if (state() === 'sending') {
+                <span class="spinner" aria-hidden="true"></span> Sending…
+              } @else {
+                Request Appointment
+              }
+            </button>
+          </div>
+          @if (submitBlockMessage(); as blockMessage) {
+            <p class="submit-help" id="submit-help">{{ blockMessage }}</p>
+          }
+        </div>
         <p class="hint">Fields marked * are required.</p>
       </form>
     }

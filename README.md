@@ -202,6 +202,49 @@ third-party requests (other than the Turnstile script on `/contact`, see below):
   typed input (e.g. `?zip=90210` is prefilled and shows the unconfirmed-area message). Service-specific CTAs pass their slug
   (`CtaBandComponent` takes an optional `service` input); generic CTAs stay plain `/contact`.
 
+## Appointment wizard and session draft
+
+The Contact form is **one Angular form shown in three steps** (no separate forms, no per-step routes):
+1. **Appointment Details** — service, ZIP, date, preferred time (+ specific time), number of signers, and
+   their notes (outside-area note, same-day / Sunday callouts, hours helper).
+2. **Your Information** — first/last name, phone, email, preferred language.
+3. **Request Details** — a compact recap of step 1 (service, "Oct 12, 2026 · Morning", ZIP; no personal
+   data; "Edit appointment details" returns to step 1), additional details, photos, consent, privacy
+   notice, Turnstile and the only submit button.
+
+- **Validation:** *Continue* marks and checks **only the current step's controls** with the existing
+  validators (a ZIP outside the standard area, same-day and Sunday all continue), stays put and focuses the
+  first invalid field. A small red line under Continue (steps 1–2, visible from the start while the
+  fields stay neutral) says what still blocks the step: "Please complete: …" (empty), "Please fix: …"
+  (filled but invalid) or "Please complete or fix: …" (mixed); it is derived from the real controls, so an
+  outside-area ZIP, an out-of-hours time and the optional Number of Signers (when empty) never appear.
+  *Back* never clears or revalidates. A final submit that finds an earlier step
+  invalid jumps to the earliest invalid step. Enter inside a field on steps 1–2 means "Continue".
+- **History:** the step lives in `history.state` (`wizardStep`); the URL stays `/contact` (plus the
+  legitimate `?service=` / `?zip=`). Continue pushes an entry, the browser Back/Forward buttons move
+  between steps (clamped to the first invalid step, never pushing), and Back on step 1 leaves the page
+  normally. The UI Back button uses `history.back()` so the stack never grows.
+- **Progress / a11y:** an `ol` with `aria-current="step"`, "Step N of 3" + a step heading that receives
+  focus on every change; phones show numbered dots only (no horizontal scroll). Steps swap with no slide
+  animation (a 120 ms fade, off under `prefers-reduced-motion`).
+- **Session draft** (`AppointmentDraftService`, tab-scoped `sessionStorage` only — never localStorage,
+  the URL, a server, KV or a database): saved debounced (300 ms) and on every step change; restored after
+  F5 / re-entry; expires after **2 hours**; version-checked; a corrupt, expired, tampered or unsupported
+  draft is wiped silently; wiped on successful submission.
+  - Stored in plain (non-sensitive): step, service, ZIP, date, time preference, specific time, signers,
+    language, "photos were selected" flag, version, timestamp.
+  - Stored **encrypted** (AES-GCM via Web Crypto, random IV per save): first/last name, phone, email,
+    additional details. Opaque blob; no readable PII in storage.
+  - **Never** stored: contact consent (always unticked after a reload), photos in any form (the form says
+    they must be selected again), the Turnstile token.
+  - Restore never marks fields touched; the restored step is never later than the first invalid step; an
+    explicit `?service=` or well-formed `?zip=` beats the draft's value.
+- **What the encryption is (not) for:** the AES key sits in the same sessionStorage (a pure front end has
+  nowhere safer), so it does **not** protect against script running on this origin (XSS, a malicious
+  extension) or anyone who can read the live tab. It only avoids leaving customer data as readable plain
+  text in browser storage. Without Web Crypto (non-secure context) only the non-sensitive fields persist.
+  A refresh within ~300 ms of the last keystroke can lose that last edit.
+
 ## Appointment Email
 
 The contact form posts to **`POST /api/appointments`**, handled by the same Worker that serves the
@@ -239,17 +282,23 @@ ZIP / service → photo validation → Turnstile siteverify → Resend API (+ at
 ### Preferred time (structured, standard hours)
 
 There is no free-text time. The form has a `<select>` — Morning, Afternoon, Evening, Flexible / Any Time,
-Specific Time — and, only for Specific Time, an `<input type="time" min="08:30" max="20:30">` with the
-note "Standard appointment hours: 8:30 AM–8:30 PM. Need another time? Call Mira to check availability."
-(`tel:+12795298754`). There are deliberately no "before / after hours" options: another time means a phone call.
+Specific Time — and, only for Specific Time, an `<input type="time">` with the note "Standard appointment
+hours: 8:00 AM–8:00 PM. Need another time? Call Mira to check availability." (`tel:+12795298754`). There
+are deliberately no "before / after hours" options.
 
 The contract is `timePreference` (`morning | afternoon | evening | flexible | specific`) plus
 `specificTime` (`HH:mm` or `null`), shared in `src/shared/appointment-timing.ts`. The Angular control
-itself validates (required + HH:mm + 08:30–20:30, only while "specific" is selected; HTML `min`/`max`/
-`required` are not relied upon) and the Worker validates independently (minutes-since-midnight
-comparison, both ends inclusive): unknown preferences, `specific` without a valid in-hours time, and any
-time sent with a non-specific preference are rejected with 400. A legacy `preferredTime` string is not
-accepted. The email shows readable labels ("Flexible / Any Time", "Specific Time — 2:30 PM").
+validates required + well-formed HH:mm (only while "specific" is selected) and the Worker validates
+independently: unknown preferences, `specific` without a well-formed time, and any time sent with a
+non-specific preference are rejected with 400. A legacy `preferredTime` string is not accepted.
+
+**Standard hours (8:00 AM–8:00 PM, inclusive) are advisory, not a validation rule.** A well-formed time
+outside them (07:30, 20:30, 23:00 …) keeps the control and the form valid, Continue and Submit stay
+available (no red border, no `aria-invalid`); the form shows the same amber advisory note as the ZIP
+note — "Outside standard hours — you can still submit. Mira will confirm availability and any additional
+after-hours fee." (`role="note"`). The Worker accepts it and the email adds "Time Window: Outside standard
+hours — confirm availability and additional fee". Only a missing or malformed time (e.g. 25:99) is a red
+error / 400. The email shows readable labels ("Flexible / Any Time", "Specific Time — 2:30 PM").
 
 ### Same-day and Sunday requests (submit, then phone)
 

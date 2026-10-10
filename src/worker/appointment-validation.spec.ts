@@ -365,7 +365,7 @@ describe('validateAppointmentRequest', () => {
       expect(validateAppointmentRequest(body, NOW).ok).toBe(true);
     });
 
-    it.each(['08:30', '09:30', '12:00', '14:30', '20:30'])(
+    it.each(['08:00', '09:30', '12:00', '14:30', '20:00'])(
       'accepts a specific time of %s',
       (time) => {
         const result = run({ timePreference: 'specific', specificTime: time });
@@ -423,19 +423,24 @@ describe('validateAppointmentRequest', () => {
     });
   });
 
-  describe('standard hours (08:30–20:30)', () => {
-    it.each(['08:29', '20:31', '00:00', '07:59', '21:00', '23:59'])(
-      'rejects specific time %s outside standard hours',
+  describe('standard hours (08:00–20:00) are advisory, not a validation rule', () => {
+    it.each(['07:30', '07:59', '08:00', '12:00', '20:00', '20:30', '23:00', '23:59', '00:00'])(
+      'accepts the well-formed specific time %s',
+      (time) => {
+        const result = run({ timePreference: 'specific', specificTime: time });
+        expect(result.ok).toBe(true);
+        expect(result.ok && result.value.specificTime).toBe(time);
+      },
+    );
+
+    it.each(['25:99', '24:00', '12:60', '7:30', '2ish', '', null, undefined])(
+      'still rejects the missing / malformed specific time %j',
       (time) => {
         expect(invalidFields({ timePreference: 'specific', specificTime: time })).toContain(
           'specificTime',
         );
       },
     );
-
-    it.each(['08:30', '12:00', '20:30'])('accepts the boundary / midday time %s', (time) => {
-      expect(run({ timePreference: 'specific', specificTime: time }).ok).toBe(true);
-    });
   });
 
   describe('same-day / Sunday (derived from the date)', () => {

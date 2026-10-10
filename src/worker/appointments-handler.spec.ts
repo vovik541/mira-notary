@@ -626,14 +626,6 @@ describe('handleAppointmentRequest', () => {
         'legacy free-text preferredTime only',
         { timePreference: undefined, preferredTime: 'whenever' },
       ],
-      [
-        'specific time before opening (08:29)',
-        { timePreference: 'specific', specificTime: '08:29' },
-      ],
-      [
-        'specific time after closing (20:31)',
-        { timePreference: 'specific', specificTime: '20:31' },
-      ],
     ])('rejects %s with 400 before Turnstile and Resend', async (_name, overrides) => {
       const { provider } = makeProvider();
       const fetchFn = turnstile(true);
@@ -643,28 +635,53 @@ describe('handleAppointmentRequest', () => {
       expect(provider.send).not.toHaveBeenCalled();
     });
 
-    it('answers an out-of-hours time with a clear message that points to the phone', async () => {
-      const { provider } = makeProvider();
-      const response = await run(
-        { ...body, timePreference: 'specific', specificTime: '21:00' },
-        makeEnv(),
-        provider,
-      );
-      const payload = await errorOf(response);
-      expect(payload.error).toBe('validation');
-      expect(payload.message).toContain('8:30 AM–8:30 PM');
-      expect(payload.message).toContain('(279) 529-8754');
-    });
+    it.each(['07:30', '23:00', '20:30', '00:15'])(
+      'accepts the out-of-hours specific time %s (no 400) and flags it in the email',
+      async (time) => {
+        const { provider, sent } = makeProvider();
+        const fetchFn = turnstile(true);
+        const response = await run(
+          { ...body, timePreference: 'specific', specificTime: time },
+          makeEnv(),
+          provider,
+          fetchFn,
+        );
+        expect(response.status).toBe(200);
+        expect(fetchFn).toHaveBeenCalledTimes(1);
+        expect(provider.send).toHaveBeenCalledTimes(1);
+        expect(sent[0].text).toContain(
+          'Time Window: Outside standard hours — confirm availability and additional fee',
+        );
+      },
+    );
 
-    it.each(['08:30', '12:00', '20:30'])('accepts a specific time of %s', async (time) => {
-      const { provider, sent } = makeProvider();
+    it.each(['08:00', '12:00', '20:00'])(
+      'accepts the in-hours specific time %s with no special line',
+      async (time) => {
+        const { provider, sent } = makeProvider();
+        const response = await run(
+          { ...body, timePreference: 'specific', specificTime: time },
+          makeEnv(),
+          provider,
+        );
+        expect(response.status).toBe(200);
+        expect(sent).toHaveLength(1);
+        expect(sent[0].text).not.toContain('Time Window');
+      },
+    );
+
+    it('rejects a malformed specific time (25:99) with 400 before Turnstile and Resend', async () => {
+      const { provider } = makeProvider();
+      const fetchFn = turnstile(true);
       const response = await run(
-        { ...body, timePreference: 'specific', specificTime: time },
+        { ...body, timePreference: 'specific', specificTime: '25:99' },
         makeEnv(),
         provider,
+        fetchFn,
       );
-      expect(response.status).toBe(200);
-      expect(sent).toHaveLength(1);
+      expect(response.status).toBe(400);
+      expect(fetchFn).not.toHaveBeenCalled();
+      expect(provider.send).not.toHaveBeenCalled();
     });
 
     describe('same-day requests keep every other protection', () => {

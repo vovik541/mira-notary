@@ -1,0 +1,89 @@
+:host {
+  display: block;
+}
+
+.wizard-progress {
+  margin-top: 1.75rem;
+
+  ol {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    font-family: var(--font-heading);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+
+  /* connector line before every item except the first */
+  li + li {
+    flex: 1 1 0;
+
+    &::before {
+      content: '';
+      flex: 1 1 0;
+      min-width: 0.75rem;
+      height: 2px;
+      margin-inline: 0.5rem;
+      background: var(--color-border-strong);
+    }
+  }
+
+  li.done + li::before,
+  li.current::before {
+    background: var(--color-navy);
+  }
+
+  .dot {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 1.875rem;
+    height: 1.875rem;
+    border: 2px solid var(--color-border-strong);
+    border-radius: 999px;
+    background: var(--color-surface);
+  }
+
+  li.done,
+  li.current {
+    color: var(--color-navy);
+  }
+
+  li.done .dot {
+    color: #fff;
+    background: var(--color-navy);
+    border-color: var(--color-navy);
+  }
+
+  li.current .dot {
+    color: var(--color-navy-dark);
+    background: var(--color-gold);
+    border-color: var(--color-gold);
+  }
+
+  .step-label {
+    white-space: nowrap;
+  }
+
+  /* Phones: numbered dots only; the current step's name is the heading right below. */
+  @media (max-width: 639px) {
+    .step-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+  }
+}

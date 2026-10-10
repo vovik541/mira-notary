@@ -33,9 +33,12 @@ const HH_MM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 export const isValidTimeOfDay = (value: unknown): value is string =>
   typeof value === 'string' && HH_MM.test(value);
 
-/** Mira's standard appointment / travel hours (inclusive): 8:30 AM through 8:30 PM. */
-export const STANDARD_HOURS = { start: '08:30', end: '20:30' } as const;
-export const STANDARD_HOURS_LABEL = '8:30 AM–8:30 PM';
+/**
+ * Mira's standard appointment hours (inclusive): 8:00 AM through 8:00 PM. A time outside them is an
+ * advisory state (availability and an after-hours fee are confirmed by Mira), never an error.
+ */
+export const STANDARD_HOURS = { start: '08:00', end: '20:00' } as const;
+export const STANDARD_HOURS_LABEL = '8:00 AM–8:00 PM';
 
 /** `HH:mm` → minutes since midnight (locale-independent, no Date parsing); NaN when malformed. */
 export function minutesSinceMidnight(value: string): number {

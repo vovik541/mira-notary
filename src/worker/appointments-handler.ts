@@ -4,7 +4,7 @@ import {
   AppointmentErrorCode,
   AppointmentRequestPayload,
 } from '../shared/appointment.model';
-import { DateTiming, STANDARD_HOURS_LABEL } from '../shared/appointment-timing';
+import { DateTiming } from '../shared/appointment-timing';
 import { PHOTO_ERROR_MESSAGES } from '../shared/photos';
 import { buildAppointmentEmail, sanitizeForSubject } from './appointment-email';
 import { validateAppointmentRequest } from './appointment-validation';
@@ -61,8 +61,6 @@ function failure(code: AppointmentErrorCode, message?: string, status?: number):
     status ?? STATUS[code],
   );
 }
-
-const SPECIFIC_TIME_MESSAGE = `Please choose a specific time between ${STANDARD_HOURS_LABEL}, or call Mira at ${PHONE} to arrange another time.`;
 
 const TOO_LARGE_MESSAGE = `${PHOTO_ERROR_MESSAGES.too_large} ${PHOTO_ERROR_MESSAGES.total_too_large}`;
 
@@ -136,10 +134,7 @@ export async function handleAppointmentRequest(
     console.warn(
       `appointment: validation_failed fields=${validation.invalidFields.join(',')}${tag}`,
     );
-    // A time outside standard hours is the one failure the visitor can fix with a clear hint.
-    const onlyTime =
-      validation.invalidFields.length === 1 && validation.invalidFields[0] === 'specificTime';
-    return failure('validation', onlyTime ? SPECIFIC_TIME_MESSAGE : undefined);
+    return failure('validation');
   }
   const appointment = validation.value;
   const timing = validation.timing;

@@ -137,6 +137,31 @@ describe('buildAppointmentEmail', () => {
     expect(text).not.toMatch(/urgent/i);
   });
 
+  it('adds a Time Window line only for a specific time outside 8:00 AM–8:00 PM', () => {
+    const outside = buildAppointmentEmail({
+      ...base,
+      timePreference: 'specific',
+      specificTime: '07:30',
+    });
+    expect(outside.text).toContain(
+      'Time Window: Outside standard hours — confirm availability and additional fee',
+    );
+    expect(outside.html).toContain('Outside standard hours');
+    expect(outside.text).toContain('Preferred Time: Specific Time — 7:30 AM');
+
+    for (const time of ['08:00', '14:00', '20:00']) {
+      const inside = buildAppointmentEmail({
+        ...base,
+        timePreference: 'specific',
+        specificTime: time,
+      });
+      expect(inside.text).not.toContain('Time Window');
+    }
+    expect(buildAppointmentEmail({ ...base, timePreference: 'evening' }).text).not.toContain(
+      'Time Window',
+    );
+  });
+
   it('never leaks the Turnstile token', () => {
     const { html, text } = buildAppointmentEmail(base);
     expect(html).not.toContain('secret-token-value');

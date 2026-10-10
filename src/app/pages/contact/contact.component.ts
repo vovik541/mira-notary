@@ -2,12 +2,18 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
+  Injector,
+  PLATFORM_ID,
   computed,
+  effect,
   inject,
   isDevMode,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
@@ -33,10 +39,11 @@ import {
 import {
   TIME_PREFERENCES,
   TIME_PREFERENCE_LABELS,
-  STANDARD_HOURS,
   STANDARD_HOURS_LABEL,
   TimePreference,
   classifyDate,
+  describeTimePreference,
+  formatTimeOfDay,
   isTimePreference,
   isValidTimeOfDay,
   isWithinStandardHours,
@@ -58,7 +65,14 @@ import {
 } from '../../../shared/validation';
 import { BUSINESS } from '../../core/config/business.config';
 import { SITE, TURNSTILE_DEV_SITE_KEY } from '../../core/config/site.config';
+import {
+  AppointmentDraftService,
+  DraftPlain,
+  DraftSensitive,
+  StoredDraft,
+} from '../../core/services/appointment-draft.service';
 import { AppointmentRequestService } from '../../core/services/appointment-request.service';
+import { WizardHistory, WizardStepNumber } from './wizard-history';
 import { ContactCardComponent } from '../../shared/components/contact-card/contact-card.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { DigitsInputDirective } from '../../shared/directives/digits-input.directive';
@@ -66,6 +80,7 @@ import { NameInputDirective } from '../../shared/directives/name-input.directive
 import { PhoneInputDirective } from '../../shared/directives/phone-input.directive';
 import { ZipInputDirective } from '../../shared/directives/zip-input.directive';
 import { TurnstileComponent } from '../../shared/components/turnstile/turnstile.component';
+import { WizardProgressComponent } from '../../shared/components/wizard-progress/wizard-progress.component';
 import {
   emailValidator,
   nameValidator,
@@ -95,22 +110,69 @@ export type FieldKey =
   | 'details'
   | 'consent';
 
-/** DOM order of the fields: used to focus the first invalid one. */
-const FIELD_ORDER: readonly FieldKey[] = [
-  'firstName',
-  'lastName',
-  'phone',
-  'email',
-  'service',
-  'zip',
-  'preferredDate',
-  'timePreference',
-  'specificTime',
-  'signers',
-  'language',
-  'details',
-  'consent',
-];
+export type WizardStep = WizardStepNumber;
+
+/** The controls each wizard step owns, in DOM order (also the focus order for the first error). */
+export const STEP_FIELDS: Record<WizardStep, readonly FieldKey[]> = {
+  1: ['service', 'zip', 'preferredDate', 'timePreference', 'specificTime', 'signers'],
+  2: ['firstName', 'lastName', 'phone', 'email', 'language'],
+  3: ['details', 'consent'],
+};
+const WIZARD_STEPS: readonly WizardStep[] = [1, 2, 3];
+export const STEP_TITLES: Record<WizardStep, string> = {
+  1: 'Appointment Details',
+  2: 'Your Information',
+  3: 'Request Details',
+};
+/**
+ * What the step-level "Please complete / fix" summary talks about. Only the labels live here:
+ * whether a field is a problem is read from the real form control (its existing validators), so
+ * no validation rule is duplicated. A field is listed iff its control is invalid — which is why a
+ * ZIP outside the service area, an out-of-hours time, or an empty optional field never appear.
+ */
+export interface StepFieldDefinition {
+  readonly control: FieldKey;
+  readonly label: string;
+}
+export const STEP_SUMMARY_FIELDS: Record<1 | 2, readonly StepFieldDefinition[]> = {
+  1: [
+    { control: 'service', label: 'Service Needed' },
+    { control: 'zip', label: 'ZIP Code' },
+    { control: 'preferredDate', label: 'Preferred Date' },
+    { control: 'timePreference', label: 'Preferred Time' },
+    // invalid only while "Specific Time" is selected (conditional validator)
+    { control: 'specificTime', label: 'Specific Time' },
+    // optional: invalid only when filled in wrongly, never "missing"
+    { control: 'signers', label: 'Number of Signers' },
+  ],
+  2: [
+    { control: 'firstName', label: 'First Name' },
+    { control: 'lastName', label: 'Last Name' },
+    { control: 'phone', label: 'Phone Number' },
+    { control: 'email', label: 'Email' },
+    // Preferred Language is a plain select that defaults to English: it cannot be invalid
+  ],
+};
+
+/** "Please complete: A, B." / "Please fix: A." / "Please complete or fix: A, B." */
+export function stepSummaryText(
+  problems: readonly { readonly label: string; readonly missing: boolean }[],
+): string | null {
+  if (problems.length === 0) {
+    return null;
+  }
+  const lead = problems.every((p) => p.missing)
+    ? 'Please complete'
+    : problems.every((p) => !p.missing)
+      ? 'Please fix'
+      : 'Please complete or fix';
+  return `${lead}: ${problems.map((p) => p.label).join(', ')}.`;
+}
+
+const STEP_SHORT_LABELS = ['Appointment', 'Your Information', 'Details'] as const;
+/** Draft writes are debounced so typing never hammers storage / crypto. */
+export const DRAFT_SAVE_DELAY_MS = 300;
+const DRAFT_NOTICE_MS = 5000;
 
 export interface PhotoItem {
   readonly id: number;
@@ -169,20 +231,20 @@ export const NAME_INVALID_MESSAGE =
   'Use letters only; apostrophes, hyphens and spaces are allowed.';
 export const SIGNERS_MESSAGE = `Enter a whole number from 1 to ${MAX_SIGNERS}.`;
 
-export const SPECIFIC_TIME_RANGE_MESSAGE = `Choose a time between ${STANDARD_HOURS_LABEL}.`;
+/** Non-blocking note for a well-formed specific time outside standard hours (not an error). */
+export const OUTSIDE_HOURS_NOTE =
+  'Outside standard hours — you can still submit. Mira will confirm availability and any additional after-hours fee.';
 
 /**
  * The real validation of the conditional Specific Time field (no HTML `required`/`min`/`max` is
- * relied upon): only when "Specific Time" is chosen, it must be a valid HH:mm inside 08:30–20:30.
+ * relied upon): only when "Specific Time" is chosen, it must be a valid HH:mm. A time outside the
+ * standard hours is still valid — it only triggers an advisory note.
  */
 const specificTimeValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
   if (control.parent?.get('timePreference')?.value !== 'specific') {
     return null;
   }
-  if (!isValidTimeOfDay(control.value)) {
-    return { specificTime: true };
-  }
-  return isWithinStandardHours(control.value) ? null : { outsideHours: true };
+  return isValidTimeOfDay(control.value) ? null : { specificTime: true };
 };
 
 const GLOBAL_MESSAGES = {
@@ -202,6 +264,7 @@ export const OUTSIDE_AREA_NOTE =
     ContactCardComponent,
     IconComponent,
     TurnstileComponent,
+    WizardProgressComponent,
     ZipInputDirective,
     NameInputDirective,
     PhoneInputDirective,
@@ -223,7 +286,7 @@ export class ContactComponent {
   protected readonly photoLimits = PHOTO_LIMITS;
   protected readonly consentHelp = CONSENT_HELP_MESSAGE;
   protected readonly signersMaxLength = SIGNERS_INPUT_MAX_LENGTH;
-  protected readonly standardHours = STANDARD_HOURS;
+  protected readonly outsideHoursNote = OUTSIDE_HOURS_NOTE;
   protected readonly standardHoursLabel = STANDARD_HOURS_LABEL;
   protected readonly timeOptions = TIME_PREFERENCES.map((value) => ({
     value,
@@ -303,6 +366,17 @@ export class ContactComponent {
   );
   protected readonly outsideAreaNote = OUTSIDE_AREA_NOTE;
 
+  private readonly specificValue = toSignal(this.form.controls.specificTime.valueChanges, {
+    initialValue: this.form.controls.specificTime.value,
+  });
+  /** A well-formed specific time outside standard hours: informational only, never invalid. */
+  protected readonly outsideHours = computed(
+    () =>
+      this.timePreference() === 'specific' &&
+      isValidTimeOfDay(this.specificValue()) &&
+      !isWithinStandardHours(this.specificValue()),
+  );
+
   private readonly dateValue = toSignal(this.form.controls.preferredDate.valueChanges, {
     initialValue: '',
   });
@@ -370,6 +444,65 @@ export class ContactComponent {
   protected readonly phoneSuccess = signal<PhoneSuccessKind | null>(null);
   protected readonly phoneSuccessCopy = PHONE_SUCCESS_COPY;
 
+  // ---- wizard -----------------------------------------------------------------------------
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly injector = inject(Injector);
+  private readonly drafts = inject(AppointmentDraftService);
+  private readonly wizardHistory = new WizardHistory(this.isBrowser ? window : null);
+  private readonly stepHeading = viewChild<ElementRef<HTMLElement>>('stepHeading');
+
+  protected readonly steps = WIZARD_STEPS;
+  protected readonly stepShortLabels = STEP_SHORT_LABELS;
+  /** One Angular form, three views: values are never reset when moving between steps. */
+  protected readonly step = signal<WizardStep>(1);
+  protected readonly stepTitle = computed(() => STEP_TITLES[this.step()]);
+  protected readonly draftRestored = signal(false);
+  /** Photos cannot be persisted: after a restore that had photos, say they must be re-selected. */
+  protected readonly photosNote = signal(false);
+
+  /** Compact, non-personal recap of step 1 shown on the final step. */
+  protected readonly summary = computed(() => {
+    this.formTick();
+    const value = this.form.getRawValue();
+    const preference = isTimePreference(value.timePreference) ? value.timePreference : null;
+    const time =
+      preference === 'specific' && value.specificTime
+        ? formatTimeOfDay(value.specificTime)
+        : preference
+          ? describeTimePreference(preference, null)
+          : '';
+    const date = this.formatDate(value.preferredDate);
+    return {
+      service: value.service,
+      when: [date, time].filter((part) => part !== '').join(' · '),
+      zip: value.zip,
+      outside: this.outsideArea(),
+    };
+  });
+
+  /** One compact sentence per step (1 and 2) saying what still blocks Continue; null when valid. */
+  protected readonly stepSummary = computed<Record<1 | 2, string | null>>(() => {
+    this.formTick();
+    const summarize = (step: 1 | 2): string | null =>
+      stepSummaryText(
+        STEP_SUMMARY_FIELDS[step]
+          .map(({ control, label }) => ({ label, control: this.control(control) }))
+          .filter(({ control }) => control.invalid)
+          .map(({ label, control }) => ({
+            label,
+            missing: String(control.value ?? '').trim() === '',
+          })),
+      );
+    return { 1: summarize(1), 2: summarize(2) };
+  });
+
+  /** Wizard history entries below the current one that this component created. */
+  private entriesBelow = 0;
+  private draftReady = false;
+  private saveTimer: ReturnType<typeof setTimeout> | null = null;
+  private noticeTimer: ReturnType<typeof setTimeout> | null = null;
+  private urlParams: ParamMap | null = null;
+
   constructor() {
     inject(DestroyRef).onDestroy(() => this.revokeAllPreviews());
     this.form.controls.timePreference.valueChanges
@@ -384,6 +517,25 @@ export class ContactComponent {
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed())
       .subscribe((params) => this.applyQuery(params));
+
+    if (this.isBrowser) {
+      if (this.wizardHistory.current() === null) {
+        this.wizardHistory.replace(1);
+      }
+      const stop = this.wizardHistory.listen((target) => this.onHistoryStep(target));
+      inject(DestroyRef).onDestroy(() => {
+        stop();
+        this.clearTimers();
+      });
+      // Draft restore happens after the URL prefill so an explicit ?service= / ?zip= wins.
+      void this.restoreDraft();
+      effect(() => {
+        this.formTick();
+        this.step();
+        this.photos();
+        untracked(() => this.scheduleSave());
+      });
+    }
   }
 
   /**
@@ -393,6 +545,7 @@ export class ContactComponent {
    * being accepted.
    */
   private applyQuery(params: ParamMap): void {
+    this.urlParams = params;
     this.form.controls.service.setValue(serviceFromSlug(params.get('service')));
 
     const zip = normalizeZipCode(params.get('zip'));
@@ -455,7 +608,7 @@ export class ContactComponent {
       case 'timePreference':
         return 'Choose a preferred time.';
       case 'specificTime':
-        return has('outsideHours') ? SPECIFIC_TIME_RANGE_MESSAGE : 'Enter a specific time.';
+        return 'Enter a specific time.';
       case 'signers':
         return SIGNERS_MESSAGE;
       case 'consent':
@@ -558,10 +711,15 @@ export class ContactComponent {
     }
     this.errorMessage.set(null);
 
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+    // Never trust the wizard position: send the user to the earliest step that is still invalid.
+    const invalidStep = this.earliestInvalidStep();
+    if (invalidStep !== null) {
+      this.touchStep(invalidStep);
       this.errorMessage.set(GLOBAL_MESSAGES.invalid);
-      this.focusFirstInvalid();
+      if (invalidStep !== this.step()) {
+        this.moveTo(invalidStep, 'push', false);
+      }
+      this.focusField(STEP_FIELDS[invalidStep].find((key) => this.control(key).invalid));
       return;
     }
     if (this.photoError() !== null) {
@@ -590,7 +748,13 @@ export class ContactComponent {
           result.phoneConfirmationRequired ? (submittedKind ?? 'generic') : submittedKind,
         );
         this.clearPhotos();
+        this.clearTimers();
+        this.drafts.clear();
+        this.photosNote.set(false);
+        this.draftRestored.set(false);
         this.turnstileToken = null;
+        this.step.set(1);
+        this.wizardHistory.replace(1);
         this.state.set('success');
         return;
       }
@@ -606,6 +770,293 @@ export class ContactComponent {
     this.phoneSuccess.set(null);
     this.errorMessage.set(null);
     this.state.set('idle');
+  }
+
+  // ---- wizard navigation -------------------------------------------------------------------
+
+  /** Enter in a field on steps 1–2 means "Continue", never "send the request". */
+  protected onFormSubmit(): void {
+    if (this.step() < 3) {
+      this.next();
+      return;
+    }
+    this.submit();
+  }
+
+  /**
+   * Enter inside a text field on steps 1–2 is "Continue". (The submit button is disabled and
+   * hidden there, so the browser would otherwise do nothing at all.) Never submits the request.
+   */
+  protected onEnter(event: Event): void {
+    if (this.step() < 3 && (event.target as HTMLElement).tagName === 'INPUT') {
+      event.preventDefault();
+      this.next();
+    }
+  }
+
+  /** Validates ONLY the current step; stays put (and focuses the first problem) when invalid. */
+  protected next(): void {
+    const current = this.step();
+    if (current >= 3) {
+      return;
+    }
+    this.touchStep(current);
+    const firstInvalid = STEP_FIELDS[current].find((key) => this.control(key).invalid);
+    if (firstInvalid) {
+      this.focusField(firstInvalid);
+      return;
+    }
+    this.moveTo((current + 1) as WizardStep, 'push', true);
+  }
+
+  /** Back never clears or revalidates anything. */
+  protected back(): void {
+    const current = this.step();
+    if (current <= 1) {
+      return;
+    }
+    if (this.entriesBelow > 0 && this.wizardHistory.current() === current) {
+      this.wizardHistory.back(); // the popstate listener performs the move
+    } else {
+      this.moveTo((current - 1) as WizardStep, 'replace', true);
+    }
+  }
+
+  protected editAppointment(): void {
+    this.moveTo(1, 'push', true);
+  }
+
+  private stepValid(step: WizardStep): boolean {
+    return STEP_FIELDS[step].every((key) => this.control(key).valid);
+  }
+
+  private earliestInvalidStep(): WizardStep | null {
+    return WIZARD_STEPS.find((step) => !this.stepValid(step)) ?? null;
+  }
+
+  /** The furthest step the user may be on: never past the first step that is still invalid. */
+  private allowedStep(requested: WizardStep): WizardStep {
+    const invalid = this.earliestInvalidStep();
+    return invalid === null ? requested : (Math.min(requested, invalid) as WizardStep);
+  }
+
+  private touchStep(step: WizardStep): void {
+    for (const key of STEP_FIELDS[step]) {
+      this.control(key).markAsTouched();
+    }
+  }
+
+  private moveTo(target: WizardStep, history: 'push' | 'replace', focusHeading: boolean): void {
+    this.step.set(target);
+    if (history === 'push') {
+      this.wizardHistory.push(target);
+      this.entriesBelow += 1;
+    } else {
+      this.wizardHistory.replace(target);
+      this.entriesBelow = Math.max(0, target - 1);
+    }
+    this.saveNow();
+    if (focusHeading) {
+      this.focusHeading();
+    }
+  }
+
+  /** Browser Back / Forward landed on a wizard entry: follow it (clamped, never pushing). */
+  private onHistoryStep(target: WizardStep | null): void {
+    if (target === null || this.state() === 'success') {
+      return;
+    }
+    const allowed = this.allowedStep(target);
+    this.step.set(allowed);
+    this.entriesBelow = allowed - 1;
+    if (allowed !== target) {
+      this.wizardHistory.replace(allowed);
+    }
+    this.saveNow();
+    this.focusHeading();
+  }
+
+  private focusHeading(): void {
+    this.focusElement(() => this.stepHeading()?.nativeElement ?? null);
+  }
+
+  private focusField(key: FieldKey | undefined): void {
+    if (!key) {
+      return;
+    }
+    this.focusElement(() =>
+      typeof document === 'undefined' ? null : document.getElementById(key),
+    );
+  }
+
+  /** Focuses now; if the element is still inside a hidden step, once more after the next render. */
+  private focusElement(find: () => HTMLElement | null): void {
+    const attempt = (): boolean => {
+      const element = find();
+      element?.focus();
+      element?.scrollIntoView?.({ block: 'center' });
+      return element !== null && document.activeElement === element;
+    };
+    if (!this.isBrowser || attempt()) {
+      return;
+    }
+    setTimeout(() => attempt(), 0);
+  }
+
+  private formatDate(iso: string): string {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    if (!match) {
+      return '';
+    }
+    const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(date);
+  }
+
+  // ---- session draft -----------------------------------------------------------------------
+
+  private async restoreDraft(): Promise<void> {
+    try {
+      const draft = await this.drafts.load();
+      if (draft && this.state() !== 'success') {
+        this.applyDraft(draft);
+      }
+    } finally {
+      this.draftReady = true;
+      this.scheduleSave();
+    }
+  }
+
+  /**
+   * Values go in without being marked touched. Precedence: an explicit ?service= wins over the
+   * draft's service, a well-formed ?zip= wins over its ZIP; everything else comes from the draft.
+   * Consent is never restored (it is always false after a reload).
+   */
+  private applyDraft(draft: StoredDraft): void {
+    const { plain, sensitive } = draft;
+    const controls = this.form.controls;
+    const urlService = this.urlParams?.has('service') ?? false;
+    const urlZip = normalizeZipCode(this.urlParams?.get('zip')) !== null;
+
+    if (!urlService) {
+      controls.service.setValue(plain.service);
+    }
+    if (!urlZip) {
+      controls.zip.setValue(plain.zip);
+    }
+    controls.preferredDate.setValue(plain.preferredDate);
+    // time preference first: changing it clears a stale specific time
+    controls.timePreference.setValue(plain.timePreference);
+    controls.specificTime.setValue(plain.specificTime);
+    controls.signers.setValue(plain.signers);
+    controls.language.setValue(plain.language);
+    if (sensitive) {
+      controls.firstName.setValue(sensitive.firstName);
+      controls.lastName.setValue(sensitive.lastName);
+      controls.phone.setValue(sensitive.phone);
+      controls.email.setValue(sensitive.email);
+      controls.details.setValue(sensitive.details);
+    }
+    this.photosNote.set(plain.photosSelected);
+
+    // Persistence must not bypass the wizard: never later than the first still-invalid step.
+    const target = this.allowedStep(plain.step);
+    this.step.set(target);
+    if (this.wizardHistory.current() !== target) {
+      this.wizardHistory.replace(1);
+      for (let step = 2; step <= target; step++) {
+        this.wizardHistory.push(step as WizardStep);
+      }
+    }
+    this.entriesBelow = target - 1;
+
+    if (!this.isBlank()) {
+      this.draftRestored.set(true);
+      this.noticeTimer = setTimeout(() => this.draftRestored.set(false), DRAFT_NOTICE_MS);
+    }
+  }
+
+  private isBlank(): boolean {
+    const v = this.form.getRawValue();
+    return (
+      [v.firstName, v.lastName, v.phone, v.email, v.details, v.zip, v.preferredDate].every(
+        (field) => field.trim() === '',
+      ) &&
+      v.timePreference === '' &&
+      v.signers === '' &&
+      this.photos().length === 0 &&
+      !this.photosNote()
+    );
+  }
+
+  private scheduleSave(): void {
+    if (!this.draftReady || this.state() === 'success') {
+      return;
+    }
+    if (this.saveTimer !== null) {
+      clearTimeout(this.saveTimer);
+    }
+    this.saveTimer = setTimeout(() => this.persistDraft(), DRAFT_SAVE_DELAY_MS);
+  }
+
+  /** Immediate save (step changes), cancelling any pending debounced one. */
+  private saveNow(): void {
+    if (!this.draftReady || this.state() === 'success') {
+      return;
+    }
+    if (this.saveTimer !== null) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+    this.persistDraft();
+  }
+
+  private persistDraft(): void {
+    this.saveTimer = null;
+    if (this.state() === 'success') {
+      return;
+    }
+    if (this.isBlank()) {
+      this.drafts.clear();
+      return;
+    }
+    const v = this.form.getRawValue();
+    const plain: DraftPlain = {
+      version: 1,
+      savedAt: Date.now(),
+      step: this.step(),
+      service: v.service,
+      zip: v.zip,
+      preferredDate: v.preferredDate,
+      timePreference: v.timePreference,
+      specificTime: v.specificTime,
+      signers: v.signers,
+      language: v.language,
+      photosSelected: this.photos().length > 0 || this.photosNote(),
+    };
+    // Personal data goes to storage only inside the AES-GCM envelope (see AppointmentDraftService).
+    const sensitive: DraftSensitive = {
+      firstName: v.firstName,
+      lastName: v.lastName,
+      phone: v.phone,
+      email: v.email,
+      details: v.details,
+    };
+    void this.drafts.save(plain, sensitive);
+  }
+
+  private clearTimers(): void {
+    for (const timer of [this.saveTimer, this.noticeTimer]) {
+      if (timer !== null) {
+        clearTimeout(timer);
+      }
+    }
+    this.saveTimer = null;
+    this.noticeTimer = null;
   }
 
   private successKindFor(timing: ReturnType<typeof classifyDate>): PhoneSuccessKind | null {
@@ -649,18 +1100,6 @@ export class ContactComponent {
   private clearVerifyError(): void {
     if (this.errorMessage() === GLOBAL_MESSAGES.verify) {
       this.errorMessage.set(null);
-    }
-  }
-
-  private focusFirstInvalid(): void {
-    if (typeof document === 'undefined') {
-      return;
-    }
-    const first = FIELD_ORDER.find((key) => this.control(key).invalid);
-    if (first) {
-      const element = document.getElementById(first);
-      element?.focus();
-      element?.scrollIntoView?.({ block: 'center' });
     }
   }
 }

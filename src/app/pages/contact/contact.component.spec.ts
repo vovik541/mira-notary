@@ -49,7 +49,14 @@ const check = (fixture: ComponentFixture<ContactComponent>, id: string, checked:
   fixture.detectChanges();
 };
 
+/** The final step is where Turnstile, consent and the submit button live. */
+const toFinalStep = (fixture: ComponentFixture<ContactComponent>): void => {
+  (fixture.componentInstance as unknown as { step: { set(step: 1 | 2 | 3): void } }).step.set(3);
+  fixture.detectChanges();
+};
+
 const submit = (fixture: ComponentFixture<ContactComponent>): void => {
+  toFinalStep(fixture);
   (fixture.nativeElement.querySelector('form') as HTMLFormElement).dispatchEvent(
     new Event('submit'),
   );
@@ -102,6 +109,7 @@ const fillValid = (fixture: ComponentFixture<ContactComponent>): void => {
 };
 
 const giveToken = (fixture: ComponentFixture<ContactComponent>, token: string | null): void => {
+  toFinalStep(fixture);
   fixture.debugElement.query(By.directive(TurnstileComponent)).componentInstance.token.emit(token);
   fixture.detectChanges();
 };
@@ -115,6 +123,10 @@ const errorText = (fixture: ComponentFixture<ContactComponent>, id: string): str
   )?.textContent?.trim() ?? null;
 
 describe('ContactComponent', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    history.replaceState(null, '');
+  });
   afterEach(() => TestBed.inject(HttpTestingController).verify());
 
   describe('validation UX', () => {
@@ -149,25 +161,23 @@ describe('ContactComponent', () => {
       expect(fixture.nativeElement.querySelector('#phone-error')).toBeTruthy();
     });
 
-    it('on submit with invalid fields: sends nothing, marks every field, focuses the first one', () => {
+    it('on a forced final submit with invalid fields: sends nothing, goes to the earliest invalid step and marks only that step', () => {
       const fixture = setup();
       document.body.appendChild(fixture.nativeElement);
       submit(fixture);
 
-      for (const id of [
-        'firstName',
-        'lastName',
-        'phone',
-        'email',
-        'zip',
-        'preferredDate',
-        'timePreference',
-      ]) {
+      const stepOf = (fixture.componentInstance as unknown as { step: () => number }).step;
+      expect(stepOf()).toBe(1);
+      for (const id of ['zip', 'preferredDate', 'timePreference']) {
         expect(errorText(fixture, id)).toBeTruthy();
         expect(field(fixture, id).getAttribute('aria-invalid')).toBe('true');
       }
+      // later steps are not touched
+      for (const id of ['firstName', 'lastName', 'phone', 'email']) {
+        expect(errorText(fixture, id)).toBeNull();
+      }
       expect(text(fixture)).toContain('Please check the form and try again.');
-      expect(document.activeElement).toBe(field(fixture, 'firstName'));
+      expect(document.activeElement).toBe(field(fixture, 'zip'));
       TestBed.inject(HttpTestingController).expectNone('/api/appointments');
       fixture.nativeElement.remove();
     });
@@ -1165,14 +1175,18 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
       expect(fixture.nativeElement.querySelectorAll('#submit-help')).toHaveLength(1);
     });
 
-    it('a missing/invalid Specific Time alone gives the appointment-time reason', () => {
+    it('a missing Specific Time alone gives the appointment-time reason; an out-of-hours one does not', () => {
       const fixture = setup();
       fillValid(fixture);
       set(fixture, 'timePreference', 'specific');
       fixture.detectChanges();
       expect(submitButton(fixture).disabled).toBe(true);
       expect(reason(fixture)).toBe('Please choose a valid appointment time.');
-      set(fixture, 'specificTime', '21:00');
+      set(fixture, 'specificTime', '21:00'); // outside standard hours: advisory only, never blocks
+      fixture.detectChanges();
+      expect(submitButton(fixture).disabled).toBe(false);
+      expect(reason(fixture)).toBeNull();
+      set(fixture, 'specificTime', '');
       fixture.detectChanges();
       expect(reason(fixture)).toBe('Please choose a valid appointment time.');
       set(fixture, 'specificTime', '14:00');
@@ -1270,44 +1284,144 @@ describe('ContactComponent — contact consent, urgent and photos', () => {
       expect(errorText(fixture, 'specificTime')).toBeNull();
     });
 
-    it('limits the time input to standard hours and explains how to ask for another time', () => {
+    const timeNote = (fixture: ComponentFixture<ContactComponent>): HTMLElement | null =>
+      fixture.nativeElement.querySelector('#time-note') as HTMLElement | null;
+    const chooseSpecific = (fixture: ComponentFixture<ContactComponent>, time: string): void => {
+      fillValid(fixture);
+      set(fixture, 'timePreference', 'specific');
+      fixture.detectChanges();
+      enter(fixture, 'specificTime', time);
+    };
+
+    it('explains the standard hours and how to ask for another time (no min/max restriction)', () => {
       const fixture = setup();
       set(fixture, 'timePreference', 'specific');
       fixture.detectChanges();
       const input = field(fixture, 'specificTime');
-      expect(input.getAttribute('min')).toBe('08:30');
-      expect(input.getAttribute('max')).toBe('20:30');
+      expect(input.hasAttribute('min')).toBe(false);
+      expect(input.hasAttribute('max')).toBe(false);
 
       const help = fixture.nativeElement.querySelector('#specificTime-help') as HTMLElement;
       expect(help.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-        'Standard appointment hours: 8:30 AM–8:30 PM. Need another time? Call Mira to check availability.',
+        'Standard appointment hours: 8:00 AM–8:00 PM. Need another time? Call Mira to check availability.',
       );
       expect(help.classList.contains('error')).toBe(false);
       expect(help.querySelector('a')?.getAttribute('href')).toBe('tel:+12795298754');
       expect(input.getAttribute('aria-describedby')).toContain('specificTime-help');
     });
 
-    it.each(['08:29', '20:31', '00:00', '23:59'])(
-      'rejects %s: error shown and submission unavailable',
+    it.each(['07:30', '20:30', '20:01', '23:00', '00:00'])(
+      'a valid time outside standard hours (%s) is NOT an error: amber note, valid control, submit allowed',
       (time) => {
         const fixture = setup();
-        fillValid(fixture);
-        set(fixture, 'timePreference', 'specific');
-        fixture.detectChanges();
-        enter(fixture, 'specificTime', time);
-        expect(errorText(fixture, 'specificTime')).toBe('Choose a time between 8:30 AM–8:30 PM.');
-        expect(submitButton(fixture).disabled).toBe(true);
+        chooseSpecific(fixture, time);
+        const control = field(fixture, 'specificTime');
+
+        // the control and the form stay valid; nothing red
+        expect(errorText(fixture, 'specificTime')).toBeNull();
+        expect(control.getAttribute('aria-invalid')).toBeNull();
+        expect(fixture.nativeElement.querySelector('#specificTime-error')).toBeNull();
+        expect(fixture.nativeElement.querySelectorAll('.error')).toHaveLength(0);
+        expect(
+          (fixture.componentInstance as unknown as { form: FormGroup }).form.controls[
+            'specificTime'
+          ].valid,
+        ).toBe(true);
+
+        // the advisory note: same look as the ZIP note, role=note, exact copy
+        const note = timeNote(fixture) as HTMLElement;
+        expect(note.textContent?.trim()).toBe(
+          'Outside standard hours — you can still submit. Mira will confirm availability and any additional after-hours fee.',
+        );
+        expect(note.getAttribute('role')).toBe('note');
+        expect(note.classList.contains('advisory-note')).toBe(true);
+        expect(note.classList.contains('error')).toBe(false);
+        expect(note.getAttribute('aria-live')).toBeNull();
+        expect(control.getAttribute('aria-describedby')).toContain('time-note');
+
+        // nothing blocks submission
+        expect(submitButton(fixture).disabled).toBe(false);
+        expect(submitButton(fixture).getAttribute('aria-describedby')).toBeNull();
       },
     );
 
-    it.each(['08:30', '12:00', '14:00', '20:30'])('accepts %s', (time) => {
+    it('the time note and the ZIP note share one amber advisory style', () => {
+      const fixture = setup();
+      chooseSpecific(fixture, '07:30');
+      set(fixture, 'zip', '90210');
+      fixture.detectChanges();
+      const zipNote = fixture.nativeElement.querySelector('#zip-note') as HTMLElement;
+      expect(zipNote.className).toBe((timeNote(fixture) as HTMLElement).className);
+      expect(zipNote.classList.contains('advisory-note')).toBe(true);
+    });
+
+    it.each(['08:00', '12:00', '14:30', '19:59', '20:00'])(
+      'a time inside standard hours (%s): valid, no note, submit allowed',
+      (time) => {
+        const fixture = setup();
+        chooseSpecific(fixture, time);
+        expect(errorText(fixture, 'specificTime')).toBeNull();
+        expect(timeNote(fixture)).toBeNull();
+        expect(submitButton(fixture).disabled).toBe(false);
+      },
+    );
+
+    it('shows no time note for a non-specific preference or while the time is empty', () => {
+      const fixture = setup();
+      fillValid(fixture);
+      expect(timeNote(fixture)).toBeNull();
+      set(fixture, 'timePreference', 'specific');
+      fixture.detectChanges();
+      expect(timeNote(fixture)).toBeNull();
+      enter(fixture, 'specificTime', '07:30');
+      expect(timeNote(fixture)).not.toBeNull();
+      set(fixture, 'timePreference', 'morning'); // clears the stale time
+      fixture.detectChanges();
+      expect(timeNote(fixture)).toBeNull();
+    });
+
+    it('an EMPTY specific time stays a real red error and blocks submission', () => {
       const fixture = setup();
       fillValid(fixture);
       set(fixture, 'timePreference', 'specific');
       fixture.detectChanges();
-      enter(fixture, 'specificTime', time);
-      expect(errorText(fixture, 'specificTime')).toBeNull();
-      expect(submitButton(fixture).disabled).toBe(false);
+      enter(fixture, 'specificTime', '');
+      expect(errorText(fixture, 'specificTime')).toBe('Enter a specific time.');
+      expect(field(fixture, 'specificTime').getAttribute('aria-invalid')).toBe('true');
+      expect(timeNote(fixture)).toBeNull();
+      expect(submitButton(fixture).disabled).toBe(true);
+      expect(
+        (fixture.nativeElement.querySelector('#submit-help') as HTMLElement).textContent?.trim(),
+      ).toBe('Please choose a valid appointment time.');
+    });
+
+    it('a malformed time (25:99, only possible programmatically) is a red error and blocks submit', () => {
+      const fixture = setup();
+      fillValid(fixture);
+      set(fixture, 'timePreference', 'specific');
+      fixture.detectChanges();
+      const form = (fixture.componentInstance as unknown as { form: FormGroup }).form;
+      form.controls['specificTime'].setValue('25:99');
+      form.controls['specificTime'].markAsTouched();
+      fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+      fixture.detectChanges();
+      expect(errorText(fixture, 'specificTime')).toBe('Enter a specific time.');
+      expect(field(fixture, 'specificTime').getAttribute('aria-invalid')).toBe('true');
+      expect(timeNote(fixture)).toBeNull();
+      expect(submitButton(fixture).disabled).toBe(true);
+    });
+
+    it('sends an out-of-hours specific time to the Worker unchanged', () => {
+      const fixture = setup();
+      const http = TestBed.inject(HttpTestingController);
+      chooseSpecific(fixture, '07:30');
+      giveToken(fixture, 't');
+      submit(fixture);
+      const request = http.expectOne('/api/appointments');
+      const payload = JSON.parse((request.request.body as FormData).get('payload') as string);
+      expect(payload.timePreference).toBe('specific');
+      expect(payload.specificTime).toBe('07:30');
+      request.flush({ success: true });
     });
 
     it('does not offer before/after-hours options in the selector', () => {

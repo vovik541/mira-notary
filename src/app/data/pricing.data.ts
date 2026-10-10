@@ -6,7 +6,7 @@ export interface PriceRow {
 }
 
 export const TRAVEL_FEES: readonly PriceRow[] = [
-  { label: 'Sacramento Travel Fee', detail: '8:30 AM–8:30 PM', price: '$70' },
+  { label: 'Sacramento Travel Fee', detail: '8:00 AM–8:00 PM', price: '$70' },
   { label: 'After-Hours Travel', price: '+$70' },
   { label: 'Hospital Travel', price: '+$10' },
 ];
