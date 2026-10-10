@@ -11,7 +11,8 @@ h2 {
   gap: 0.75rem;
   margin-top: 1.25rem;
 
-  a {
+  a,
+  .primary-card {
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -68,14 +69,21 @@ h2 {
   color: var(--color-text-muted);
 }
 
-/* The 279 number is the primary call-to-action; the secondary number stays quiet. */
-.methods a.primary {
+/* The 279 number is the primary call-to-action (shown once, with Call and Text); the secondary stays quiet. */
+.methods .primary-card {
+  flex-wrap: wrap;
   border-color: var(--color-navy);
   border-left-width: 4px;
   border-left-color: var(--color-gold);
 
+  .label {
+    flex: 1 1 9rem;
+  }
   .value {
     font-size: 1.25rem;
+  }
+  .actions {
+    flex: 1 1 auto;
   }
 }
 

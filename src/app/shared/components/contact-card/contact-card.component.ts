@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { BUSINESS, EMAIL_HREF, LANGUAGES_LABEL } from '../../../core/config/business.config';
+import { CallTextComponent } from '../call-text/call-text.component';
 import { IconComponent } from '../icon/icon.component';
 
 @Component({
   selector: 'app-contact-card',
-  imports: [IconComponent],
+  imports: [CallTextComponent, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="card panel" aria-labelledby="direct-contact-heading">
@@ -12,22 +13,14 @@ import { IconComponent } from '../icon/icon.component';
       <p class="muted">Call or text Mira.</p>
       <ul class="methods">
         <li>
-          <a class="primary" [href]="business.phones.primary.href">
+          <div class="primary-card">
             <span class="icon"><app-icon name="phone" /></span>
             <span class="label">
-              <span class="kind">Primary · Call</span>
+              <span class="kind">Primary</span>
               <span class="value">{{ business.phones.primary.display }}</span>
             </span>
-          </a>
-        </li>
-        <li>
-          <a class="primary" [href]="business.phones.primary.smsHref">
-            <span class="icon"><app-icon name="message" /></span>
-            <span class="label">
-              <span class="kind">Primary · Text</span>
-              <span class="value">{{ business.phones.primary.display }}</span>
-            </span>
-          </a>
+            <app-call-text class="actions" size="sm" />
+          </div>
         </li>
         <li>
           <a class="secondary" [href]="business.phones.secondary.href">
