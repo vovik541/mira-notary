@@ -40,9 +40,6 @@
       <div class="step-head">
         <p class="step-count">Step {{ step() }} of 3</p>
         <h2 class="step-title" #stepHeading tabindex="-1">{{ stepTitle() }}</h2>
-        @if (draftRestored()) {
-          <p class="draft-note" role="status">Your appointment draft was restored.</p>
-        }
       </div>
 
       <form
@@ -349,11 +346,6 @@
               Add up to {{ photoLimits.maxFiles }} photos that may help Mira understand your
               request. JPEG, PNG, WebP or HEIC, up to 5 MB each and 15 MB total.
             </p>
-            @if (photosNote() && photos().length === 0) {
-              <p class="help photos-note" id="photos-note">
-                Photos are not saved after a page refresh. Please select them again if needed.
-              </p>
-            }
             <input
               id="photos"
               class="photo-input"

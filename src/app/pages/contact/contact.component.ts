@@ -3,14 +3,11 @@ import {
   Component,
   DestroyRef,
   ElementRef,
-  Injector,
   PLATFORM_ID,
   computed,
-  effect,
   inject,
   isDevMode,
   signal,
-  untracked,
   viewChild,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
@@ -65,12 +62,6 @@ import {
 } from '../../../shared/validation';
 import { BUSINESS } from '../../core/config/business.config';
 import { SITE, TURNSTILE_DEV_SITE_KEY } from '../../core/config/site.config';
-import {
-  AppointmentDraftService,
-  DraftPlain,
-  DraftSensitive,
-  StoredDraft,
-} from '../../core/services/appointment-draft.service';
 import { AppointmentRequestService } from '../../core/services/appointment-request.service';
 import { WizardHistory, WizardStepNumber } from './wizard-history';
 import { ContactCardComponent } from '../../shared/components/contact-card/contact-card.component';
@@ -170,9 +161,6 @@ export function stepSummaryText(
 }
 
 const STEP_SHORT_LABELS = ['Appointment', 'Your Information', 'Details'] as const;
-/** Draft writes are debounced so typing never hammers storage / crypto. */
-export const DRAFT_SAVE_DELAY_MS = 300;
-const DRAFT_NOTICE_MS = 5000;
 
 export interface PhotoItem {
   readonly id: number;
@@ -446,8 +434,6 @@ export class ContactComponent {
 
   // ---- wizard -----------------------------------------------------------------------------
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
-  private readonly injector = inject(Injector);
-  private readonly drafts = inject(AppointmentDraftService);
   private readonly wizardHistory = new WizardHistory(this.isBrowser ? window : null);
   private readonly stepHeading = viewChild<ElementRef<HTMLElement>>('stepHeading');
 
@@ -456,9 +442,6 @@ export class ContactComponent {
   /** One Angular form, three views: values are never reset when moving between steps. */
   protected readonly step = signal<WizardStep>(1);
   protected readonly stepTitle = computed(() => STEP_TITLES[this.step()]);
-  protected readonly draftRestored = signal(false);
-  /** Photos cannot be persisted: after a restore that had photos, say they must be re-selected. */
-  protected readonly photosNote = signal(false);
 
   /** Compact, non-personal recap of step 1 shown on the final step. */
   protected readonly summary = computed(() => {
@@ -498,10 +481,6 @@ export class ContactComponent {
 
   /** Wizard history entries below the current one that this component created. */
   private entriesBelow = 0;
-  private draftReady = false;
-  private saveTimer: ReturnType<typeof setTimeout> | null = null;
-  private noticeTimer: ReturnType<typeof setTimeout> | null = null;
-  private urlParams: ParamMap | null = null;
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.revokeAllPreviews());
@@ -519,22 +498,10 @@ export class ContactComponent {
       .subscribe((params) => this.applyQuery(params));
 
     if (this.isBrowser) {
-      if (this.wizardHistory.current() === null) {
-        this.wizardHistory.replace(1);
-      }
+      // A (re)loaded page always starts at step 1; the history entry only carries the step number.
+      this.wizardHistory.replace(1);
       const stop = this.wizardHistory.listen((target) => this.onHistoryStep(target));
-      inject(DestroyRef).onDestroy(() => {
-        stop();
-        this.clearTimers();
-      });
-      // Draft restore happens after the URL prefill so an explicit ?service= / ?zip= wins.
-      void this.restoreDraft();
-      effect(() => {
-        this.formTick();
-        this.step();
-        this.photos();
-        untracked(() => this.scheduleSave());
-      });
+      inject(DestroyRef).onDestroy(stop);
     }
   }
 
@@ -545,7 +512,6 @@ export class ContactComponent {
    * being accepted.
    */
   private applyQuery(params: ParamMap): void {
-    this.urlParams = params;
     this.form.controls.service.setValue(serviceFromSlug(params.get('service')));
 
     const zip = normalizeZipCode(params.get('zip'));
@@ -748,10 +714,6 @@ export class ContactComponent {
           result.phoneConfirmationRequired ? (submittedKind ?? 'generic') : submittedKind,
         );
         this.clearPhotos();
-        this.clearTimers();
-        this.drafts.clear();
-        this.photosNote.set(false);
-        this.draftRestored.set(false);
         this.turnstileToken = null;
         this.step.set(1);
         this.wizardHistory.replace(1);
@@ -855,7 +817,6 @@ export class ContactComponent {
       this.wizardHistory.replace(target);
       this.entriesBelow = Math.max(0, target - 1);
     }
-    this.saveNow();
     if (focusHeading) {
       this.focusHeading();
     }
@@ -872,7 +833,6 @@ export class ContactComponent {
     if (allowed !== target) {
       this.wizardHistory.replace(allowed);
     }
-    this.saveNow();
     this.focusHeading();
   }
 
@@ -915,148 +875,6 @@ export class ContactComponent {
       year: 'numeric',
       timeZone: 'UTC',
     }).format(date);
-  }
-
-  // ---- session draft -----------------------------------------------------------------------
-
-  private async restoreDraft(): Promise<void> {
-    try {
-      const draft = await this.drafts.load();
-      if (draft && this.state() !== 'success') {
-        this.applyDraft(draft);
-      }
-    } finally {
-      this.draftReady = true;
-      this.scheduleSave();
-    }
-  }
-
-  /**
-   * Values go in without being marked touched. Precedence: an explicit ?service= wins over the
-   * draft's service, a well-formed ?zip= wins over its ZIP; everything else comes from the draft.
-   * Consent is never restored (it is always false after a reload).
-   */
-  private applyDraft(draft: StoredDraft): void {
-    const { plain, sensitive } = draft;
-    const controls = this.form.controls;
-    const urlService = this.urlParams?.has('service') ?? false;
-    const urlZip = normalizeZipCode(this.urlParams?.get('zip')) !== null;
-
-    if (!urlService) {
-      controls.service.setValue(plain.service);
-    }
-    if (!urlZip) {
-      controls.zip.setValue(plain.zip);
-    }
-    controls.preferredDate.setValue(plain.preferredDate);
-    // time preference first: changing it clears a stale specific time
-    controls.timePreference.setValue(plain.timePreference);
-    controls.specificTime.setValue(plain.specificTime);
-    controls.signers.setValue(plain.signers);
-    controls.language.setValue(plain.language);
-    if (sensitive) {
-      controls.firstName.setValue(sensitive.firstName);
-      controls.lastName.setValue(sensitive.lastName);
-      controls.phone.setValue(sensitive.phone);
-      controls.email.setValue(sensitive.email);
-      controls.details.setValue(sensitive.details);
-    }
-    this.photosNote.set(plain.photosSelected);
-
-    // Persistence must not bypass the wizard: never later than the first still-invalid step.
-    const target = this.allowedStep(plain.step);
-    this.step.set(target);
-    if (this.wizardHistory.current() !== target) {
-      this.wizardHistory.replace(1);
-      for (let step = 2; step <= target; step++) {
-        this.wizardHistory.push(step as WizardStep);
-      }
-    }
-    this.entriesBelow = target - 1;
-
-    if (!this.isBlank()) {
-      this.draftRestored.set(true);
-      this.noticeTimer = setTimeout(() => this.draftRestored.set(false), DRAFT_NOTICE_MS);
-    }
-  }
-
-  private isBlank(): boolean {
-    const v = this.form.getRawValue();
-    return (
-      [v.firstName, v.lastName, v.phone, v.email, v.details, v.zip, v.preferredDate].every(
-        (field) => field.trim() === '',
-      ) &&
-      v.timePreference === '' &&
-      v.signers === '' &&
-      this.photos().length === 0 &&
-      !this.photosNote()
-    );
-  }
-
-  private scheduleSave(): void {
-    if (!this.draftReady || this.state() === 'success') {
-      return;
-    }
-    if (this.saveTimer !== null) {
-      clearTimeout(this.saveTimer);
-    }
-    this.saveTimer = setTimeout(() => this.persistDraft(), DRAFT_SAVE_DELAY_MS);
-  }
-
-  /** Immediate save (step changes), cancelling any pending debounced one. */
-  private saveNow(): void {
-    if (!this.draftReady || this.state() === 'success') {
-      return;
-    }
-    if (this.saveTimer !== null) {
-      clearTimeout(this.saveTimer);
-      this.saveTimer = null;
-    }
-    this.persistDraft();
-  }
-
-  private persistDraft(): void {
-    this.saveTimer = null;
-    if (this.state() === 'success') {
-      return;
-    }
-    if (this.isBlank()) {
-      this.drafts.clear();
-      return;
-    }
-    const v = this.form.getRawValue();
-    const plain: DraftPlain = {
-      version: 1,
-      savedAt: Date.now(),
-      step: this.step(),
-      service: v.service,
-      zip: v.zip,
-      preferredDate: v.preferredDate,
-      timePreference: v.timePreference,
-      specificTime: v.specificTime,
-      signers: v.signers,
-      language: v.language,
-      photosSelected: this.photos().length > 0 || this.photosNote(),
-    };
-    // Personal data goes to storage only inside the AES-GCM envelope (see AppointmentDraftService).
-    const sensitive: DraftSensitive = {
-      firstName: v.firstName,
-      lastName: v.lastName,
-      phone: v.phone,
-      email: v.email,
-      details: v.details,
-    };
-    void this.drafts.save(plain, sensitive);
-  }
-
-  private clearTimers(): void {
-    for (const timer of [this.saveTimer, this.noticeTimer]) {
-      if (timer !== null) {
-        clearTimeout(timer);
-      }
-    }
-    this.saveTimer = null;
-    this.noticeTimer = null;
   }
 
   private successKindFor(timing: ReturnType<typeof classifyDate>): PhoneSuccessKind | null {

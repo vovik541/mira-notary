@@ -1,22 +1,15 @@
-import { webcrypto } from 'node:crypto';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import {
-  KEY_STORAGE_KEY,
-  PLAIN_STORAGE_KEY,
-  SECRET_STORAGE_KEY,
-} from '../../core/services/appointment-draft.service';
 import { TurnstileComponent } from '../../shared/components/turnstile/turnstile.component';
 import { todayInBusinessZone } from '../../../shared/appointment-timing';
 import { ContactComponent } from './contact.component';
 
 interface Internals {
   step: () => 1 | 2 | 3;
-  draftRestored: () => boolean;
 }
 
 const inst = (fixture: ComponentFixture<ContactComponent>): Internals =>
@@ -117,18 +110,8 @@ const fillStep2 = (fixture: ComponentFixture<ContactComponent>): void => {
   set(fixture, 'language', 'Ukrainian');
 };
 
-const raw = (): string =>
-  JSON.stringify(
-    Object.fromEntries(
-      Object.keys(sessionStorage).map((key) => [key, sessionStorage.getItem(key)]),
-    ),
-  );
-
 describe('ContactComponent wizard', () => {
   beforeEach(() => {
-    if (!globalThis.crypto?.subtle) {
-      vi.stubGlobal('crypto', webcrypto);
-    }
     sessionStorage.clear();
     localStorage.clear();
     history.replaceState(null, '');
@@ -136,7 +119,7 @@ describe('ContactComponent wizard', () => {
   afterEach(() => {
     document.body.replaceChildren();
     TestBed.inject(HttpTestingController).verify();
-    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     sessionStorage.clear();
   });
 
@@ -892,31 +875,19 @@ describe('ContactComponent wizard', () => {
     });
   });
 
-  describe('session draft', () => {
-    const fillEverything = async (fixture: ComponentFixture<ContactComponent>): Promise<void> => {
+  describe('no persistence (privacy)', () => {
+    const fillEverything = (fixture: ComponentFixture<ContactComponent>): void => {
       fillStep1(fixture);
       click(fixture, 'form > .step:nth-of-type(1) .wizard-actions button');
       fillStep2(fixture);
       click(fixture, 'form > .step:nth-of-type(2) .wizard-actions .btn--gold');
       set(fixture, 'details', 'Closing documents for Maple Street');
       check(fixture, 'consent', true);
-      await vi.waitFor(() => expect(sessionStorage.getItem(SECRET_STORAGE_KEY)).not.toBeNull(), {
-        timeout: 3000,
-      });
-      // the debounced save for the last edit (details) has to land too
-      await vi.waitFor(
-        () => {
-          const stored = sessionStorage.getItem(SECRET_STORAGE_KEY);
-          expect(stored).not.toBeNull();
-        },
-        { timeout: 3000 },
-      );
-      await tick(450);
     };
 
-    it('restores values and the safe step after a reload — consent and photos excluded', async () => {
+    it('a newly created component starts fresh: step 1, empty, no consent, no photos, no token', async () => {
       const first = setup();
-      await fillEverything(first);
+      fillEverything(first);
       const input = el(first, 'photos');
       Object.defineProperty(input, 'files', {
         value: [new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' })],
@@ -924,202 +895,103 @@ describe('ContactComponent wizard', () => {
       });
       input.dispatchEvent(new Event('change'));
       first.detectChanges();
-      await tick(450);
+      await tick(450); // longer than any debounce a persistence layer could have used
+      expect(stepOf(first)).toBe(3);
       first.destroy();
 
       const reloaded = reload();
-      await vi.waitFor(() => expect(stepOf(reloaded)).toBe(3), { timeout: 3000 });
+      await tick(60);
       reloaded.detectChanges();
-      expect(el(reloaded, 'service').value).toBe('Loan Signing');
-      expect(el(reloaded, 'zip').value).toBe('95814');
-      expect(el(reloaded, 'preferredDate').value).toBe(futureWeekday());
-      expect(el(reloaded, 'timePreference').value).toBe('afternoon');
-      expect(el(reloaded, 'signers').value).toBe('2');
-      expect(el(reloaded, 'language').value).toBe('Ukrainian');
-      expect(el(reloaded, 'firstName').value).toBe('Jane');
-      expect(el(reloaded, 'lastName').value).toBe('Doe');
-      expect(el(reloaded, 'phone').value).toBe('(916) 555-0100');
-      expect(el(reloaded, 'email').value).toBe('jane.doe@example.com');
-      expect(el(reloaded, 'details').value).toBe('Closing documents for Maple Street');
-
-      // consent is never restored
+      expect(stepOf(reloaded)).toBe(1);
+      expect(visibleStep(reloaded)).toEqual([1]);
+      for (const id of [
+        'zip',
+        'preferredDate',
+        'timePreference',
+        'signers',
+        'firstName',
+        'lastName',
+        'phone',
+        'email',
+        'details',
+      ]) {
+        expect(el(reloaded, id).value).toBe('');
+      }
+      expect(el(reloaded, 'service').value).toBe('General Notary');
+      expect(el(reloaded, 'language').value).toBe('English');
       expect(el(reloaded, 'consent').checked).toBe(false);
-      // photos are not restored, and the user is told
       expect(reloaded.nativeElement.querySelectorAll('.photo-list li')).toHaveLength(0);
-      expect(reloaded.nativeElement.querySelector('#photos-note').textContent.trim()).toBe(
-        'Photos are not saved after a page refresh. Please select them again if needed.',
+      expect(
+        (reloaded.componentInstance as unknown as { turnstileToken: string | null }).turnstileToken,
+      ).toBeNull();
+      // and no restore messages exist any more
+      expect(reloaded.nativeElement.textContent).not.toMatch(
+        /draft was restored|not saved after a page refresh/i,
       );
-      // restored without being flagged
-      expect(reloaded.nativeElement.querySelectorAll('.error')).toHaveLength(0);
-      expect(reloaded.nativeElement.querySelector('.draft-note').textContent.trim()).toBe(
-        'Your appointment draft was restored.',
-      );
-      // Turnstile starts fresh: nothing stored for it
-      expect(raw().toLowerCase()).not.toContain('turnstile');
+      expect(reloaded.nativeElement.querySelector('.draft-note, #photos-note')).toBeNull();
+      // the (reloaded) history entry says step 1, nothing else
+      expect(history.state).toEqual({ wizardStep: 1 });
     });
 
-    it('does not show the photo note when no photo had been selected', async () => {
-      const first = setup();
-      await fillEverything(first);
-      first.destroy();
-      const reloaded = reload();
-      await vi.waitFor(() => expect(stepOf(reloaded)).toBe(3), { timeout: 3000 });
-      reloaded.detectChanges();
-      expect(reloaded.nativeElement.querySelector('#photos-note')).toBeNull();
-    });
-
-    it('never leaves personal data readable in storage, the URL or history', async () => {
+    it('writes nothing to sessionStorage, localStorage or cookies while the form is used', async () => {
+      const setItem = vi.spyOn(Storage.prototype, 'setItem');
       const fixture = setup();
-      await fillEverything(fixture);
-      const stored = raw();
-      for (const secret of [
+      fillEverything(fixture);
+      click(fixture, 'form > .step:nth-of-type(3) .wizard-actions .btn--outline');
+      await tick();
+      await tick(450);
+
+      expect(setItem).not.toHaveBeenCalled();
+      expect(sessionStorage.length).toBe(0);
+      expect(localStorage.length).toBe(0);
+      expect(document.cookie).toBe('');
+      const idb = (globalThis as { indexedDB?: unknown }).indexedDB;
+      expect(idb === undefined || idb === null).toBe(true);
+    });
+
+    it('keeps only the step number in history.state and no personal data in the URL', async () => {
+      const fixture = setup();
+      fillEverything(fixture);
+      expect(history.state).toEqual({ wizardStep: 3 });
+      click(fixture, 'form > .step:nth-of-type(3) .wizard-actions .btn--outline');
+      await tick();
+      expect(history.state).toEqual({ wizardStep: 2 });
+      const url = location.href;
+      for (const personal of [
         'Jane',
         'Doe',
-        '555-0100',
-        '5550100',
+        '555',
         'jane.doe',
         'example.com',
-        'Maple Street',
+        'Maple',
+        '95814',
+        'Loan',
       ]) {
-        expect(stored).not.toContain(secret);
+        expect(url).not.toContain(personal);
+        expect(JSON.stringify(history.state)).not.toContain(personal);
       }
-      expect(Object.keys(sessionStorage).sort()).toEqual(
-        [KEY_STORAGE_KEY, PLAIN_STORAGE_KEY, SECRET_STORAGE_KEY].sort(),
-      );
-      expect(localStorage.length).toBe(0);
-      expect(JSON.stringify(history.state)).toBe(
-        JSON.stringify({ wizardStep: 3 }).replace('}', '') + '}'
-          ? JSON.stringify(history.state)
-          : '',
-      );
-      for (const secret of ['Jane', 'jane.doe', '555', 'Maple']) {
-        expect(location.href).not.toContain(secret);
-        expect(JSON.stringify(history.state)).not.toContain(secret);
-      }
-      // consent is not stored at all
-      expect(stored.toLowerCase()).not.toContain('consent');
+      expect(location.search).toBe('');
+      expect(location.hash).toBe('');
     });
 
-    it('falls back to the earliest invalid step: a draft saved on step 3 never skips an invalid step', async () => {
-      const first = setup();
-      await fillEverything(first);
-      first.destroy();
-      // tamper with the plain part so step 1 is no longer valid (e.g. malformed ZIP)
-      const plain = JSON.parse(sessionStorage.getItem(PLAIN_STORAGE_KEY) as string);
-      sessionStorage.setItem(PLAIN_STORAGE_KEY, JSON.stringify({ ...plain, zip: '' }));
-      const reloaded = reload();
-      // tampering with the plain part (without the sealed one) is still self-consistent here
-      await vi.waitFor(() => expect(el(reloaded, 'firstName').value).toBe('Jane'), {
-        timeout: 3000,
-      });
-      expect(stepOf(reloaded)).toBe(1);
-    });
-
-    it('restores no later than step 2 when step 2 data is missing', async () => {
-      sessionStorage.setItem(
-        PLAIN_STORAGE_KEY,
-        JSON.stringify({
-          version: 1,
-          savedAt: Date.now(),
-          step: 3,
-          service: 'General Notary',
-          zip: '95814',
-          preferredDate: futureWeekday(),
-          timePreference: 'morning',
-          specificTime: '',
-          signers: '',
-          language: 'English',
-          photosSelected: false,
-        }),
-      );
-      const fixture = setup();
-      await vi.waitFor(() => expect(el(fixture, 'zip').value).toBe('95814'), { timeout: 3000 });
-      expect(stepOf(fixture)).toBe(2);
-    });
-
-    it('lets an explicit ?service= and ?zip= win over the draft', async () => {
-      sessionStorage.setItem(
-        PLAIN_STORAGE_KEY,
-        JSON.stringify({
-          version: 1,
-          savedAt: Date.now(),
-          step: 1,
-          service: 'Loan Signing',
-          zip: '95630',
-          preferredDate: futureWeekday(),
-          timePreference: 'morning',
-          specificTime: '',
-          signers: '3',
-          language: 'Russian',
-          photosSelected: false,
-        }),
-      );
+    it('still lets ?service= and ?zip= prefill step 1', () => {
       const fixture = setup({ service: 'california-apostille', zip: '95814' });
-      await vi.waitFor(() => expect(el(fixture, 'signers').value).toBe('3'), { timeout: 3000 });
+      expect(stepOf(fixture)).toBe(1);
       expect(el(fixture, 'service').value).toBe('California Apostille');
       expect(el(fixture, 'zip').value).toBe('95814');
-      expect(el(fixture, 'timePreference').value).toBe('morning');
-      expect(el(fixture, 'language').value).toBe('Russian');
+      expect(fixture.nativeElement.querySelectorAll('.error')).toHaveLength(0);
     });
 
-    it('uses the draft service/ZIP when the URL gives none (or a malformed ZIP)', async () => {
-      sessionStorage.setItem(
-        PLAIN_STORAGE_KEY,
-        JSON.stringify({
-          version: 1,
-          savedAt: Date.now(),
-          step: 1,
-          service: 'Loan Signing',
-          zip: '95630',
-          preferredDate: '',
-          timePreference: '',
-          specificTime: '',
-          signers: '',
-          language: 'English',
-          photosSelected: false,
-        }),
-      );
-      const fixture = setup({ zip: '9581' });
-      await vi.waitFor(() => expect(el(fixture, 'zip').value).toBe('95630'), { timeout: 3000 });
-      expect(el(fixture, 'service').value).toBe('Loan Signing');
-    });
-
-    it.each([
-      [
-        'expired',
-        () => JSON.stringify({ ...basePlain(), savedAt: Date.now() - 3 * 60 * 60 * 1000 }),
-      ],
-      ['corrupt JSON', () => '{nope'],
-      ['an unsupported version', () => JSON.stringify({ ...basePlain(), version: 2 })],
-    ])('silently discards a draft that is %s', async (_name, build) => {
-      sessionStorage.setItem(PLAIN_STORAGE_KEY, build());
-      sessionStorage.setItem(SECRET_STORAGE_KEY, 'garbage');
-      const fixture = setup();
-      await vi.waitFor(() => expect(sessionStorage.getItem(PLAIN_STORAGE_KEY)).toBeNull(), {
-        timeout: 3000,
-      });
-      expect(stepOf(fixture)).toBe(1);
+    it('ignores a malformed ?zip= and an unknown ?service=', () => {
+      const fixture = setup({ service: 'nope', zip: '9581' });
+      expect(el(fixture, 'service').value).toBe('General Notary');
       expect(el(fixture, 'zip').value).toBe('');
-      expect(fixture.nativeElement.querySelector('.draft-note')).toBeNull();
-      expect(fixture.nativeElement.textContent).not.toMatch(/crypto|storage|decrypt/i);
     });
 
-    it('discards an unreadable sealed part without breaking the page', async () => {
-      const first = setup();
-      await fillEverything(first);
-      first.destroy();
-      document.body.replaceChildren();
-      sessionStorage.setItem(SECRET_STORAGE_KEY, JSON.stringify({ v: 1, iv: 'AAAA', ct: 'AAAA' }));
-      const fixture = reload();
-      await vi.waitFor(() => expect(sessionStorage.length).toBe(0), { timeout: 3000 });
-      expect(stepOf(fixture)).toBe(1);
-      expect(el(fixture, 'firstName').value).toBe('');
-    });
-
-    it('clears the draft, the key and the step after a successful submission', async () => {
+    it('after a successful submission the form is empty, on step 1, with no leftovers', () => {
       const fixture = setup();
       const http = TestBed.inject(HttpTestingController);
-      await fillEverything(fixture);
+      fillEverything(fixture);
       fixture.debugElement
         .query(By.directive(TurnstileComponent))
         .componentInstance.token.emit('t');
@@ -1130,52 +1002,13 @@ describe('ContactComponent wizard', () => {
       fixture.detectChanges();
       http.expectOne('/api/appointments').flush({ success: true });
       fixture.detectChanges();
-      await tick(450);
-      expect(sessionStorage.length).toBe(0);
       expect(stepOf(fixture)).toBe(1);
-
-      // refresh after success: nothing comes back
-      fixture.destroy();
-      document.body.replaceChildren();
-      const reloaded = reload();
-      await tick(50);
-      expect(stepOf(reloaded)).toBe(1);
-      expect(el(reloaded, 'firstName').value).toBe('');
-      expect(reloaded.nativeElement.querySelector('.draft-note')).toBeNull();
-    });
-
-    it('does not write a draft for an untouched form (and removes a stale empty one)', async () => {
-      setup();
-      await tick(450);
+      expect(history.state).toEqual({ wizardStep: 1 });
       expect(sessionStorage.length).toBe(0);
-    });
-
-    it('debounces: rapid typing produces one save, not one per keystroke', async () => {
-      const fixture = setup();
-      await tick(30); // restore finished
-      for (const value of ['9', '95', '958', '9581', '95814']) {
-        set(fixture, 'zip', value);
-      }
-      expect(sessionStorage.getItem(PLAIN_STORAGE_KEY)).toBeNull(); // nothing yet: still debouncing
-      await vi.waitFor(() => expect(sessionStorage.getItem(PLAIN_STORAGE_KEY)).toContain('95814'), {
-        timeout: 3000,
-      });
+      expect(localStorage.length).toBe(0);
+      click(fixture, '.notice button');
+      expect(el(fixture, 'firstName').value).toBe('');
+      expect(el(fixture, 'consent').checked).toBe(false);
     });
   });
 });
-
-function basePlain(): Record<string, unknown> {
-  return {
-    version: 1,
-    savedAt: Date.now(),
-    step: 1,
-    service: 'General Notary',
-    zip: '95814',
-    preferredDate: '',
-    timePreference: '',
-    specificTime: '',
-    signers: '',
-    language: 'English',
-    photosSelected: false,
-  };
-}

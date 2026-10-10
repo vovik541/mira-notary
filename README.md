@@ -202,7 +202,7 @@ third-party requests (other than the Turnstile script on `/contact`, see below):
   typed input (e.g. `?zip=90210` is prefilled and shows the unconfirmed-area message). Service-specific CTAs pass their slug
   (`CtaBandComponent` takes an optional `service` input); generic CTAs stay plain `/contact`.
 
-## Appointment wizard and session draft
+## Appointment wizard
 
 The Contact form is **one Angular form shown in three steps** (no separate forms, no per-step routes):
 1. **Appointment Details** — service, ZIP, date, preferred time (+ specific time), number of signers, and
@@ -227,23 +227,11 @@ The Contact form is **one Angular form shown in three steps** (no separate forms
 - **Progress / a11y:** an `ol` with `aria-current="step"`, "Step N of 3" + a step heading that receives
   focus on every change; phones show numbered dots only (no horizontal scroll). Steps swap with no slide
   animation (a 120 ms fade, off under `prefers-reduced-motion`).
-- **Session draft** (`AppointmentDraftService`, tab-scoped `sessionStorage` only — never localStorage,
-  the URL, a server, KV or a database): saved debounced (300 ms) and on every step change; restored after
-  F5 / re-entry; expires after **2 hours**; version-checked; a corrupt, expired, tampered or unsupported
-  draft is wiped silently; wiped on successful submission.
-  - Stored in plain (non-sensitive): step, service, ZIP, date, time preference, specific time, signers,
-    language, "photos were selected" flag, version, timestamp.
-  - Stored **encrypted** (AES-GCM via Web Crypto, random IV per save): first/last name, phone, email,
-    additional details. Opaque blob; no readable PII in storage.
-  - **Never** stored: contact consent (always unticked after a reload), photos in any form (the form says
-    they must be selected again), the Turnstile token.
-  - Restore never marks fields touched; the restored step is never later than the first invalid step; an
-    explicit `?service=` or well-formed `?zip=` beats the draft's value.
-- **What the encryption is (not) for:** the AES key sits in the same sessionStorage (a pure front end has
-  nowhere safer), so it does **not** protect against script running on this origin (XSS, a malicious
-  extension) or anyone who can read the live tab. It only avoids leaving customer data as readable plain
-  text in browser storage. Without Web Crypto (non-secure context) only the non-sensitive fields persist.
-  A refresh within ~300 ms of the last keystroke can lose that last edit.
+- **No persistence (privacy):** appointment form values are retained only while navigating between wizard
+  steps in the active page (one component, one `FormGroup`; selected photos stay too). Refreshing or leaving
+  the page clears the form, which starts again at step 1. Nothing the visitor types is written to
+  sessionStorage, localStorage, cookies, IndexedDB, `history.state` (step number only) or the URL (only the
+  public `?service=` / `?zip=` prefill).
 
 ## Appointment Email
 
