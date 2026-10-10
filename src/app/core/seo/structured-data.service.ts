@@ -1,6 +1,8 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, inject } from '@angular/core';
+import { SITE } from '../config/site.config';
 import { SeoPage } from './seo-pages';
+import { normalizeBase } from './site-url';
 import { JsonLd, pageGraph } from './structured-data';
 
 export type { JsonLd } from './structured-data';
@@ -28,8 +30,8 @@ export class StructuredDataService {
   }
 
   /** The page's `@graph` (WebSite / Organization / Person / Service / BreadcrumbList). */
-  applyPage(page: SeoPage): void {
-    const graph = pageGraph(page);
+  applyPage(page: SeoPage, origin: string = SITE.url): void {
+    const graph = pageGraph(page, normalizeBase(origin));
     if (graph) {
       this.set('page', graph);
     } else {

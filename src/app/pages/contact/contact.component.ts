@@ -6,11 +6,10 @@ import {
   PLATFORM_ID,
   computed,
   inject,
-  isDevMode,
   signal,
   viewChild,
 } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
@@ -61,7 +60,7 @@ import {
   parseSigners,
 } from '../../../shared/validation';
 import { BUSINESS } from '../../core/config/business.config';
-import { SITE, TURNSTILE_DEV_SITE_KEY } from '../../core/config/site.config';
+import { turnstileSiteKeyFor } from '../../core/config/site.config';
 import { AppointmentRequestService } from '../../core/services/appointment-request.service';
 import { WizardHistory, WizardStepNumber } from './wizard-history';
 import { ContactCardComponent } from '../../shared/components/contact-card/contact-card.component';
@@ -321,8 +320,8 @@ export class ContactComponent {
   protected readonly state = signal<FormState>('idle');
   protected readonly errorMessage = signal<string | null>(null);
 
-  /** Public Turnstile site key; empty in production until configured (form then fails closed). */
-  protected readonly siteKey = SITE.turnstileSiteKey || (isDevMode() ? TURNSTILE_DEV_SITE_KEY : '');
+  /** Public Turnstile site key: dummy key on localhost, production key only on the production host, '' elsewhere. */
+  protected readonly siteKey = turnstileSiteKeyFor(inject(DOCUMENT).location?.hostname);
   protected readonly turnstileEnabled = this.siteKey !== '';
   private turnstileToken: string | null = null;
 

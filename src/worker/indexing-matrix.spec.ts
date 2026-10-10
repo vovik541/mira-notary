@@ -1,3 +1,4 @@
+import { SITE } from '../app/core/config/site.config';
 import { readFileSync } from 'node:fs';
 import { INDEXABLE_PAGES, SEO_PAGES } from '../app/core/seo/seo-pages';
 import { buildSitemapXml, seoFileResponse, withIndexingPolicy } from './seo-files';
@@ -118,5 +119,43 @@ describe('public/_headers (static assets only)', () => {
     expect(pattern.test(PROD_HOST)).toBe(false);
     expect(pattern.test('example.test')).toBe(false);
     expect(pattern.test('workers.dev.example.test')).toBe(false);
+  });
+});
+
+describe('real production configuration (SITE.url)', () => {
+  const REAL = SITE.url;
+  const REAL_HOST = 'miranotary.com';
+
+  it('robots.txt allows crawling and references https://miranotary.com/sitemap.xml', async () => {
+    const text = await robots(REAL_HOST, REAL);
+    expect(text).toContain('Allow: /');
+    expect(text).toContain('Sitemap: https://miranotary.com/sitemap.xml');
+  });
+
+  it('sitemap.xml contains only https://miranotary.com URLs', async () => {
+    const res = seoFileResponse('/sitemap.xml', REAL_HOST, REAL) as Response;
+    expect(res.status).toBe(200);
+    const locs = [...(await res.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    expect(locs).toHaveLength(INDEXABLE_PAGES.length);
+    for (const loc of locs) {
+      expect(loc === 'https://miranotary.com' || loc.startsWith('https://miranotary.com/')).toBe(
+        true,
+      );
+      expect(loc).not.toMatch(/workers\.dev|localhost|www\.|[?#]/);
+    }
+  });
+
+  it('production responses are indexable; workers.dev and www stay noindex', () => {
+    expect(withIndexingPolicy(html(), REAL, REAL_HOST).headers.get('x-robots-tag')).toBeNull();
+    for (const host of [WORKERS_DEV, PREVIEW, 'www.miranotary.com', 'localhost:8788']) {
+      expect(withIndexingPolicy(html(), REAL, host).headers.get('x-robots-tag'), host).toBe(
+        'noindex, nofollow',
+      );
+    }
+  });
+
+  it('workers.dev gets Disallow: / and no sitemap even with the real domain configured', async () => {
+    expect(await robots(WORKERS_DEV, REAL)).toBe('User-agent: *\nDisallow: /\n');
+    expect((seoFileResponse('/sitemap.xml', WORKERS_DEV, REAL) as Response).status).toBe(404);
   });
 });

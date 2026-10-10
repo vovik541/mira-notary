@@ -43,6 +43,7 @@
             "security": {
               "allowedHosts": [
                 "localhost",
+                "miranotary.com",
                 "*.workers.dev"
               ]
             },

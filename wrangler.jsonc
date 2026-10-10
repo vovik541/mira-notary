@@ -19,19 +19,14 @@
   // Non-secret runtime configuration for appointment emails (sent through Resend).
   // Changing environments (test → Mira's production) is a change to these values only.
   "vars": {
-    // TEST sender. notify.reiskra.com is TEMPORARY test infrastructure (a ReIskra sending domain
-    // verified in Resend). Before Mira's launch replace it with Mira's own verified Resend
-    // sending domain, e.g. "appointments@notify.<MIRA_DOMAIN>".
-    "EMAIL_FROM_ADDRESS": "appointments@notify.reiskra.com",
+    // Production sender: the isolated notify. subdomain of miranotary.com (verify it in Resend and add
+    // the DNS records Resend lists; do not touch the root-domain MX records).
+    "EMAIL_FROM_ADDRESS": "appointments@notify.miranotary.com",
     "EMAIL_FROM_NAME": "Local Notary Signings by Mira Derkach",
 
     // Where appointment notifications are delivered. Server-side only, never sent to the browser
-    // and never accepted from a request. Left empty on purpose: until it is set the API answers
-    // with the "please call Mira" fallback and sends nothing.
-    //   test:       your own test mailbox
-    //   production: "MiraNotary@gmail.com" (or Mira's custom-domain mailbox)
-    // (Locally, put it in .dev.vars instead.)
-    "APPOINTMENT_RECIPIENT": ""
+    // and never accepted from a request. (Locally, .dev.vars overrides it with a test mailbox.)
+    "APPOINTMENT_RECIPIENT": "miranotary@gmail.com"
   },
 
   // Modest abuse limit: 5 requests / 60 s per client IP, per Cloudflare location (approximate,

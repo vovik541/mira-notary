@@ -124,6 +124,17 @@ describe('ContactComponent wizard', () => {
   });
 
   describe('structure', () => {
+    it('passes the configured Turnstile site key to the widget (dummy key on localhost)', () => {
+      const fixture = setup();
+      fillStep1(fixture);
+      click(fixture, 'form > .step:nth-of-type(1) .wizard-actions button');
+      fillStep2(fixture);
+      click(fixture, 'form > .step:nth-of-type(2) .wizard-actions .btn--gold');
+      const widget = fixture.debugElement.query(By.directive(TurnstileComponent))
+        .componentInstance as TurnstileComponent;
+      expect(widget.siteKey()).toBe('1x00000000000000000000AA');
+    });
+
     it('is ONE form with three steps, starting on step 1 with the right heading', () => {
       const fixture = setup();
       expect(fixture.nativeElement.querySelectorAll('form')).toHaveLength(1);

@@ -365,8 +365,9 @@ appears anywhere else in `src/`.
 | `RESEND_API_KEY` | **secret** | `npx wrangler secret put RESEND_API_KEY` (restricted "sending access" key) |
 | `TURNSTILE_SECRET_KEY` | **secret** | `npx wrangler secret put TURNSTILE_SECRET_KEY` |
 | `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME` | non-secret | `wrangler.jsonc` → `vars` |
-| `APPOINTMENT_RECIPIENT` | non-secret, server-only | `wrangler.jsonc` → `vars` (empty until set) |
-| Turnstile **site key** | public | `turnstileSiteKey` in `src/app/core/config/site.config.ts` |
+| `APPOINTMENT_RECIPIENT` | non-secret, server-only | `wrangler.jsonc` → `vars` (`miranotary@gmail.com`; `.dev.vars` overrides it locally) |
+| Turnstile **site key** | public | `SITE.turnstileSiteKey` (production) and `TURNSTILE_DEV_SITE_KEY` (local) in `src/app/core/config/site.config.ts`; `turnstileSiteKeyFor(hostname)` picks one |
+| `TURNSTILE_SECRET_KEY` | **secret**, Worker-only | `npx wrangler secret put TURNSTILE_SECRET_KEY` (local: `.dev.vars`); never in code, config, docs or tests |
 
 Secrets never go in git, `src/`, `public/` or any Angular file. Local development reads them from
 `.dev.vars` (git-ignored; copy `.dev.vars.example`).
@@ -377,13 +378,14 @@ the "please call Mira" fallback and sends nothing.
 ### Transactional Email — Resend
 
 - Resend handles **outgoing transactional messages only** (the appointment notification).
-- **Current test sending domain: `notify.reiskra.com`** (sender `appointments@notify.reiskra.com`).
-  This is **temporary test infrastructure** belonging to ReIskra, not Mira's domain. It must be
-  replaced with Mira's own verified Resend sending domain before launch, and it must never appear
-  in the website UI, SEO metadata or structured data (it appears only in server configuration).
-- **Future production:** sending domain `notify.<MIRA_DOMAIN>`, sender
-  `appointments@notify.<MIRA_DOMAIN>`, recipient `MiraNotary@gmail.com` or Mira's custom-domain
-  mailbox (e.g. Proton).
+- **Production sender:** `appointments@notify.miranotary.com` (the isolated `notify.` subdomain of
+  `miranotary.com`), recipient `miranotary@gmail.com`; both are non-secret `vars` in `wrangler.jsonc`.
+  The sending domain must be **verified in Resend** (DNS records added) before the first production
+  send; until then Resend rejects the message and the form shows the "please call Mira" fallback.
+  `notify.reiskra.com` was earlier test infrastructure (ReIskra's domain) and is no longer used.
+  Local tests can still override the sender with `EMAIL_FROM_ADDRESS` in `.dev.vars` (see
+  `.dev.vars.example`). The sender address never appears in the website UI, SEO metadata or
+  structured data.
 - Resend and normal mailboxes stay independent. Mira's DNS can live in Cloudflare, her everyday mail
   (`mira@<MIRA_DOMAIN>`) can use Proton or Google Workspace MX records on the root domain, and the
   website sender uses only the isolated `notify.` subdomain. **Do not replace or edit the
@@ -394,34 +396,29 @@ the "please call Mira" fallback and sends nothing.
 
 ### One controlled real test (local)
 
-1. In Resend: verify `notify.reiskra.com` (done) and create a restricted sending API key.
+1. In Resend: verify `notify.miranotary.com` (add the DNS records Resend lists) and create a restricted
+   sending API key. For a local test with a different verified domain, set `EMAIL_FROM_ADDRESS` in
+   `.dev.vars`.
 2. In your git-ignored `.dev.vars` add: `RESEND_API_KEY=<key>` and
    `APPOINTMENT_RECIPIENT=<your own test mailbox>` (sender defaults to the value in
    `wrangler.jsonc`).
-3. `npm run preview:cloudflare`, open `http://localhost:8788/contact`. Locally use Turnstile's dummy
-   site key by temporarily setting `turnstileSiteKey` to `1x00000000000000000000AA` (the dummy
-   secret in `.dev.vars.example` accepts it) — revert it afterwards.
+3. `npm run preview:cloudflare`, open `http://localhost:8788/contact`. On `localhost` / `127.0.0.1` the
+   form automatically uses Turnstile's dummy site key `1x00000000000000000000AA` (the dummy secret in
+   `.dev.vars.example` accepts it); no code edit is needed. Every other hostname uses the production key.
 4. Submit **one** form and check the inbox: subject, HTML rendering, plain-text part, Reply-To.
 
 ### Deploy checklist
 
 1. `npx wrangler secret put RESEND_API_KEY` and `npx wrangler secret put TURNSTILE_SECRET_KEY`.
 2. Set `APPOINTMENT_RECIPIENT` in `wrangler.jsonc` → `vars` (and confirm `EMAIL_FROM_*`).
-3. Create a Turnstile widget for the production hostname and put its **site key** in
-   `site.config.ts`.
+3. Turnstile: the production widget's **site key** is `SITE.turnstileSiteKey` in `site.config.ts`; the
+   widget must list every production hostname (`miranotary.com`, and `www.miranotary.com` if it serves
+   the site) in the Cloudflare dashboard. Put a newly generated **secret** with
+   `npx wrangler secret put TURNSTILE_SECRET_KEY` (step 1); a secret that was ever shown on screen must
+   be rotated first.
 4. Production domain (`SITE.url`, `allowedHosts`, custom domain, verification): follow the single
    checklist in `docs/seo/SEARCH-CONSOLE-SETUP.md` §1.
 5. `npm run deploy`.
-
-### Migrating from the test setup to Mira's production setup (configuration only)
-
-1. Add Mira's `notify.<MIRA_DOMAIN>` in Resend, add the DNS records Resend shows, wait for
-   verification.
-2. Create a new restricted Resend API key for it →
-   `npx wrangler secret put RESEND_API_KEY`.
-3. In `wrangler.jsonc` → `vars`: `EMAIL_FROM_ADDRESS` = `appointments@notify.<MIRA_DOMAIN>`,
-   `APPOINTMENT_RECIPIENT` = `MiraNotary@gmail.com` (or her mailbox). Remove the "TEST" comment.
-4. `npm run deploy`. No application code changes.
 
 ## Content rules
 

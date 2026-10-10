@@ -92,7 +92,7 @@ export class SeoService {
     }
 
     if (indexable && seo.key) {
-      this.structuredData.applyPage(seo as SeoPage);
+      this.structuredData.applyPage(seo as SeoPage, base);
     } else {
       this.structuredData.remove('page');
     }
