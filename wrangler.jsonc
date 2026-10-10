@@ -17,7 +17,7 @@
   },
 
   // Non-secret runtime configuration for appointment emails (sent through Resend).
-  // Changing environments (test → Mira's production) is a change to these values only.
+  // Production values for miranotary.com; locally .dev.vars overrides them (see .dev.vars.example).
   "vars": {
     // Production sender: the isolated notify. subdomain of miranotary.com (verify it in Resend and add
     // the DNS records Resend lists; do not touch the root-domain MX records).
