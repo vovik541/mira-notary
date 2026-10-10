@@ -63,15 +63,15 @@ const MIME_TO_EXTENSION: Record<PhotoMime, string> = {
 
 /**
  * Normalizes the declared MIME type: lower-cases it, maps the non-standard `image/jpg`, and — only
- * when the browser supplied no type at all (common for HEIC on desktop) — falls back to the
- * extension for `.heic` / `.heif`. Anything else is returned as-is so it fails the allow-list.
+ * when the browser supplied no type (common for HEIC on desktop; a multipart upload then carries
+ * `application/octet-stream`) — falls back to the extension for `.heic` / `.heif`. Anything else is returned as-is so it fails the allow-list.
  */
 export function normalizePhotoType(type: string, name: string): string {
   const lower = type.trim().toLowerCase();
   if (lower === 'image/jpg') {
     return 'image/jpeg';
   }
-  if (lower === '') {
+  if (lower === '' || lower === 'application/octet-stream') {
     const ext = /\.([A-Za-z0-9]+)$/.exec(name)?.[1]?.toLowerCase() ?? '';
     return ext === 'heic' || ext === 'heif' ? EXTENSION_TO_MIME[ext] : '';
   }
@@ -115,6 +115,7 @@ export function sanitizeAttachmentFilename(name: string, index: number, mime: Ph
   const base = name
     .split(/[\\/]/)
     .pop()!
+    .replace(/["'\s]+$/, '')
     .replace(/\.[A-Za-z0-9]{1,5}$/, '')
     // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f\u007f]/g, '')

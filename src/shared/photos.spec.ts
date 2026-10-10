@@ -3,6 +3,7 @@ import {
   bytesToBase64,
   declaredMatchesDetected,
   detectImageMime,
+  isAllowedPhotoType,
   normalizePhotoType,
   sanitizeAttachmentFilename,
   validatePhotos,
@@ -45,6 +46,13 @@ describe('normalizePhotoType', () => {
     expect(normalizePhotoType('', 'a.jpg')).toBe('');
     expect(normalizePhotoType('application/pdf', 'a.heic')).toBe('application/pdf');
   });
+
+  it('treats application/octet-stream (what a multipart upload sends for a typeless file) like no type', () => {
+    expect(normalizePhotoType('application/octet-stream', 'IMG_1.HEIC')).toBe('image/heic');
+    expect(normalizePhotoType('application/octet-stream', 'IMG_1.heif')).toBe('image/heif');
+    expect(normalizePhotoType('application/octet-stream', 'a.jpg')).toBe('');
+    expect(isAllowedPhotoType(normalizePhotoType('application/octet-stream', 'a.exe'))).toBe(false);
+  });
 });
 
 describe('sanitizeAttachmentFilename', () => {
@@ -53,6 +61,9 @@ describe('sanitizeAttachmentFilename', () => {
     expect(sanitizeAttachmentFilename('C:\\Users\\x\\scan.png', 0, 'image/png')).toBe('scan.png');
     expect(sanitizeAttachmentFilename('', 2, 'image/webp')).toBe('photo-3.webp');
     expect(sanitizeAttachmentFilename('<b>"x".jpg', 0, 'image/jpeg')).not.toMatch(/[<>"]/);
+    expect(sanitizeAttachmentFilename('"photo test (1).jpg"', 0, 'image/jpeg')).toBe(
+      'photo test _1_.jpg',
+    );
     expect(
       sanitizeAttachmentFilename('a'.repeat(300) + '.jpg', 0, 'image/jpeg').length,
     ).toBeLessThan(70);
