@@ -1,26 +1,24 @@
-import { isPlatformBrowser } from '@angular/common';
-import { CallTextComponent } from '../../shared/components/call-text/call-text.component';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  PLATFORM_ID,
-  afterNextRender,
-  inject,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BUSINESS } from '../../core/config/business.config';
+import { CallTextComponent } from '../../shared/components/call-text/call-text.component';
+import { MobileCtaService } from './mobile-cta.service';
 
-/** Scroll distance (px) after which the sticky bar appears. */
-export const MOBILE_CTA_SCROLL_THRESHOLD = 200;
-
-/** Phone-only bottom bar: Call + Text (two real links) + Book. Hidden at the top of the page, revealed after scrolling. */
+/**
+ * Phone-only bottom bar: Call + Text (two real links) + Book. Context-aware: MobileCtaService shows
+ * it only when the page's first area is behind the visitor and no other Call / Text / Book block
+ * is on screen. Keyboard focus inside the bar keeps it open, so hiding never moves focus.
+ */
 @Component({
   selector: 'app-mobile-cta',
   imports: [CallTextComponent, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class.visible]': 'visible()', '[attr.inert]': "visible() ? null : ''" },
+  host: {
+    '[class.visible]': 'shown()',
+    '[attr.inert]': "shown() ? null : ''",
+    '(focusin)': 'focusWithin.set(true)',
+    '(focusout)': 'focusWithin.set(false)',
+  },
   template: `
     <nav class="bar" aria-label="Quick contact">
       <app-call-text variant="outline" size="sm" />
@@ -40,13 +38,16 @@ export const MOBILE_CTA_SCROLL_THRESHOLD = 200;
       border-top: 1px solid var(--color-border-strong);
       box-shadow: var(--shadow-3);
       visibility: hidden;
+      opacity: 0;
       transform: translateY(100%);
       transition:
-        transform 0.25s ease,
-        visibility 0.25s;
+        transform 0.2s ease,
+        opacity 0.2s ease,
+        visibility 0.2s;
     }
     :host(.visible) {
       visibility: visible;
+      opacity: 1;
       transform: none;
     }
     .bar {
@@ -74,20 +75,7 @@ export const MOBILE_CTA_SCROLL_THRESHOLD = 200;
 })
 export class MobileCtaComponent {
   protected readonly phone = BUSINESS.phones.primary;
-  protected readonly visible = signal(false);
-
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
-
-  constructor() {
-    const destroyRef = inject(DestroyRef);
-    afterNextRender(() => {
-      if (!this.isBrowser) {
-        return;
-      }
-      const update = (): void => this.visible.set(window.scrollY > MOBILE_CTA_SCROLL_THRESHOLD);
-      window.addEventListener('scroll', update, { passive: true });
-      destroyRef.onDestroy(() => window.removeEventListener('scroll', update));
-      update();
-    });
-  }
+  protected readonly focusWithin = signal(false);
+  private readonly cta = inject(MobileCtaService);
+  protected readonly shown = computed(() => this.cta.visible() || this.focusWithin());
 }

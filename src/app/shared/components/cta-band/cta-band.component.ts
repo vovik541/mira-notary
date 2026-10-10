@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { MobileCtaBlockerDirective } from '../../../layout/mobile-cta/mobile-cta-markers.directive';
 import { CallTextComponent } from '../call-text/call-text.component';
 import { RouterLink } from '@angular/router';
 import { AppointmentServiceSlug } from '../../../../shared/appointment.model';
@@ -6,6 +7,7 @@ import { BUSINESS } from '../../../core/config/business.config';
 
 @Component({
   selector: 'app-cta-band',
+  hostDirectives: [MobileCtaBlockerDirective],
   imports: [CallTextComponent, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `

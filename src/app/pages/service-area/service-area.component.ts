@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { CallTextComponent } from '../../shared/components/call-text/call-text.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { MobileCtaBlockerDirective } from '../../layout/mobile-cta/mobile-cta-markers.directive';
 import { RouterLink } from '@angular/router';
 import { ZipCheck, checkZip, isSacramentoCountyZip } from '../../../shared/service-area';
 import { BUSINESS } from '../../core/config/business.config';
@@ -17,6 +18,7 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
 @Component({
   selector: 'app-service-area',
   imports: [
+    MobileCtaBlockerDirective,
     CallTextComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -71,7 +73,7 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
           </p>
         </div>
 
-        <div class="card panel">
+        <div class="card panel" appMobileCtaBlocker>
           <h2>Not Sure If Mira Travels to Your Area?</h2>
           <p class="muted">
             Enter your ZIP code to check whether it is in Mira's confirmed service area.

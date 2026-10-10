@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { BreadcrumbItem } from '../../../core/seo/seo-pages';
+import { MobileCtaStartDirective } from '../../../layout/mobile-cta/mobile-cta-markers.directive';
 import { BreadcrumbsComponent } from '../breadcrumbs/breadcrumbs.component';
 
 /**
@@ -8,6 +9,7 @@ import { BreadcrumbsComponent } from '../breadcrumbs/breadcrumbs.component';
  */
 @Component({
   selector: 'app-page-hero',
+  hostDirectives: [MobileCtaStartDirective],
   imports: [BreadcrumbsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `

@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { MobileCtaBlockerDirective } from '../../layout/mobile-cta/mobile-cta-markers.directive';
 import { RouterLink } from '@angular/router';
 import { BUSINESS, EMAIL_HREF, LANGUAGES_LABEL } from '../../core/config/business.config';
 import { SERVICE_LINKS } from '../../data/navigation.data';
 
 @Component({
   selector: 'app-site-footer',
-  imports: [RouterLink],
+  imports: [RouterLink, MobileCtaBlockerDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './site-footer.component.html',
   styleUrl: './site-footer.component.scss',

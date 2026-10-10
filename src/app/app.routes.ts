@@ -75,12 +75,12 @@ export const routes: Routes = [
     path: 'contact',
     loadComponent: () =>
       import('./pages/contact/contact.component').then((m) => m.ContactComponent),
-    data: seo(SEO_PAGES.contact),
+    data: { ...seo(SEO_PAGES.contact), mobileCta: false },
   },
   {
     path: '**',
     loadComponent: () =>
       import('./pages/not-found/not-found.component').then((m) => m.NotFoundComponent),
-    data: seo(SEO_PAGES.notFound),
+    data: { ...seo(SEO_PAGES.notFound), mobileCta: false },
   },
 ];

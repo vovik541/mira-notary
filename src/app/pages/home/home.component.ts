@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { CallTextComponent } from '../../shared/components/call-text/call-text.component';
+import { MobileCtaStartDirective } from '../../layout/mobile-cta/mobile-cta-markers.directive';
 import { RouterLink } from '@angular/router';
 import { BUSINESS, EXTERNAL_LINKS, LANGUAGES_LABEL } from '../../core/config/business.config';
 import { HOME_FAQ_IDS, selectFaqItems } from '../../data/faq.data';
@@ -17,6 +18,7 @@ import { ServiceCardComponent } from '../../shared/components/service-card/servi
 @Component({
   selector: 'app-home',
   imports: [
+    MobileCtaStartDirective,
     CallTextComponent,
     RouterLink,
     IconComponent,
