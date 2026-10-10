@@ -1,11 +1,9 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, inject } from '@angular/core';
-import { BUSINESS } from '../config/business.config';
-import { SITE } from '../config/site.config';
-import { FAQ_ITEMS } from '../../data/faq.data';
-import { SERVICE_AREA_COMMUNITIES, SERVICE_AREA_GROUPS } from '../../data/service-area.data';
+import { SeoPage } from './seo-pages';
+import { JsonLd, pageGraph } from './structured-data';
 
-export type JsonLd = Record<string, unknown>;
+export type { JsonLd } from './structured-data';
 
 /** Adds / replaces / removes `<script type="application/ld+json">` blocks in the document head. */
 @Injectable({ providedIn: 'root' })
@@ -29,38 +27,13 @@ export class StructuredDataService {
     this.document.getElementById(`ld-${id}`)?.remove();
   }
 
-  /** Verified facts only — no address, hours, price range or coordinates. */
-  businessSchema(): JsonLd {
-    return {
-      '@context': 'https://schema.org',
-      '@type': 'Notary',
-      name: `${BUSINESS.name} by ${BUSINESS.ownerName}`,
-      telephone: BUSINESS.phones.primary.href.replace('tel:', ''),
-      email: BUSINESS.email,
-      knowsLanguage: BUSINESS.languages,
-      ...(SITE.url ? { url: SITE.url } : {}),
-      areaServed: [
-        // Only what is confirmed: countywide areas as AdministrativeArea (Sacramento County),
-        // every other county only through its individually confirmed communities.
-        ...SERVICE_AREA_GROUPS.filter((group) => group.countywide).map((group) => ({
-          '@type': 'AdministrativeArea',
-          name: group.county,
-        })),
-        ...SERVICE_AREA_COMMUNITIES.map((name) => ({ '@type': 'City', name })),
-      ],
-      employee: { '@type': 'Person', name: BUSINESS.ownerName },
-    };
-  }
-
-  faqSchema(): JsonLd {
-    return {
-      '@context': 'https://schema.org',
-      '@type': 'FAQPage',
-      mainEntity: FAQ_ITEMS.map((item) => ({
-        '@type': 'Question',
-        name: item.question,
-        acceptedAnswer: { '@type': 'Answer', text: item.answer },
-      })),
-    };
+  /** The page's `@graph` (WebSite / Organization / Person / Service / BreadcrumbList). */
+  applyPage(page: SeoPage): void {
+    const graph = pageGraph(page);
+    if (graph) {
+      this.set('page', graph);
+    } else {
+      this.remove('page');
+    }
   }
 }

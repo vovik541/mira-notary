@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { SeoService } from './core/seo/seo.service';
-import { StructuredDataService } from './core/seo/structured-data.service';
 import { SiteFooterComponent } from './layout/site-footer/site-footer.component';
 import { SiteHeaderComponent } from './layout/site-header/site-header.component';
 import { MobileCtaComponent } from './layout/mobile-cta/mobile-cta.component';
@@ -30,7 +29,5 @@ import { MobileCtaComponent } from './layout/mobile-cta/mobile-cta.component';
 export class App {
   constructor() {
     inject(SeoService).init();
-    const structuredData = inject(StructuredDataService);
-    structuredData.set('business', structuredData.businessSchema());
   }
 }

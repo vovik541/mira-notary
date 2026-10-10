@@ -1,6 +1,5 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { StructuredDataService } from '../../core/seo/structured-data.service';
 import { FAQ_ITEMS } from '../../data/faq.data';
 import { FaqComponent } from './faq.component';
 
@@ -17,14 +16,9 @@ describe('FaqComponent', () => {
     expect(questions).toHaveLength(10);
   });
 
-  it('emits FAQPage structured data from the same ten items', () => {
-    const schema = TestBed.inject(StructuredDataService).faqSchema() as {
-      mainEntity: { name: string; acceptedAnswer: { text: string } }[];
-    };
-    expect(schema.mainEntity).toHaveLength(10);
-    schema.mainEntity.forEach((entry, i) => {
-      expect(entry.name).toBe(FAQ_ITEMS[i].question);
-      expect(entry.acceptedAnswer.text).toBe(FAQ_ITEMS[i].answer);
-    });
+  it('adds no structured data of its own (FAQ rich results no longer exist)', () => {
+    TestBed.configureTestingModule({ imports: [FaqComponent], providers: [provideRouter([])] });
+    TestBed.createComponent(FaqComponent).detectChanges();
+    expect(document.getElementById('ld-faq')).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BUSINESS } from '../../core/config/business.config';
+import { SEO_PAGES } from '../../core/seo/seo-pages';
 import { TRAVEL_FEES } from '../../data/pricing.data';
 import { COMMON_NOTARY_SERVICES } from '../../data/services.data';
 import { CheckListComponent } from '../../shared/components/check-list/check-list.component';
@@ -21,7 +22,11 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-hero heading="Mobile Notary Services in the Sacramento Area" eyebrow="Mobile Notary">
+    <app-page-hero
+      heading="Mobile Notary Services at Your Home, Office or Hospital"
+      eyebrow="Mobile Notary"
+      [breadcrumbs]="crumbs"
+    >
       Professional notarization at your home, office, hospital, or another convenient agreed
       location.
       <div actions class="page-actions">
@@ -32,7 +37,33 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
       </div>
     </app-page-hero>
 
-    <section class="section" aria-labelledby="common-heading">
+    <section class="section" aria-labelledby="how-heading">
+      <div class="container">
+        <div class="prose">
+          <h2 id="how-heading">How Mobile Notary Appointments Work</h2>
+          <p>
+            Mira travels to you: your home, your office, a hospital or care facility, or another
+            agreed location in Sacramento County and confirmed nearby communities. Check the
+            <a routerLink="/service-area">service area</a> to confirm your ZIP code, then see
+            <a routerLink="/pricing">pricing</a> for notarial and travel fees.
+          </p>
+          <p>
+            Please bring the document or documents that need notarization and a valid,
+            government-issued photo ID for each signer. Not sure what you need? Read the
+            <a routerLink="/faq">answers to common questions</a> or contact Mira before your
+            appointment. Same-day and urgent requests must be booked by phone. Mira speaks English,
+            Ukrainian and Russian.
+          </p>
+          <p>
+            Mortgage and refinance documents are handled as
+            <a routerLink="/services/loan-signing">loan signing services</a>, and documents going
+            abroad may also need a <a routerLink="/services/apostille">California apostille</a>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--alt" aria-labelledby="common-heading">
       <div class="container">
         <app-section-header
           headingId="common-heading"
@@ -43,7 +74,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
       </div>
     </section>
 
-    <section class="section section--alt" aria-labelledby="travel-heading">
+    <section class="section" aria-labelledby="travel-heading">
       <div class="container split split--even">
         <div class="intro">
           <h2 id="travel-heading">Mobile Travel</h2>
@@ -59,6 +90,16 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
     <app-cta-band service="general-notary" />
   `,
   styles: `
+    .prose {
+      max-width: 48rem;
+    }
+    .prose > * + * {
+      margin-top: 1rem;
+    }
+    .prose a {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
     .intro > * + * {
       margin-top: 1rem;
     }
@@ -69,6 +110,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
 })
 export class MobileNotaryComponent {
   protected readonly phone = BUSINESS.phones.primary;
+  protected readonly crumbs = SEO_PAGES.mobileNotary.breadcrumbs;
   protected readonly services = COMMON_NOTARY_SERVICES;
   protected readonly travel = TRAVEL_FEES;
 }

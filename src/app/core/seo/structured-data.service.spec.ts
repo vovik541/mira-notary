@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { SEO_PAGES } from './seo-pages';
 import { StructuredDataService } from './structured-data.service';
 
 describe('StructuredDataService', () => {
@@ -10,6 +11,7 @@ describe('StructuredDataService', () => {
 
   afterEach(() => {
     service.remove('test');
+    service.remove('page');
   });
 
   it('writes and replaces a single JSON-LD script per id', () => {
@@ -25,37 +27,11 @@ describe('StructuredDataService', () => {
     expect(document.getElementById('ld-test')?.textContent).not.toContain('</script>');
   });
 
-  it('areaServed lists Sacramento County plus only the individually confirmed communities', () => {
-    const areas = service.businessSchema()['areaServed'] as { '@type': string; name: string }[];
-    expect(areas).toEqual([
-      { '@type': 'AdministrativeArea', name: 'Sacramento County' },
-      ...[
-        'Roseville',
-        'Rocklin',
-        'Lincoln',
-        'Loomis',
-        'Granite Bay',
-        'Auburn',
-        'West Sacramento',
-        'Davis',
-        'Woodland',
-        'El Dorado Hills',
-        'Cameron Park',
-      ].map((name) => ({ '@type': 'City', name })),
-    ]);
-    // Only Sacramento County is a whole-county claim.
-    const counties = areas.filter((a) => a['@type'] === 'AdministrativeArea').map((a) => a.name);
-    expect(counties).toEqual(['Sacramento County']);
-    expect(JSON.stringify(areas)).not.toMatch(/Placer County|Yolo County|El Dorado County/);
-  });
-
-  it('business schema contains only verified facts', () => {
-    const schema = service.businessSchema();
-    expect(schema['telephone']).toBe('+12795298754');
-    expect(schema['email']).toBe('MiraNotary@gmail.com');
-    expect(schema).not.toHaveProperty('address');
-    expect(schema).not.toHaveProperty('openingHours');
-    expect(schema).not.toHaveProperty('priceRange');
-    expect(schema).not.toHaveProperty('geo');
+  it('applyPage writes the page graph and removes it for pages without structured data', () => {
+    service.applyPage(SEO_PAGES.home);
+    const graph = JSON.parse(document.getElementById('ld-page')?.textContent ?? '{}');
+    expect(graph['@graph'].map((n: { '@type': string }) => n['@type'])).toContain('Organization');
+    service.applyPage(SEO_PAGES.pricing);
+    expect(document.getElementById('ld-page')).toBeNull();
   });
 });

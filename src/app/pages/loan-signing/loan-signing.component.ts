@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BUSINESS, EXTERNAL_LINKS } from '../../core/config/business.config';
+import { SEO_PAGES } from '../../core/seo/seo-pages';
 import {
   ADDITIONAL_SIGNING_SUPPORT,
   LOAN_SIGNING_ITEMS,
@@ -30,6 +31,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
 })
 export class LoanSigningComponent {
   protected readonly phone = BUSINESS.phones.primary;
+  protected readonly crumbs = SEO_PAGES.loanSigning.breadcrumbs;
   protected readonly nnaProfileUrl = EXTERNAL_LINKS.nnaSigningAgentProfile;
   protected readonly items = LOAN_SIGNING_ITEMS;
   protected readonly support = ADDITIONAL_SIGNING_SUPPORT;

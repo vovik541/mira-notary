@@ -7,13 +7,13 @@
   "compatibility_flags": ["nodejs_compat"],
 
   // Prerendered pages + JS/CSS/images are served from here before the Worker runs.
-  // `run_worker_first` makes sure /api/* always reaches the Worker code.
+  // `run_worker_first` makes sure /api/* (and the generated /robots.txt + /sitemap.xml) reach the Worker.
   "assets": {
     "directory": "./dist/mira-notary/browser",
     "binding": "ASSETS",
     // Serve /about (not /about/): prerendered pages live at about/index.html.
     "html_handling": "drop-trailing-slash",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*", "/robots.txt", "/sitemap.xml"]
   },
 
   // Non-secret runtime configuration for appointment emails (sent through Resend).

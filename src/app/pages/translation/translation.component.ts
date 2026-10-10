@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { SEO_PAGES } from '../../core/seo/seo-pages';
 import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.component';
 
 @Component({
@@ -7,12 +8,29 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
   imports: [RouterLink, PageHeroComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-hero heading="Document Translation Services" eyebrow="Translation">
-      Certified document translation services are available for Ukrainian ↔ English and Russian ↔
-      English.
+    <app-page-hero
+      heading="Ukrainian & Russian Document Translation"
+      eyebrow="Translation"
+      [breadcrumbs]="crumbs"
+    >
+      Document translation services are available for Ukrainian ↔ English and Russian ↔ English.
     </app-page-hero>
 
-    <section class="section" aria-labelledby="quote-heading">
+    <section class="section" aria-labelledby="notarize-heading">
+      <div class="container">
+        <div class="prose">
+          <h2 id="notarize-heading">Translation and Notarization</h2>
+          <p>
+            Mira speaks English, Ukrainian and Russian. If a translated or foreign-language document
+            also needs a notarized signature, see
+            <a routerLink="/services/mobile-notary">mobile notary services</a>; documents going
+            abroad may need a <a routerLink="/services/apostille">California apostille</a> as well.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--alt" aria-labelledby="quote-heading">
       <div class="container split split--even">
         <div class="info">
           <h2 class="info-heading">Language Pairs</h2>
@@ -47,6 +65,13 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
   styles: `
     h2 {
       font-size: 1.5rem;
+    }
+    .prose {
+      max-width: 48rem;
+    }
+    .prose a {
+      text-decoration: underline;
+      text-underline-offset: 2px;
     }
     .info-heading {
       margin-bottom: 1.25rem;
@@ -92,4 +117,6 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
     }
   `,
 })
-export class TranslationComponent {}
+export class TranslationComponent {
+  protected readonly crumbs = SEO_PAGES.translation.breadcrumbs;
+}

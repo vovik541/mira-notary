@@ -4,17 +4,23 @@ import { Meta, Title } from '@angular/platform-browser';
 import { ActivatedRouteSnapshot, NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 import { SITE } from '../config/site.config';
+import { SeoPage } from './seo-pages';
+import { canonicalUrl, normalizeBase } from './site-url';
+import { StructuredDataService } from './structured-data.service';
 
-export interface RouteSeoData {
-  readonly title: string;
-  readonly description: string;
-  /** Set on pages that should not be indexed (e.g. the 404 page). */
-  readonly noindex?: boolean;
-}
+/** What a route's `data.seo` carries (the shared registry entry). */
+export type RouteSeoData = Pick<SeoPage, 'title' | 'description'> & Partial<SeoPage>;
+
+/** Public social-share image (crawlable, 1200×630). */
+export const SOCIAL_IMAGE_PATH = '/assets/brand/social-share.png';
+export const SOCIAL_IMAGE_ALT =
+  'Local Notary Signings by Mira Derkach — mobile notary and loan signing agent';
 
 /**
- * Applies per-route title / description / canonical / Open Graph tags.
- * Routes declare their metadata in `data: { seo: RouteSeoData }`.
+ * Applies per-route title / description / robots / canonical / Open Graph / Twitter tags and the
+ * page's JSON-LD. Metadata comes from the SEO registry; the canonical URL is derived from the
+ * registry path (never from the visited URL), so `/contact?service=apostille` canonicalizes to
+ * `/contact`. Runs during SSR / prerender, so everything is in the initial HTML.
  */
 @Injectable({ providedIn: 'root' })
 export class SeoService {
@@ -22,6 +28,7 @@ export class SeoService {
   private readonly title = inject(Title);
   private readonly meta = inject(Meta);
   private readonly document = inject(DOCUMENT);
+  private readonly structuredData = inject(StructuredDataService);
 
   /** Call once from the root component. */
   init(): void {
@@ -35,37 +42,65 @@ export class SeoService {
       });
   }
 
-  apply(seo: RouteSeoData, url: string): void {
+  apply(seo: RouteSeoData, url: string, base: string = SITE.url): void {
+    const indexable = seo.indexable !== false;
+    const path = seo.path ?? url;
+    const canonical = indexable ? canonicalUrl(base, path) : null;
+    const image = canonicalUrl(base, SOCIAL_IMAGE_PATH);
+
     this.title.setTitle(seo.title);
     this.meta.updateTag({ name: 'description', content: seo.description });
     this.meta.updateTag({
       name: 'robots',
-      content: seo.noindex ? 'noindex, follow' : 'index, follow',
+      // Fail closed: without a configured production domain no page asks to be indexed.
+      content: indexable && normalizeBase(base) !== '' ? 'index, follow' : 'noindex, follow',
     });
     this.meta.updateTag({ property: 'og:type', content: 'website' });
     this.meta.updateTag({ property: 'og:site_name', content: SITE.name });
     this.meta.updateTag({ property: 'og:locale', content: SITE.locale });
     this.meta.updateTag({ property: 'og:title', content: seo.title });
     this.meta.updateTag({ property: 'og:description', content: seo.description });
-    this.meta.updateTag({ name: 'twitter:card', content: 'summary' });
+    this.meta.updateTag({ name: 'twitter:title', content: seo.title });
+    this.meta.updateTag({ name: 'twitter:description', content: seo.description });
 
-    const canonical = this.canonicalUrl(url);
-    if (canonical && !seo.noindex) {
+    if (image && indexable) {
+      this.meta.updateTag({ property: 'og:image', content: image });
+      this.meta.updateTag({ property: 'og:image:width', content: '1200' });
+      this.meta.updateTag({ property: 'og:image:height', content: '630' });
+      this.meta.updateTag({ property: 'og:image:alt', content: SOCIAL_IMAGE_ALT });
+      this.meta.updateTag({ name: 'twitter:card', content: 'summary_large_image' });
+      this.meta.updateTag({ name: 'twitter:image', content: image });
+    } else {
+      for (const selector of [
+        "property='og:image'",
+        "property='og:image:width'",
+        "property='og:image:height'",
+        "property='og:image:alt'",
+        "name='twitter:image'",
+      ]) {
+        this.meta.removeTag(selector);
+      }
+      this.meta.updateTag({ name: 'twitter:card', content: 'summary' });
+    }
+
+    if (canonical) {
       this.meta.updateTag({ property: 'og:url', content: canonical });
       this.setCanonicalLink(canonical);
     } else {
       this.meta.removeTag("property='og:url'");
       this.setCanonicalLink(null);
     }
+
+    if (indexable && seo.key) {
+      this.structuredData.applyPage(seo as SeoPage);
+    } else {
+      this.structuredData.remove('page');
+    }
   }
 
   /** Canonical URL for a router path, or null while no production origin is configured. */
   canonicalUrl(url: string): string | null {
-    if (!SITE.url) {
-      return null;
-    }
-    const path = url.split(/[?#]/)[0];
-    return `${SITE.url}${path === '/' ? '' : path}` || SITE.url;
+    return canonicalUrl(SITE.url, url);
   }
 
   private findSeoData(snapshot: ActivatedRouteSnapshot): RouteSeoData | null {

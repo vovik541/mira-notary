@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { SEO_PAGES } from '../../core/seo/seo-pages';
 import { APOSTILLE_FEES, APOSTILLE_NOTE } from '../../data/pricing.data';
 import { APOSTILLE_STEPS } from '../../data/services.data';
 import { CtaBandComponent } from '../../shared/components/cta-band/cta-band.component';
@@ -18,7 +19,11 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-hero heading="California Apostille Services" eyebrow="Apostille">
+    <app-page-hero
+      heading="California Apostille Services"
+      eyebrow="Apostille"
+      [breadcrumbs]="crumbs"
+    >
       Assistance with California apostille processing for documents intended for use outside the
       United States.
       <div actions class="page-actions">
@@ -31,7 +36,29 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
       </div>
     </app-page-hero>
 
-    <section class="section" aria-labelledby="steps-heading">
+    <section class="section" aria-labelledby="about-heading">
+      <div class="container">
+        <div class="prose">
+          <h2 id="about-heading">What Is an Apostille?</h2>
+          <p>
+            An apostille is a certificate from the California Secretary of State that authenticates
+            the signature and seal on a California document, such as a notarized document, so it can
+            be accepted in another country that recognizes apostilles. It confirms who signed and in
+            what capacity; it does not confirm what the document says.
+          </p>
+          <p>
+            The document usually has to be notarized first, and the Secretary of State generally
+            needs the original rather than a photocopy. Mira can notarize your document, review it
+            and coordinate the pickup and submission. See the
+            <a routerLink="/faq">frequently asked questions</a> about originals and timing, check
+            <a routerLink="/pricing">apostille pricing</a>, or
+            <a routerLink="/service-area">confirm your service area</a>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--alt" aria-labelledby="steps-heading">
       <div class="container">
         <app-section-header headingId="steps-heading" heading="How the Service Works" />
         <ol class="steps">
@@ -46,7 +73,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
       </div>
     </section>
 
-    <section class="section section--alt" aria-labelledby="price-heading">
+    <section class="section" aria-labelledby="price-heading">
       <div class="container split split--even">
         <div>
           <h2 id="price-heading">Apostille Pricing</h2>
@@ -100,6 +127,16 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
     h2 {
       font-size: 1.5rem;
     }
+    .prose {
+      max-width: 48rem;
+    }
+    .prose > * + * {
+      margin-top: 1rem;
+    }
+    .prose a {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
     .prices {
       margin-top: 1.25rem;
     }
@@ -131,6 +168,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
   `,
 })
 export class ApostilleComponent {
+  protected readonly crumbs = SEO_PAGES.apostille.breadcrumbs;
   protected readonly steps = APOSTILLE_STEPS;
   protected readonly fees = APOSTILLE_FEES;
   protected readonly note = APOSTILLE_NOTE;

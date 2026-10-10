@@ -22,7 +22,7 @@ export interface FaqLink {
 export interface FaqItem {
   readonly id: FaqId;
   readonly question: string;
-  /** Plain text. Also used verbatim for the FAQPage structured data. */
+  /** Plain text. Rendered by the FAQ page and the Home preview. */
   readonly answer: string;
   readonly links?: readonly FaqLink[];
 }
@@ -30,7 +30,7 @@ export interface FaqItem {
 const PHONE = BUSINESS.phones.primary;
 const phoneLink: FaqLink = { text: PHONE.display, href: PHONE.href };
 
-/** The single FAQ dataset: the /faq page, the Home preview and the FAQPage JSON-LD all use it. */
+/** The single FAQ dataset: the /faq page and the Home preview both use it. */
 export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     id: 'bring-to-appointment',

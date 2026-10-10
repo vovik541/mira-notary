@@ -1,9 +1,11 @@
 /**
  * Public site configuration.
  *
- * TODO(production): set `url` to the real production origin (no trailing slash), e.g.
- * 'https://www.example.com'. While empty, canonical / Open Graph URLs and JSON-LD `url`
- * are intentionally omitted rather than invented.
+ * TODO(production): set `url` to the real production origin (https, no trailing slash). It drives
+ * canonical / Open Graph URLs, absolute JSON-LD URLs, robots.txt and sitemap.xml. While empty none
+ * of them is invented, robots.txt answers `Disallow: /` and sitemap.xml answers 404, so an
+ * unconfigured deployment can never be indexed by accident. Also add the host to
+ * `security.allowedHosts` in angular.json.
  */
 export const SITE = {
   url: '',

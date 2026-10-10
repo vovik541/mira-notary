@@ -24,6 +24,14 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
     >
       Mira serves Sacramento County and confirmed nearby communities across the Greater Sacramento
       area.
+      <span class="intro-copy"
+        >Mira is a mobile notary: she travels to you, so there is no office to visit. Check your ZIP
+        code below. A request outside the standard service area can still be submitted, and Mira
+        will confirm availability and any travel fee. See
+        <a routerLink="/services/mobile-notary">mobile notary services</a>,
+        <a routerLink="/pricing">pricing</a> or
+        <a routerLink="/contact">request an appointment</a>.</span
+      >
     </app-page-hero>
 
     <section class="section">
@@ -119,6 +127,16 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
     </section>
   `,
   styles: `
+    .intro-copy {
+      display: block;
+      margin-top: 0.75rem;
+      font-size: 1rem;
+      color: var(--color-text-muted);
+    }
+    .intro-copy a {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
     .grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr);

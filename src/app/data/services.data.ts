@@ -87,7 +87,7 @@ export const SERVICES: readonly ServiceSummary[] = [
     title: 'Document Translation',
     icon: 'translate',
     summary:
-      'Certified document translation services available for Ukrainian ↔ English and Russian ↔ English.',
+      'Document translation services available for Ukrainian ↔ English and Russian ↔ English.',
     note: 'Additional languages may be available through a professional translation network.',
     highlights: [],
     homeLinkLabel: 'View Translation Services',

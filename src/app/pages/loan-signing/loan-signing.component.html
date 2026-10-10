@@ -1,8 +1,11 @@
 <app-page-hero
   heading="Professional Loan Signing Agent in the Sacramento Area"
   eyebrow="Loan Signing"
+  [breadcrumbs]="crumbs"
 >
-  Experienced mobile signing support for real estate and lending transactions.
+  Experienced mobile signing support for real estate and lending transactions across Greater
+  Sacramento. Check the <a routerLink="/service-area">service area</a> or see
+  <a routerLink="/pricing">pricing</a>.
   <div actions class="page-actions">
     <a class="btn btn--gold" routerLink="/contact" [queryParams]="{ service: 'loan-signing' }"
       >Schedule a Loan Signing</a

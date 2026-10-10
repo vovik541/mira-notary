@@ -1,3 +1,22 @@
+/* The two fonts that size the above-the-fold text (Manrope 800 headings, Inter 400 body) are
+   self-hosted at stable URLs so index.html can preload them (a hashed build-output name cannot be
+   preloaded). Preloading removes the font-swap re-wrap of the H1 / lead that caused layout shift.
+   The other weights still come from @fontsource. */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-display: optional;
+  font-weight: 800;
+  src: url('/fonts/manrope-latin-800-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: optional;
+  font-weight: 400;
+  src: url('/fonts/inter-latin-400-normal.woff2') format('woff2');
+}
+
 /* ==========================================================================
    Design tokens — single source of truth for brand values (see docs/reference/DESIGN.md)
    ========================================================================== */

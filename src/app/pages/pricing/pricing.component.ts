@@ -17,8 +17,13 @@ import { PriceListComponent } from '../../shared/components/price-list/price-lis
   imports: [RouterLink, CtaBandComponent, PageHeroComponent, PriceListComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-hero heading="Clear Notary Pricing" eyebrow="Pricing">
+    <app-page-hero heading="Mobile Notary Pricing" eyebrow="Pricing">
       Clear pricing for common notary services. Final pricing is confirmed before service.
+      <span class="links"
+        >Travel is available across the <a routerLink="/service-area">service area</a>; see
+        <a routerLink="/services/mobile-notary">mobile notary services</a> or the
+        <a routerLink="/faq">pricing FAQ</a>.</span
+      >
       <div actions class="page-actions">
         <a class="btn btn--gold" routerLink="/contact">Book an Appointment</a>
         <a class="btn btn--outline" [href]="phone.href">Call {{ phone.display }}</a>
@@ -59,6 +64,16 @@ import { PriceListComponent } from '../../shared/components/price-list/price-lis
     <app-cta-band />
   `,
   styles: `
+    .links {
+      display: block;
+      margin-top: 0.75rem;
+      font-size: 1rem;
+      color: var(--color-text-muted);
+    }
+    .links a {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
     h2 {
       margin-bottom: 1rem;
       font-size: 1.375rem;

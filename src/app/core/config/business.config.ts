@@ -33,7 +33,7 @@ export const BUSINESS = {
     src: 'assets/brand/local-notary-signings-logo.webp',
     width: 800,
     height: 332,
-    alt: 'Local Notary Signings',
+    alt: 'Local Notary Signings by Mira Derkach',
   },
 } as const;
 

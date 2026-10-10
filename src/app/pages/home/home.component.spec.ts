@@ -41,7 +41,7 @@ describe('HomeComponent service-area preview', () => {
   it('uses the updated summary and links to the full Service Area page', () => {
     const el = render();
     const text = (el.textContent ?? '').replace(/\s+/g, ' ');
-    expect(text).toContain('Serving the Greater Sacramento Area & Surrounding Communities');
+    expect(text).toContain('Serving Sacramento County & Confirmed Nearby Communities');
     expect(text).toContain(
       'Mira serves Sacramento County and confirmed nearby communities across Placer, Yolo and El Dorado Counties.',
     );
@@ -64,10 +64,9 @@ describe('HomeComponent hero', () => {
   it('has the exact plural H1 with a non-breaking closing phrase', () => {
     const h1 = render().querySelector('h1') as HTMLElement;
     expect(h1.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'Professional Mobile Notary Services — Wherever You Need It',
+      'Mobile Notary & Loan Signing Services in Greater Sacramento',
     );
-    expect(h1.textContent).not.toContain('Service —');
-    expect(h1.querySelector('.keep')?.textContent).toBe('Wherever You Need It');
+    expect(h1.querySelector('.keep')?.textContent).toBe('Greater Sacramento');
   });
 
   it('uses the primary phone number in the hero and offers a Google review link', () => {

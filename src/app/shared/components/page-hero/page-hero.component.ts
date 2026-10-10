@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { BreadcrumbItem } from '../../../core/seo/seo-pages';
+import { BreadcrumbsComponent } from '../breadcrumbs/breadcrumbs.component';
 
 /**
  * Standard inner-page intro band: eyebrow, the page's single H1, lead copy and actions, with an
@@ -6,10 +8,14 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
  */
 @Component({
   selector: 'app-page-hero',
+  imports: [BreadcrumbsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="container inner">
       <div class="main">
+        @if (breadcrumbs(); as trail) {
+          <app-breadcrumbs class="trail" [items]="trail" />
+        }
         @if (eyebrow(); as eyebrowText) {
           <p class="eyebrow">{{ eyebrowText }}</p>
         }
@@ -34,6 +40,10 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     }
     .main {
       max-width: 50rem;
+    }
+    .trail {
+      display: block;
+      margin-bottom: 1rem;
     }
     .eyebrow {
       margin-bottom: 0.75rem;
@@ -63,4 +73,5 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 export class PageHeroComponent {
   readonly heading = input.required<string>();
   readonly eyebrow = input<string>();
+  readonly breadcrumbs = input<readonly BreadcrumbItem[]>();
 }
