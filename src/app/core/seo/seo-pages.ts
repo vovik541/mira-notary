@@ -84,7 +84,7 @@ export const SEO_PAGES: Readonly<Record<SeoPageKey, SeoPage>> = {
     path: '/services/loan-signing',
     title: 'Loan Signing Agent in Sacramento | NNA Certified Notary Signing Agent',
     description:
-      'NNA Certified notary signing agent for buyer, seller, refinance, HELOC, reverse mortgage and loan modification signings in Greater Sacramento, with mobile printing, scanbacks and courier drop-offs.',
+      'NNA Certified notary signing agent for buyer, seller, refinance, home equity, commercial loan, reverse mortgage and loan modification signings in Greater Sacramento, with mobile printing, scanbacks and courier drop-offs.',
     indexable: true,
     service: 'loan-signing',
     breadcrumbs: [HOME, SERVICES, { name: 'Loan Signing', path: '/services/loan-signing' }],
@@ -114,7 +114,7 @@ export const SEO_PAGES: Readonly<Record<SeoPageKey, SeoPage>> = {
     path: '/about',
     title: 'About Mira Derkach | Sacramento Mobile Notary & Signing Agent',
     description:
-      'Meet Mira Derkach, a California Notary Public and NNA Certified Signing Agent with a banking, lending and real estate background, serving the Greater Sacramento area in English, Ukrainian and Russian.',
+      'Meet Mira Derkach, a California Notary Public and NNA Certified Signing Agent with a banking and lending background, serving the Greater Sacramento area in English, Ukrainian and Russian.',
     indexable: true,
     organization: true,
     person: true,

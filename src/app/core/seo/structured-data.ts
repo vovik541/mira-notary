@@ -43,7 +43,7 @@ const SERVICE_DEFINITIONS: Readonly<
     name: 'Loan Signing',
     serviceType: 'Loan signing agent service',
     description:
-      'Notary signing agent services for buyer, seller, refinance, HELOC, reverse mortgage and loan modification signings.',
+      'Notary signing agent services for buyer, seller, refinance, home equity, commercial loan, reverse mortgage and loan modification signings.',
   },
   apostille: {
     name: 'California Apostille',

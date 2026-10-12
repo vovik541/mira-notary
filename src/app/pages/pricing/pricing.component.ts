@@ -6,6 +6,7 @@ import {
   APOSTILLE_FEES,
   APOSTILLE_NOTE,
   NOTARIAL_FEES,
+  NOTARIAL_FEE_NOTE,
   PAYMENT_METHODS,
   TRAVEL_FEES,
   TRAVEL_FEE_NOTE,
@@ -37,6 +38,7 @@ import { PriceListComponent } from '../../shared/components/price-list/price-lis
         <section class="main" aria-labelledby="notarial-heading">
           <h2 id="notarial-heading">Notarial Services</h2>
           <app-price-list [rows]="notarial" />
+          <p class="note">{{ notarialNote }}</p>
         </section>
 
         <div class="side">
@@ -112,6 +114,7 @@ export class PricingComponent {
   protected readonly travel = TRAVEL_FEES;
   protected readonly travelNote = TRAVEL_FEE_NOTE;
   protected readonly notarial = NOTARIAL_FEES;
+  protected readonly notarialNote = NOTARIAL_FEE_NOTE;
   protected readonly apostille = APOSTILLE_FEES;
   protected readonly apostilleNote = APOSTILLE_NOTE;
   protected readonly payments = PAYMENT_METHODS;

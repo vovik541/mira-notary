@@ -35,7 +35,7 @@ describe('LoanSigningComponent services checklist', () => {
     return fixture.nativeElement as HTMLElement;
   };
 
-  it('lists the six signing types as compact checklist items without descriptions or cards', () => {
+  it('lists the seven signing types as compact checklist items without descriptions or cards', () => {
     const el = render();
     const section = el.querySelector('section[aria-labelledby="loan-heading"]') as HTMLElement;
     const primary = Array.from(section.querySelectorAll('.primary-list li')).map((li) =>
@@ -45,13 +45,14 @@ describe('LoanSigningComponent services checklist', () => {
       'Buyer Packages',
       'Seller Packages',
       'Refinance',
-      'HELOC',
+      'Home Equity',
+      'Commercial Loans',
       'Reverse Mortgage',
       'Loan Modification',
     ]);
     expect(section.querySelector('.card')).toBeNull();
     expect(section.textContent).not.toContain('Signing support for');
-    expect(section.querySelectorAll('.primary-list app-icon')).toHaveLength(6);
+    expect(section.querySelectorAll('.primary-list app-icon')).toHaveLength(7);
   });
 
   it('shows Additional Signing Support as a compact secondary list', () => {

@@ -15,14 +15,19 @@ export const TRAVEL_FEES: readonly PriceRow[] = [
 export const TRAVEL_FEE_NOTE =
   'Travel fees may vary based on the meeting location. Mira & Team will confirm the applicable travel fee before the appointment.';
 
+/** One clear notarial fee; the travel fee is always separate (see TRAVEL_FEES). */
 export const NOTARIAL_FEES: readonly PriceRow[] = [
-  { label: 'Acknowledgment', price: '$15', unit: 'per signature' },
-  { label: 'Jurat', price: '$15', unit: 'per signature' },
-  { label: 'Oath or Affirmation', price: '$15' },
-  { label: 'Certified Copy of Power of Attorney', price: '$15', unit: 'per copy' },
-  { label: 'Proof of Execution / Subscribing Witness', price: '$15', unit: 'per signature' },
-  { label: 'Depositions', price: '$30', unit: '+ $7 for witnessing an oath' },
+  {
+    label: 'Notarial Fee',
+    detail: '+ applicable travel fee, charged separately',
+    price: 'Up to $15',
+    unit: 'per applicable signature or notarial act',
+  },
 ];
+
+/** Plain-language clarification under the notarial fee (also the natural home of the act names). */
+export const NOTARIAL_FEE_NOTE =
+  'Common notarial services include acknowledgments, jurats, oaths and affirmations, proofs of execution, and certified copies of powers of attorney. California notarial fees are charged per applicable notarized signature or notarial act. Mobile travel fees are separate and vary by meeting location and appointment time.';
 
 export const APOSTILLE_FEES: readonly PriceRow[] = [
   { label: 'First California Apostille', price: '$125' },

@@ -51,3 +51,58 @@ describe('PricingComponent travel fees', () => {
     ]);
   });
 });
+
+describe('PricingComponent notarial services', () => {
+  const render = (): HTMLElement => {
+    TestBed.configureTestingModule({ imports: [PricingComponent], providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(PricingComponent);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  };
+  const section = (el: HTMLElement): HTMLElement =>
+    el.querySelector('section[aria-labelledby="notarial-heading"]') as HTMLElement;
+
+  it('shows ONE "Up to $15" notarial price per applicable signature or act, travel clearly separate', () => {
+    const notarial = section(render());
+    expect(notarial.querySelectorAll('dt')).toHaveLength(1);
+    expect((notarial.textContent?.match(/\$15/g) ?? []).length).toBe(1);
+    const text = notarial.textContent?.replace(/\s+/g, ' ') ?? '';
+    expect(text).toContain('Up to $15');
+    expect(text).toContain('per applicable signature or notarial act');
+    expect(text).not.toContain('per notarized signature');
+    expect(text).toContain('+ applicable travel fee, charged separately');
+  });
+
+  it('keeps the useful notarial terminology in plain explanatory copy', () => {
+    const text = section(render()).textContent ?? '';
+    for (const term of [
+      'acknowledgments',
+      'jurats',
+      'oaths and affirmations',
+      'proofs of execution',
+      'certified copies of powers of attorney',
+    ]) {
+      expect(text).toContain(term);
+    }
+    expect(text).toContain(
+      'Mobile travel fees are separate and vary by meeting location and appointment time.',
+    );
+  });
+
+  it('no longer lists the five repeated rows or Depositions', () => {
+    const text = render().textContent ?? '';
+    expect(text).not.toMatch(/Deposition/i);
+    expect(text).not.toContain('Subscribing Witness');
+    expect(text).not.toContain('+ $7');
+  });
+
+  it('keeps travel and apostille pricing exactly as approved', () => {
+    const text = render().textContent ?? '';
+    expect(text).toMatch(/Sacramento Travel Fee[\s\S]{0,20}8:00 AM–8:00 PM[\s\S]{0,20}~\$50/);
+    expect(text).toMatch(/After-Hours Travel[\s\S]{0,20}\+\$70/);
+    expect(text).toMatch(/Hospital Travel[\s\S]{0,20}\+\$10/);
+    expect(text).toMatch(/First California Apostille[\s\S]{0,20}\$125/);
+    expect(text).toMatch(/Each Additional Document[\s\S]{0,20}\$60/);
+    expect(text).toContain('Travel fees may vary based on the meeting location.');
+  });
+});

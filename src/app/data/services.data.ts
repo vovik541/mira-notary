@@ -48,7 +48,8 @@ export const SERVICES: readonly ServiceSummary[] = [
     highlights: [
       'Buyer & Seller Packages',
       'Refinance',
-      'HELOC',
+      'Home Equity',
+      'Commercial Loans',
       'Reverse Mortgage',
       'Loan Modification',
     ],
@@ -57,7 +58,8 @@ export const SERVICES: readonly ServiceSummary[] = [
     overviewHighlights: [
       'Buyer & Seller Packages',
       'Refinance Transactions',
-      'Home Equity Lines of Credit (HELOC)',
+      'Home Equity',
+      'Commercial Loans',
       'Reverse Mortgages',
       'Scanbacks & Courier Drop-Offs',
     ],
@@ -117,7 +119,8 @@ export const LOAN_SIGNING_ITEMS: readonly string[] = [
   'Buyer Packages',
   'Seller Packages',
   'Refinance',
-  'HELOC',
+  'Home Equity',
+  'Commercial Loans',
   'Reverse Mortgage',
   'Loan Modification',
 ];
