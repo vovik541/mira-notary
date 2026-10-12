@@ -11,8 +11,8 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-hero heading="Notary & Document Services">
-      Professional mobile services for individuals, families, businesses, borrowers, and real estate
-      professionals.
+      Professional mobile services for individuals, families, businesses, borrowers, lenders, title
+      companies, and escrow professionals.
     </app-page-hero>
 
     <section class="section">

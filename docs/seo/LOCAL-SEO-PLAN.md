@@ -73,7 +73,7 @@ publish a residential address anywhere.
 
 - Notary / signing-agent association directories that allow a website link (NNA profile already exists).
 - Local business organizations or chambers (a real membership, not a paid link scheme).
-- Relationships that naturally link: title / escrow companies, mortgage brokers, real-estate agents,
+- Relationships that naturally link: title / escrow companies, mortgage brokers,
   law offices (as referrals — Mira gives no legal advice) via a "recommended professionals" mention.
 - Local resource pages (senior-care, community, Ukrainian / Russian community organizations) where a
   factual listing is appropriate.

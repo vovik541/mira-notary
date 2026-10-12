@@ -44,7 +44,7 @@ export const SERVICES: readonly ServiceSummary[] = [
     path: '/services/loan-signing',
     title: 'Loan Signing Services',
     icon: 'building',
-    summary: 'Professional signing support for real estate and lending transactions.',
+    summary: 'Professional signing support for loan and lending transactions.',
     highlights: [
       'Buyer & Seller Packages',
       'Refinance',
@@ -167,11 +167,6 @@ export const WHY_MIRA: readonly WhyMiraItem[] = [
   {
     title: 'Banking & Lending Background',
     description: 'More than 16 years of professional experience in banking and consumer lending.',
-  },
-  {
-    title: 'Real Estate Experience',
-    description:
-      'Experience working with buyers, sellers, title and escrow professionals, appraisers, inspectors, and other real estate vendors.',
   },
   {
     title: 'Trilingual Service',

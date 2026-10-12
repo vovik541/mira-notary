@@ -113,7 +113,7 @@ and **no** `url` / `logo`; `WebSite` and `BreadcrumbList` are omitted (they requ
 
 Confirmed in the generated HTML: no address / geo / hours / price range, no `AggregateRating` / `Review`,
 telephone is `+12795298754`, `sameAs` = NNA profile + NotaryCafe (both verified to exist), no 916 number,
-no real-estate-business data, and `<` is escaped as `<` in the script payload (test + build check).
+no unrelated business-category data, and `<` is escaped as `<` in the script payload (test + build check).
 
 **Not used, and why**
 
