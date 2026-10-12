@@ -1,6 +1,6 @@
 import { BUSINESS, EXTERNAL_LINKS } from '../config/business.config';
 import { SITE } from '../config/site.config';
-import { SERVICE_AREA_COMMUNITIES, SERVICE_AREA_GROUPS } from '../../data/service-area.data';
+import { SERVICE_AREA_COMMUNITIES } from '../../data/service-area.data';
 import { SeoPage, ServiceKey } from './seo-pages';
 import { canonicalUrl, normalizeBase } from './site-url';
 
@@ -68,11 +68,7 @@ export function entityId(origin: string, fragment: string): string {
 
 export function areaServed(): JsonLd[] {
   return [
-    // Countywide only where confirmed; every other county only through its confirmed communities.
-    ...SERVICE_AREA_GROUPS.filter((group) => group.countywide).map((group) => ({
-      '@type': 'AdministrativeArea',
-      name: group.county,
-    })),
+    // Only communities inside the drawn service-area polygon — never a whole county.
     ...SERVICE_AREA_COMMUNITIES.map((name) => ({ '@type': 'City', name })),
   ];
 }
@@ -94,7 +90,7 @@ export function organizationSchema(origin: string = base()): JsonLd {
         }
       : {}),
     description:
-      'Mobile notary public and loan signing agent serving Sacramento County and confirmed nearby communities in the Greater Sacramento area.',
+      'Mobile notary public and loan signing agent serving Sacramento and nearby communities in the Greater Sacramento area.',
     telephone: BUSINESS.phones.primary.href.replace('tel:', ''),
     email: BUSINESS.email,
     knowsLanguage: BUSINESS.languages.map((language) => LANGUAGE_CODES[language] ?? language),

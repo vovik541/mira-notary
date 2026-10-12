@@ -273,6 +273,10 @@ const GLOBAL_MESSAGES = {
   invalid: 'Please check the form and try again.',
 } as const;
 
+/** Non-blocking note for a ZIP with limited (partial) coverage (not an error). */
+export const LIMITED_AREA_NOTE =
+  'Limited service area — you can still submit your request. Mira & Team will confirm travel availability for your exact location.';
+
 /** Non-blocking note for a well-formed ZIP outside the confirmed area (not an error). */
 export const OUTSIDE_AREA_NOTE =
   'Outside standard service area — you can still submit. Mira & Team will confirm travel availability and the applicable fee.';
@@ -382,9 +386,10 @@ export class ContactComponent {
    * A well-formed ZIP outside the confirmed area: informational only. It never makes the control
    * invalid and never blocks submission (the Worker accepts it and flags it for Mira).
    */
-  protected readonly outsideArea = computed(
-    () => checkZip(this.zipValue()).status === 'unconfirmed',
-  );
+  protected readonly outsideArea = computed(() => checkZip(this.zipValue()).status === 'outside');
+  /** Partial coverage (>= 1% of the ZIP inside the polygon): informational only, never an error. */
+  protected readonly limitedArea = computed(() => checkZip(this.zipValue()).status === 'limited');
+  protected readonly limitedAreaNote = LIMITED_AREA_NOTE;
   protected readonly outsideAreaNote = OUTSIDE_AREA_NOTE;
 
   private readonly specificValue = toSignal(this.form.controls.specificTime.valueChanges, {
@@ -493,6 +498,7 @@ export class ContactComponent {
       when: [date, time].filter((part) => part !== '').join(' · '),
       zip: value.zip,
       outside: this.outsideArea(),
+      limited: this.limitedArea(),
       outsideHours: this.outsideHours(),
     };
   });

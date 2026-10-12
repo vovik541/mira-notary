@@ -100,3 +100,18 @@ a:focus-visible {
   color: rgba(255, 255, 255, 0.7);
   border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
+
+.credit {
+  margin-top: 0.75rem;
+  font-size: 0.6875rem;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.62);
+
+  a {
+    text-underline-offset: 2px;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+}

@@ -75,7 +75,9 @@
                 formControlName="zip"
                 required
                 [attr.aria-invalid]="zipError ? 'true' : null"
-                [attr.aria-describedby]="zipError ? 'zip-error' : outsideArea() ? 'zip-note' : null"
+                [attr.aria-describedby]="
+                  zipError ? 'zip-error' : outsideArea() || limitedArea() ? 'zip-note' : null
+                "
               />
               @if (zipError) {
                 <p class="error" id="zip-error" aria-live="polite">{{ zipError }}</p>
@@ -119,6 +121,8 @@
 
           @if (outsideArea()) {
             <p class="advisory-note" id="zip-note" role="note">{{ outsideAreaNote }}</p>
+          } @else if (limitedArea()) {
+            <p class="advisory-note" id="zip-note" role="note">{{ limitedAreaNote }}</p>
           }
 
           @if (timePreference() === 'specific') {
@@ -304,10 +308,12 @@
             <p class="summary-main">{{ summary().service }}</p>
             <p>{{ summary().when }}</p>
             <p>ZIP {{ summary().zip }}</p>
-            @if (summary().outside || summary().outsideHours) {
+            @if (summary().outside || summary().limited || summary().outsideHours) {
               <p class="summary-flags">
                 @if (summary().outside) {
                   <span class="summary-flag">Outside standard service area</span>
+                } @else if (summary().limited) {
+                  <span class="summary-flag">Limited service area</span>
                 }
                 @if (summary().outsideHours) {
                   <span class="summary-flag">Outside standard hours</span>

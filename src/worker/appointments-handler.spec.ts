@@ -319,8 +319,21 @@ describe('handleAppointmentRequest', () => {
   it('marks a confirmed-area ZIP as such in the email', async () => {
     const { provider, sent } = makeProvider();
     await run(body, makeEnv(), provider);
-    expect(sent[0].text).toContain('Service Area: Standard service area');
+    expect(sent[0].text).toContain('Service Area: Confirmed service area');
   });
+
+  it.each(['95602', '95757'])(
+    'marks the limited-coverage ZIP %s as needing exact-location confirmation',
+    async (zip) => {
+      const { provider, sent } = makeProvider();
+      const response = await run({ ...body, locationZip: zip }, makeEnv(), provider);
+      expect(response.status).toBe(200);
+      expect(sent[0].text).toContain(
+        'Service Area: Limited service area — exact location confirmation required',
+      );
+      expect(sent[0].text).not.toContain('Outside standard service area');
+    },
+  );
 
   it('emails the ZIP code exactly as the (valid) 5-digit value was sent', async () => {
     const { provider, sent } = makeProvider();

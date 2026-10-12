@@ -7,6 +7,18 @@ import {
   isWithinStandardHours,
 } from '../shared/appointment-timing';
 
+/** Same three-state classification as the website (shared `checkZip`). */
+function serviceAreaLabel(zip: string): string {
+  switch (checkZip(zip).status) {
+    case 'confirmed':
+      return 'Confirmed service area';
+    case 'limited':
+      return 'Limited service area — exact location confirmation required';
+    default:
+      return 'Outside standard service area — confirm travel availability and fee';
+  }
+}
+
 export interface EmailContent {
   subject: string;
   html: string;
@@ -89,10 +101,7 @@ function sectionsFor(
         { label: 'ZIP Code', value: request.locationZip },
         {
           label: 'Service Area',
-          value:
-            checkZip(request.locationZip).status === 'supported'
-              ? 'Standard service area'
-              : 'Outside standard service area — confirm travel availability and fee',
+          value: serviceAreaLabel(request.locationZip),
         },
         {
           label: 'Preferred Date',

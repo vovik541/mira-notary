@@ -39,7 +39,7 @@ describe('routing', () => {
   it('describes the current service area in the Home meta description (no stale wording)', () => {
     const home = routes.find((r) => r.path === '');
     const description = (home?.data?.['seo'] as { description: string }).description;
-    expect(description).toContain('Sacramento County and confirmed nearby communities');
+    expect(description).toContain('Sacramento and nearby communities in Greater Sacramento');
     expect(description).toContain('English, Ukrainian and Russian');
     expect(description).not.toMatch(/Placer|Yolo|surrounding/);
   });

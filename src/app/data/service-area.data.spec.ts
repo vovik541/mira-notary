@@ -1,48 +1,63 @@
-import { CONFIRMED_NEARBY_COMMUNITIES } from '../../shared/service-area';
+import { CONFIRMED_COMMUNITIES, SUPPORTED_SERVICE_ZIP_CODES } from '../../shared/service-area';
 import {
   SERVICE_AREA_CHIPS,
   SERVICE_AREA_COMMUNITIES,
+  SERVICE_AREA_COUNTIES_LABEL,
   SERVICE_AREA_GROUPS,
   SERVICE_AREA_SUMMARY,
 } from './service-area.data';
 
 describe('service-area UI data', () => {
-  it('has the four groups, with only Sacramento County countywide', () => {
-    expect(SERVICE_AREA_GROUPS.map((g) => [g.county, g.countywide])).toEqual([
-      ['Sacramento County', true],
-      ['Placer County', false],
-      ['Yolo County', false],
-      ['El Dorado County', false],
+  it('groups key communities by county, with no countywide claim', () => {
+    expect(SERVICE_AREA_GROUPS.map((g) => g.county)).toEqual([
+      'Sacramento County',
+      'Placer County',
+      'Yolo County',
+      'El Dorado County',
     ]);
-    expect(SERVICE_AREA_GROUPS[0].communities).toEqual([]);
+    expect(SERVICE_AREA_GROUPS.every((g) => g.communities.length > 0)).toBe(true);
+    expect(JSON.stringify(SERVICE_AREA_GROUPS)).not.toMatch(/countywide/i);
   });
 
-  it('lists the confirmed communities per county in display order', () => {
+  it('lists the polygon-confirmed communities per county', () => {
     const byCounty = Object.fromEntries(SERVICE_AREA_GROUPS.map((g) => [g.county, g.communities]));
     expect(byCounty['Placer County']).toEqual([
-      'Roseville',
-      'Rocklin',
+      'Auburn',
+      'Granite Bay',
       'Lincoln',
       'Loomis',
-      'Granite Bay',
-      'Auburn',
+      'Newcastle',
+      'Rocklin',
+      'Roseville',
     ]);
-    expect(byCounty['Yolo County']).toEqual(['West Sacramento', 'Davis', 'Woodland']);
-    expect(byCounty['El Dorado County']).toEqual(['El Dorado Hills', 'Cameron Park']);
+    expect(byCounty['Yolo County']).toEqual(['Davis', 'West Sacramento', 'Woodland']);
+    expect(byCounty['El Dorado County']).toEqual(['El Dorado Hills']);
+    expect(byCounty['Sacramento County']).toContain('Sacramento');
+    expect(byCounty['Sacramento County']).toContain('Elk Grove');
   });
 
-  it('derives every list from the single shared community table (no contradictory copies)', () => {
-    expect(SERVICE_AREA_COMMUNITIES).toEqual(CONFIRMED_NEARBY_COMMUNITIES.map((c) => c.name));
-    expect(SERVICE_AREA_COMMUNITIES).toHaveLength(11);
-    expect(SERVICE_AREA_CHIPS).toEqual(['Sacramento County', ...SERVICE_AREA_COMMUNITIES]);
-    expect(SERVICE_AREA_CHIPS).toHaveLength(12);
+  it('does not display communities outside the polygon', () => {
+    for (const name of ['Cameron Park', 'Galt', 'Placerville', 'Sutter']) {
+      expect(SERVICE_AREA_COMMUNITIES).not.toContain(name);
+    }
   });
 
-  it('mentions the nearby counties only as places with confirmed communities, never whole counties', () => {
-    expect(SERVICE_AREA_SUMMARY).toBe(
-      'Mira serves Sacramento County and confirmed nearby communities across Placer, Yolo and El Dorado Counties.',
+  it('derives every list from the single shared ZIP table', () => {
+    expect([...SERVICE_AREA_COMMUNITIES].sort()).toEqual(
+      CONFIRMED_COMMUNITIES.map((c) => c.name).sort(),
     );
-    expect(SERVICE_AREA_SUMMARY).toContain('confirmed nearby communities');
-    expect(SERVICE_AREA_SUMMARY).not.toMatch(/all of|entire|whole/i);
+    for (const community of CONFIRMED_COMMUNITIES) {
+      expect(community.zips.every((zip) => SUPPORTED_SERVICE_ZIP_CODES.has(zip))).toBe(true);
+    }
+    expect(SERVICE_AREA_CHIPS.every((c) => SERVICE_AREA_COMMUNITIES.includes(c))).toBe(true);
+    expect(SERVICE_AREA_CHIPS).toHaveLength(10);
+    expect(SERVICE_AREA_COUNTIES_LABEL).toBe('Sacramento, Placer, Yolo and El Dorado');
+  });
+
+  it('names communities, never whole counties', () => {
+    expect(SERVICE_AREA_SUMMARY).toBe(
+      'Mira serves Sacramento and nearby communities across the Greater Sacramento area.',
+    );
+    expect(SERVICE_AREA_SUMMARY).not.toMatch(/all of|entire|whole|countywide|County/i);
   });
 });

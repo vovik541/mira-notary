@@ -99,12 +99,13 @@ describe('structured data builders', () => {
     ]);
   });
 
-  it('areaServed claims only Sacramento County countywide', () => {
-    const counties = areaServed()
-      .filter((a) => a['@type'] === 'AdministrativeArea')
-      .map((a) => a['name']);
-    expect(counties).toEqual(['Sacramento County']);
-    expect(JSON.stringify(areaServed())).not.toMatch(/Placer County|Yolo County|El Dorado County/);
+  it('areaServed lists only communities inside the drawn service area, never a whole county', () => {
+    const nodes = areaServed();
+    expect(nodes.every((a) => a['@type'] === 'City')).toBe(true);
+    const names = nodes.map((a) => a['name']);
+    expect(names).toEqual(expect.arrayContaining(['Sacramento', 'Roseville', 'Davis']));
+    expect(names).not.toContain('Cameron Park');
+    expect(JSON.stringify(nodes)).not.toMatch(/AdministrativeArea|County/);
   });
 
   it('pages without structured data (pricing, contact, 404 …) have no graph', () => {

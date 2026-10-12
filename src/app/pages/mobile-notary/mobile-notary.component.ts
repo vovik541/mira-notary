@@ -45,7 +45,7 @@ import { SectionHeaderComponent } from '../../shared/components/section-header/s
           <h2 id="how-heading">How Mobile Notary Appointments Work</h2>
           <p>
             Mira travels to you: your home, your office, a hospital or care facility, or another
-            agreed location in Sacramento County and confirmed nearby communities. Check the
+            agreed location in Sacramento and confirmed nearby communities. Check the
             <a routerLink="/service-area">service area</a> to confirm your ZIP code, then see
             <a routerLink="/pricing">pricing</a> for notarial and travel fees.
           </p>

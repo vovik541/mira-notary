@@ -1,51 +1,64 @@
-import { CONFIRMED_NEARBY_COMMUNITIES } from '../../shared/service-area';
-
-export const SERVICE_AREA_COUNTY = 'Sacramento County';
+import { CONFIRMED_COMMUNITIES, type ServiceAreaCountyName } from '../../shared/service-area';
 
 export interface ServiceAreaGroup {
-  readonly county: string;
-  /** Countywide service is confirmed only for Sacramento County. */
-  readonly countywide: boolean;
-  /** Confirmed communities (empty for the countywide group). */
+  readonly county: ServiceAreaCountyName;
+  /** Named communities inside the drawn service-area polygon (never a whole-county claim). */
   readonly communities: readonly string[];
 }
 
-const NEARBY_COUNTIES = ['Placer County', 'Yolo County', 'El Dorado County'] as const;
-
-/**
- * "Confirmed Service Area" groups for the UI, derived from the shared community table so there is
- * a single list: Sacramento County countywide, then the confirmed communities of each nearby county.
- */
-export const SERVICE_AREA_GROUPS: readonly ServiceAreaGroup[] = [
-  { county: SERVICE_AREA_COUNTY, countywide: true, communities: [] },
-  ...NEARBY_COUNTIES.map((county): ServiceAreaGroup => ({
-    county,
-    countywide: false,
-    communities: CONFIRMED_NEARBY_COMMUNITIES.filter((c) => c.county === county).map((c) => c.name),
-  })),
+const COUNTY_ORDER: readonly ServiceAreaCountyName[] = [
+  'Sacramento County',
+  'Placer County',
+  'Yolo County',
+  'El Dorado County',
 ];
 
-/** Every confirmed community outside Sacramento County, in display order. */
+/**
+ * "Confirmed Service Area" groups for the UI, derived from the shared polygon-derived ZIP table:
+ * county → key communities. Counties without a named community (Sutter: rural edge ZIPs only) are
+ * not advertised, and no county is ever described as served countywide.
+ */
+export const SERVICE_AREA_GROUPS: readonly ServiceAreaGroup[] = COUNTY_ORDER.map(
+  (county): ServiceAreaGroup => ({
+    county,
+    communities: CONFIRMED_COMMUNITIES.filter((c) => c.county === county)
+      .map((c) => c.name)
+      .sort((a, b) => a.localeCompare(b)),
+  }),
+).filter((group) => group.communities.length > 0);
+
+/** Every confirmed community, in display order. */
 export const SERVICE_AREA_COMMUNITIES: readonly string[] = SERVICE_AREA_GROUPS.flatMap(
   (group) => group.communities,
 );
 
-/** Compact pills for the Home preview: the county first, then every confirmed community. */
-export const SERVICE_AREA_CHIPS: readonly string[] = [
-  SERVICE_AREA_COUNTY,
-  ...SERVICE_AREA_COMMUNITIES,
-];
+/** Compact pills for the Home preview: a short list of key communities from the confirmed set. */
+const KEY_COMMUNITIES = [
+  'Sacramento',
+  'Elk Grove',
+  'Roseville',
+  'Rocklin',
+  'Folsom',
+  'Rancho Cordova',
+  'Citrus Heights',
+  'West Sacramento',
+  'Davis',
+  'El Dorado Hills',
+] as const;
 
-/** "Placer, Yolo and El Dorado" — the counties that have individually confirmed communities. */
-export const SERVICE_AREA_NEARBY_COUNTIES_LABEL: string = ((): string => {
-  const names = SERVICE_AREA_GROUPS.filter((group) => !group.countywide).map((group) =>
-    group.county.replace(/ County$/, ''),
-  );
+export const SERVICE_AREA_CHIPS: readonly string[] = KEY_COMMUNITIES.filter((name) =>
+  SERVICE_AREA_COMMUNITIES.includes(name),
+);
+
+/** "Sacramento, Placer, Yolo and El Dorado" — counties that contain confirmed communities. */
+export const SERVICE_AREA_COUNTIES_LABEL: string = ((): string => {
+  const names = SERVICE_AREA_GROUPS.map((group) => group.county.replace(/ County$/, ''));
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names.join('');
 })();
 
 /**
- * Home / marketing summary. Names the nearby counties but only ever says "confirmed nearby
- * communities" — never that a whole county is served. `/service-area` stays the authority.
+ * Home / marketing summary. Names only the communities inside the drawn service area — never a
+ * whole county. `/service-area` stays the authority.
  */
-export const SERVICE_AREA_SUMMARY = `Mira serves Sacramento County and confirmed nearby communities across ${SERVICE_AREA_NEARBY_COUNTIES_LABEL} Counties.`;
+export const SERVICE_AREA_SUMMARY =
+  'Mira serves Sacramento and nearby communities across the Greater Sacramento area.';

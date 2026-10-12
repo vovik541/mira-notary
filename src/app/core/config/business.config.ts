@@ -9,7 +9,29 @@ export interface PhoneNumber {
 export const EXTERNAL_LINKS = {
   nnaSigningAgentProfile: 'https://www.signingagent.com/profile/160327553',
   googleReview: 'https://g.page/r/CR77WhvSyXIGEBM/review',
+  /**
+   * Website-development credit (commercial: rel="sponsored"). Switch to
+   * https://reiskra.com/ref/mira-notary once that route exists on the ReIskra site (it returned
+   * 404 on 2026-10-12).
+   */
+  reiskraReferral: 'https://reiskra.com/',
 } as const;
+
+/**
+ * Google My Maps service-area map (public view/embed only — never the editor URL). The polygon is
+ * the geographic source of truth; the ZIP list in src/shared/service-area-zips.ts was derived from
+ * it (docs/seo/SERVICE-AREA-MAP-AUDIT.md) and does not sync automatically.
+ */
+const SERVICE_AREA_MAP_ID = '1ng1VSm4xqVtoWQ-JoSgasdx6ww7p86g';
+export const SERVICE_AREA_MAP = {
+  id: SERVICE_AREA_MAP_ID,
+  embedUrl: `https://www.google.com/maps/d/embed?mid=${SERVICE_AREA_MAP_ID}&ehbc=2E312F`,
+  viewerUrl: `https://www.google.com/maps/d/viewer?mid=${SERVICE_AREA_MAP_ID}`,
+  title: 'Local Notary Signings by Mira service area map',
+} as const;
+
+/** Google Business Profile page URL: no verified public URL exists in the project yet. */
+export const GOOGLE_BUSINESS_PROFILE_URL: string | null = null;
 
 export const BUSINESS = {
   name: 'Local Notary Signings',

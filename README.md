@@ -180,19 +180,17 @@ Full audit, keyword map and off-site plan: [`docs/seo/`](docs/seo/SEO-AUDIT.md).
 - **UX:** errors appear after a field is left or on a submit attempt (never on page load), clear as
   soon as the value is corrected, use `aria-invalid` + `aria-describedby`, and an invalid submit
   focuses the first invalid field without calling the API.
-- **ZIP data (two separate sets, both static and in-memory — no database or ZIP API):**
-  `SACRAMENTO_COUNTY_ZIP_CODES` is *reference data*: exactly 131 ZIP codes from the State of
-  California county-by-ZIP lookup, never edited to change coverage. `SUPPORTED_SERVICE_ZIP_CODES` is
-  Mira's *confirmed online service area* (150 ZIPs today): the union of the Sacramento County set and
-  `ADDITIONAL_CONFIRMED_SERVICE_ZIP_CODES` (19 ZIPs). It decides whether a ZIP is shown as "confirmed" (the form is accepted either way)
-  automatically. The Contact form, the Service Area page and the Worker all use the same `checkZip`.
-- **Confirmed nearby communities:** `CONFIRMED_NEARBY_COMMUNITIES` in `src/shared/service-area.ts`
-  (community → county → ZIPs) is the single table behind the extra ZIPs, the "Confirmed Service Area"
-  groups, the Home chips and the structured-data `areaServed`. Only individually confirmed
-  communities are listed (Placer: Roseville, Rocklin, Lincoln, Loomis, Granite Bay, Auburn; Yolo:
-  West Sacramento, Davis, Woodland; El Dorado: El Dorado Hills, Cameron Park) — never whole
-  counties. Sacramento County alone is confirmed countywide. To extend coverage, add a row to that
-  table; no validator or component changes. (Auburn PO Box ZIP 95604 is deliberately excluded.)
+- **ZIP data (static, in-memory — no database or ZIP API):** the confirmed online service area is
+  the 68 Census ZCTAs whose internal point lies inside the polygon drawn in Mira's Google My Maps
+  (`src/shared/service-area-zips.ts`, generated; method, edge ZIPs and old-vs-new diff in
+  `docs/seo/SERVICE-AREA-MAP-AUDIT.md`). `SUPPORTED_SERVICE_ZIP_CODES` decides whether a ZIP is shown
+  as "confirmed" (the form is accepted either way). The Contact form, the Service Area page and the
+  Worker all use the same three-state `checkZip` (confirmed / limited / outside; limited = ≥ 1% of the
+  ZIP inside the polygon but representative point outside — `SERVICE_AREA_LIMITED_ZIP_ROWS`, shown only
+  in the checker, the form advisory and the email). The map and the list do not sync automatically: after editing
+  the polygon, re-run `scripts/service-area/derive-zips.mjs` and update the table.
+- **Displayed communities:** derived from that same table (county → community → ZIPs); small rural
+  ZCTAs stay in the checker but are not advertised. No county is claimed countywide.
 - **ZIP syntax:** exactly five digits, `^\d{5}$`. No ZIP+4, no trimming, no coercion: `95814-1234`,
   ` 95814 `, `9581`, `958140` and `9581A` are invalid (the Worker answers 400). Format is checked
   *before* the service area, so a malformed ZIP is never reported as "unconfirmed".
@@ -419,6 +417,15 @@ the "please call Mira" fallback and sends nothing.
 4. Production domain (`SITE.url`, `allowedHosts`, custom domain, verification): follow the single
    checklist in `docs/seo/SEARCH-CONSOLE-SETUP.md` §1.
 5. `npm run deploy`.
+
+### Footer development credit
+
+The footer carries a small "Website by ReIskra — Volodymyr Khymych" credit linking to
+`EXTERNAL_LINKS.reiskraReferral` (currently `https://reiskra.com/`: `/ref/mira-notary` returned 404 on
+2026-10-12 — switch once it exists; `rel="noopener sponsored"`, no `noreferrer`, no UTM, never in JSON-LD, metadata or the sitemap). Developer note for the ReIskra side
+(not implemented here): serve `/ref/{clientSlug}` (e.g. `mira-notary`, `br-builders`) to record the
+referral slug, optionally store first-party attribution, redirect to the right ReIskra landing page and
+feed analytics/conversion reporting.
 
 ## Content rules
 

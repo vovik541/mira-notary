@@ -4,11 +4,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MobileCtaBlockerDirective } from '../../layout/mobile-cta/mobile-cta-markers.directive';
 import { RouterLink } from '@angular/router';
-import { ZipCheck, checkZip, isSacramentoCountyZip } from '../../../shared/service-area';
+import { ZipCheck, checkZip, serviceAreaZipInfo } from '../../../shared/service-area';
 import { BUSINESS } from '../../core/config/business.config';
 import { SERVICE_AREA_GROUPS } from '../../data/service-area.data';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.component';
+import { ServiceAreaMapComponent } from './service-area-map.component';
 import { ZipInputDirective } from '../../shared/directives/zip-input.directive';
 import { requiredTrimmed, zipFormatValidator } from '../../shared/validators/form-validators';
 
@@ -24,6 +25,7 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
     RouterLink,
     IconComponent,
     PageHeroComponent,
+    ServiceAreaMapComponent,
     ZipInputDirective,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,8 +34,7 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
       heading="Mobile Notary Service Throughout the Greater Sacramento Area"
       eyebrow="Service Area"
     >
-      Mira serves Sacramento County and confirmed nearby communities across the Greater Sacramento
-      area.
+      Mira serves Sacramento and confirmed nearby communities across the Greater Sacramento area.
       <span class="intro-copy"
         >Mira is a mobile notary: she travels to you, so there is no office to visit. Check your ZIP
         code below. A request outside the standard service area can still be submitted, and Mira
@@ -49,27 +50,28 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
         <div class="card panel">
           <h2>Confirmed Service Area</h2>
           <p class="muted">
-            Mira provides mobile notary service throughout Sacramento County and in these confirmed
-            nearby communities across the Greater Sacramento area.
+            Mira provides mobile notary service in these confirmed communities across the Greater
+            Sacramento area, based on the service area shown on the map below.
           </p>
           <div class="groups">
             @for (group of groups; track group.county) {
               <section class="group" [attr.aria-labelledby]="'area-' + $index">
                 <h3 [id]="'area-' + $index">{{ group.county }}</h3>
-                @if (group.countywide) {
-                  <p class="countywide">Countywide service</p>
-                } @else {
-                  <ul class="chips">
-                    @for (community of group.communities; track community) {
-                      <li>{{ community }}</li>
-                    }
-                  </ul>
-                }
+                <ul class="chips">
+                  @for (community of group.communities; track community) {
+                    <li>{{ community }}</li>
+                  }
+                </ul>
               </section>
             }
           </div>
           <p class="fine">
-            For locations outside the confirmed area, contact Mira to ask about availability.
+            Locations near or outside the confirmed area may still be available. Call or text Mira &
+            Team to ask.
+          </p>
+          <p class="fine">
+            Some ZIP codes near the edge of the service area may have limited coverage. Use the ZIP
+            checker to confirm.
           </p>
         </div>
 
@@ -97,7 +99,7 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
 
           <div id="zip-result" class="result" role="status" aria-live="polite">
             @switch (result()?.status) {
-              @case ('supported') {
+              @case ('confirmed') {
                 <div class="outcome outcome--ok">
                   <p class="headline">
                     <app-icon name="check-circle" style="--icon-size: 1.25rem" />
@@ -113,7 +115,25 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
                   </a>
                 </div>
               }
-              @case ('unconfirmed') {
+              @case ('limited') {
+                <div class="outcome outcome--limited">
+                  <p class="headline">Limited service area</p>
+                  <p class="muted">
+                    Mira may be available in this ZIP code, but availability can vary by exact
+                    location. Please call or text Mira &amp; Team to confirm.
+                  </p>
+                  <div class="page-actions">
+                    <app-call-text variant="gold" />
+                    <a
+                      class="btn btn--outline"
+                      routerLink="/contact"
+                      [queryParams]="{ zip: resultZip() }"
+                      >Request an Appointment</a
+                    >
+                  </div>
+                </div>
+              }
+              @case ('outside') {
                 <div class="outcome outcome--unconfirmed">
                   <p class="headline">
                     This ZIP code is outside Mira's currently confirmed online service area.
@@ -133,6 +153,8 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
         </div>
       </div>
     </section>
+
+    <app-service-area-map />
   `,
   styles: `
     .intro-copy {
@@ -192,18 +214,6 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
       padding: 0.375rem 0.75rem;
       font-size: 0.8125rem;
     }
-    .countywide {
-      display: inline-block;
-      padding: 0.375rem 0.75rem;
-      font-family: var(--font-heading);
-      font-size: 0.8125rem;
-      font-weight: 700;
-      color: var(--color-navy);
-      background: var(--color-well);
-      border: 1px solid var(--color-border);
-      border-left: 3px solid var(--color-gold);
-      border-radius: var(--radius-md);
-    }
     .fine {
       font-size: 0.875rem;
       color: var(--color-text-muted);
@@ -256,6 +266,7 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
     .outcome--ok {
       border-left-color: var(--color-success);
     }
+    .outcome--limited,
     .outcome--unconfirmed {
       border-left-color: var(--color-gold);
     }
@@ -277,12 +288,6 @@ export type ZipResult = Exclude<ZipCheck, { status: 'invalid' }> | null;
     @media (min-width: 520px) {
       .groups {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-    /* Stacked full-width card on tablets: all four counties in one row. */
-    @media (min-width: 768px) and (max-width: 1023px) {
-      .groups {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
       }
     }
     @media (min-width: 1024px) {
@@ -323,10 +328,11 @@ export class ServiceAreaComponent {
     return this.result()?.zip ?? '';
   }
 
-  /** County membership is reference data; the service-area decision is separate. */
+  /** The decision is the polygon-derived ZIP set; the community name is only a friendly label. */
   protected supportedNote(): string {
-    return isSacramentoCountyZip(this.resultZip())
-      ? 'This ZIP code is within Sacramento County.'
+    const info = serviceAreaZipInfo(this.resultZip());
+    return info?.community
+      ? `This ZIP code is in the ${info.community} area, within Mira's confirmed service area.`
       : "This ZIP code is within Mira's confirmed Greater Sacramento service area.";
   }
 

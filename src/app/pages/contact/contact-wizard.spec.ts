@@ -865,6 +865,16 @@ describe('ContactComponent wizard', () => {
       expect(summary).toContain('Outside standard service area');
     });
 
+    it('flags a limited-coverage ZIP in the summary without the outside-area badge', () => {
+      const fixture = setup();
+      fillStep1(fixture);
+      set(fixture, 'zip', '95602');
+      const summary = (fixture.nativeElement.querySelector('.summary') as HTMLElement)
+        .textContent as string;
+      expect(summary).toContain('Limited service area');
+      expect(summary).not.toContain('Outside standard service area');
+    });
+
     describe('advisory badges', () => {
       const flags = (fixture: ComponentFixture<ContactComponent>): string[] =>
         Array.from(fixture.nativeElement.querySelectorAll('.summary .summary-flag')).map(

@@ -1,7 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { MobileCtaBlockerDirective } from '../../layout/mobile-cta/mobile-cta-markers.directive';
 import { RouterLink } from '@angular/router';
-import { BUSINESS, EMAIL_HREF, LANGUAGES_LABEL } from '../../core/config/business.config';
+import {
+  BUSINESS,
+  EMAIL_HREF,
+  EXTERNAL_LINKS,
+  LANGUAGES_LABEL,
+} from '../../core/config/business.config';
 import { SERVICE_LINKS } from '../../data/navigation.data';
 
 @Component({
@@ -16,4 +21,5 @@ export class SiteFooterComponent {
   protected readonly emailHref = EMAIL_HREF;
   protected readonly languages = LANGUAGES_LABEL;
   protected readonly serviceLinks = SERVICE_LINKS;
+  protected readonly reiskraUrl = EXTERNAL_LINKS.reiskraReferral;
 }

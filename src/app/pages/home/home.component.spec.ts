@@ -10,30 +10,28 @@ describe('HomeComponent service-area preview', () => {
     return fixture.nativeElement as HTMLElement;
   };
 
-  it('shows Sacramento County and all 11 confirmed communities as compact chips', () => {
+  it('shows ten key confirmed communities as compact chips', () => {
     const chips = Array.from(render().querySelectorAll('.chips li')).map((li) =>
       li.textContent?.trim(),
     );
     expect(chips).toEqual([
-      'Sacramento County',
+      'Sacramento',
+      'Elk Grove',
       'Roseville',
       'Rocklin',
-      'Lincoln',
-      'Loomis',
-      'Granite Bay',
-      'Auburn',
+      'Folsom',
+      'Rancho Cordova',
+      'Citrus Heights',
       'West Sacramento',
       'Davis',
-      'Woodland',
       'El Dorado Hills',
-      'Cameron Park',
     ]);
   });
 
   it('uses the approved hero supporting sentence (plain marketing wording, no "confirmed")', () => {
     const lead = render().querySelector('.hero-copy .lead') as HTMLElement;
     expect(lead.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'Reliable mobile notarization and loan signing services at your home, office, hospital, or another convenient location throughout Sacramento County and nearby communities in the Greater Sacramento area.',
+      'Reliable mobile notarization and loan signing services at your home, office, hospital, or another convenient location throughout Sacramento and nearby communities in the Greater Sacramento area.',
     );
     expect(lead.textContent).not.toContain('confirmed');
   });
@@ -41,9 +39,9 @@ describe('HomeComponent service-area preview', () => {
   it('uses the updated summary and links to the full Service Area page', () => {
     const el = render();
     const text = (el.textContent ?? '').replace(/\s+/g, ' ');
-    expect(text).toContain('Serving Sacramento County & Confirmed Nearby Communities');
+    expect(text).toContain('Serving Sacramento & Nearby Communities');
     expect(text).toContain(
-      'Mira serves Sacramento County and confirmed nearby communities across Placer, Yolo and El Dorado Counties.',
+      'Mira serves Sacramento and nearby communities across the Greater Sacramento area.',
     );
     expect(text).not.toContain('selected surrounding communities in Placer and Yolo Counties');
     const link = Array.from(el.querySelectorAll('a')).find((a) =>

@@ -43,7 +43,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
     id: 'service-area',
     question: 'Does Mira travel to my location?',
     answer:
-      'Yes. Mira provides mobile notary service throughout Sacramento County and in confirmed nearby communities across the Greater Sacramento area. Use the Service Area page to check your ZIP code, or contact Mira to confirm availability.',
+      'Yes. Mira provides mobile notary service in Sacramento and the confirmed nearby communities shown on the Service Area map. Use the Service Area page to check your ZIP code, or contact Mira to confirm availability and any travel fee for other locations.',
     links: [{ text: 'Service Area page', href: '/service-area' }],
   },
   {

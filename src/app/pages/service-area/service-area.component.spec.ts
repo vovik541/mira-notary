@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { EXTERNAL_LINKS, GOOGLE_BUSINESS_PROFILE_URL } from '../../core/config/business.config';
 import { ServiceAreaComponent } from './service-area.component';
 
 function setup(): ComponentFixture<ServiceAreaComponent> {
@@ -59,11 +60,16 @@ describe('ServiceAreaComponent ZIP checker', () => {
     expect(el.getAttribute('maxlength')).toBe('5');
   });
 
-  it.each(['95814', '95630'])('reports %s as served and links to the Contact form', (zip) => {
+  it.each([
+    ['95814', 'Sacramento'],
+    ['95630', 'Folsom'],
+  ])('reports %s as served and links to the Contact form', (zip, community) => {
     const fixture = setup();
     const result = check(fixture, zip);
     expect(result.textContent).toContain(`Yes — Mira serves ZIP code ${zip}.`);
-    expect(result.textContent).toContain('This ZIP code is within Sacramento County.');
+    expect(result.textContent).toContain(
+      `This ZIP code is in the ${community} area, within Mira's confirmed service area.`,
+    );
 
     const cta = result.querySelector('a.btn--gold') as HTMLAnchorElement;
     expect(cta.textContent?.trim()).toBe('Book an Appointment');
@@ -191,32 +197,64 @@ describe('ServiceAreaComponent ZIP checker', () => {
     expect(result.textContent).not.toMatch(/does not serve/i);
   });
 
-  it('describes a Sacramento County ZIP by county', () => {
-    const result = check(setup(), '95814');
-    expect(result.textContent).toContain('Yes — Mira serves ZIP code 95814.');
-    expect(result.textContent).toContain('This ZIP code is within Sacramento County.');
+  it('names the community for a named ZIP', () => {
+    const named = check(setup(), '95661');
+    expect(named.textContent).toContain('This ZIP code is in the Roseville area');
   });
 
-  it.each([
-    ['95691', 'West Sacramento'],
-    ['95616', 'Davis'],
-    ['95695', 'Woodland'],
-    ['95603', 'Auburn'],
-    ['95762', 'El Dorado Hills'],
-    ['95682', 'Cameron Park'],
-    ['95661', 'Roseville'],
-  ])('supports %s (%s) without claiming it is in Sacramento County', (zip) => {
-    const fixture = setup();
-    const result = check(fixture, zip);
-    const text = result.textContent ?? '';
-    expect(text).toContain(`Yes — Mira serves ZIP code ${zip}.`);
-    expect(text).toContain(
+  it('stays generic for small rural ZIPs without a named community', () => {
+    const generic = check(setup(), '95639');
+    expect(generic.textContent).toContain('Yes — Mira serves ZIP code 95639.');
+    expect(generic.textContent).toContain(
       "This ZIP code is within Mira's confirmed Greater Sacramento service area.",
     );
-    expect(text).not.toContain('within Sacramento County');
-    expect(text).not.toContain('outside');
-    expect(result.querySelector('a.btn--gold')?.getAttribute('href')).toBe(`/contact?zip=${zip}`);
   });
+
+  it.each(['95691', '95616', '95762', '95661', '95658', '95681', '95664'])(
+    'supports polygon ZIP %s and never describes it as a whole-county service',
+    (zip) => {
+      const result = check(setup(), zip);
+      const text = result.textContent ?? '';
+      expect(text).toContain(`Yes — Mira serves ZIP code ${zip}.`);
+      expect(text).not.toContain('outside');
+      expect(text).not.toMatch(/within Sacramento County|countywide/i);
+      expect(result.querySelector('a.btn--gold')?.getAttribute('href')).toBe(`/contact?zip=${zip}`);
+    },
+  );
+
+  it.each(['95602', '95757', '95695', '95614'])(
+    'shows the distinct "Limited service area" result for %s with real Call and Text actions',
+    (zip) => {
+      const result = check(setup(), zip);
+      const text = (result.textContent ?? '').replace(/\s+/g, ' ');
+      expect(text).toContain('Limited service area');
+      expect(text).toContain(
+        'Mira may be available in this ZIP code, but availability can vary by exact location. Please call or text Mira & Team to confirm.',
+      );
+      const hrefs = Array.from(result.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+      expect(hrefs).toContain('tel:+12795298754');
+      expect(hrefs).toContain('sms:+12795298754');
+      expect(text).not.toContain('Yes —');
+      expect(text).not.toMatch(/fully confirmed|confirmed service area/i);
+      expect(text).not.toContain("outside Mira's currently confirmed online service area");
+    },
+  );
+
+  it('keeps the confirmed result unchanged for a polygon ZIP', () => {
+    const result = check(setup(), '95814');
+    expect(result.textContent).toContain('Yes — Mira serves ZIP code 95814.');
+    expect(result.textContent).not.toContain('Limited service area');
+  });
+
+  it.each(['95682', '95615', '95617', '95812', '94203', '90210'])(
+    'treats %s (< 1% overlap or unknown) as outside, not "not served"',
+    (zip) => {
+      const result = check(setup(), zip);
+      expect(result.textContent).toContain('outside');
+      expect(result.textContent).not.toContain('Yes —');
+      expect(result.textContent).not.toMatch(/does not serve|not serve/i);
+    },
+  );
 
   it('keeps 90210 unconfirmed', () => {
     const result = check(setup(), '90210');
@@ -234,67 +272,116 @@ describe('ServiceAreaComponent confirmed service area block', () => {
   const groupsOf = (panel: HTMLElement): { county: string; body: string[] }[] =>
     Array.from(panel.querySelectorAll('.group')).map((group) => ({
       county: group.querySelector('h3')?.textContent?.trim() ?? '',
-      body: [
-        ...Array.from(group.querySelectorAll('.chips li')).map(
-          (li) => li.textContent?.trim() ?? '',
-        ),
-        ...Array.from(group.querySelectorAll('.countywide')).map(
-          (p) => p.textContent?.trim() ?? '',
-        ),
-      ],
+      body: Array.from(group.querySelectorAll('.chips li')).map(
+        (li) => li.textContent?.trim() ?? '',
+      ),
     }));
 
   it('is headed "Confirmed Service Area"', () => {
-    const panel = block();
-    expect(panel.querySelector('h2')?.textContent?.trim()).toBe('Confirmed Service Area');
-    expect(panel.textContent).not.toContain('Confirmed Service Communities');
+    expect(block().querySelector('h2')?.textContent?.trim()).toBe('Confirmed Service Area');
   });
 
-  it('shows the four county groups with exactly the confirmed communities', () => {
-    expect(groupsOf(block())).toEqual([
-      { county: 'Sacramento County', body: ['Countywide service'] },
-      {
-        county: 'Placer County',
-        body: ['Roseville', 'Rocklin', 'Lincoln', 'Loomis', 'Granite Bay', 'Auburn'],
-      },
-      { county: 'Yolo County', body: ['West Sacramento', 'Davis', 'Woodland'] },
-      { county: 'El Dorado County', body: ['El Dorado Hills', 'Cameron Park'] },
+  it('shows county → key communities from the polygon-derived data only', () => {
+    const groups = groupsOf(block());
+    expect(groups.map((g) => g.county)).toEqual([
+      'Sacramento County',
+      'Placer County',
+      'Yolo County',
+      'El Dorado County',
     ]);
-  });
-
-  it('lists all 11 nearby communities and does not enumerate Sacramento County cities', () => {
-    const chips = Array.from(block().querySelectorAll('.chips li')).map((li) =>
-      li.textContent?.trim(),
+    const byCounty = Object.fromEntries(groups.map((g) => [g.county, g.body]));
+    expect(byCounty['Placer County']).toContain('Roseville');
+    expect(byCounty['Placer County']).not.toContain('Cameron Park');
+    expect(byCounty['Yolo County']).toEqual(['Davis', 'West Sacramento', 'Woodland']);
+    expect(byCounty['El Dorado County']).toEqual(['El Dorado Hills']);
+    expect(byCounty['Sacramento County']).toEqual(
+      expect.arrayContaining(['Sacramento', 'Elk Grove', 'Folsom', 'Rancho Cordova']),
     );
-    expect(chips).toHaveLength(11);
-    expect(chips).not.toContain('Sacramento');
-    expect(chips).not.toContain('Sacramento County');
   });
 
-  it('uses the new intro copy and drops the outdated Placer-only copy', () => {
+  it('never claims countywide service and shows no ZIP chips', () => {
+    const panel = block();
+    const text = (panel.textContent ?? '').replace(/\s+/g, ' ');
+    expect(text).not.toMatch(/countywide|throughout Sacramento County/i);
+    expect(panel.querySelectorAll('.countywide')).toHaveLength(0);
+    for (const chip of Array.from(panel.querySelectorAll('.chips li'))) {
+      expect(chip.textContent?.trim()).not.toMatch(/\d{5}/);
+    }
+  });
+
+  it('invites a call or text for locations near or outside the confirmed area', () => {
     const text = (block().textContent ?? '').replace(/\s+/g, ' ');
     expect(text).toContain(
-      'Mira provides mobile notary service throughout Sacramento County and in these confirmed nearby communities across the Greater Sacramento area.',
-    );
-    expect(text).toContain(
-      'For locations outside the confirmed area, contact Mira to ask about availability.',
-    );
-    expect(text).not.toContain('these confirmed Placer County communities');
-    expect(text).not.toContain(
-      'Additional surrounding communities in Placer and Yolo Counties may be available by request.',
+      'Locations near or outside the confirmed area may still be available. Call or text Mira & Team to ask.',
     );
   });
+});
 
-  it('claims countywide service only for Sacramento County', () => {
-    const panel = block();
-    expect(panel.querySelectorAll('.countywide')).toHaveLength(1);
-    const text = (panel.textContent ?? '').replace(/\s+/g, ' ');
-    expect(text).not.toMatch(/(all of|throughout) (placer|yolo|el dorado)/i);
-    const nonSacramento = Array.from(panel.querySelectorAll('.group'))
-      .filter((g) => !g.querySelector('h3')?.textContent?.includes('Sacramento'))
-      .map((g) => g.textContent ?? '');
-    for (const groupText of nonSacramento) {
-      expect(groupText).not.toContain('Countywide');
+describe('ServiceAreaComponent limited coverage note', () => {
+  it('mentions edge ZIPs once, without listing partial ZIPs or cities', () => {
+    const el = setup().nativeElement as HTMLElement;
+    const text = (el.textContent as string).replace(/\s+/g, ' ');
+    expect(text).toContain(
+      'Some ZIP codes near the edge of the service area may have limited coverage. Use the ZIP checker to confirm.',
+    );
+    const chips = Array.from(el.querySelectorAll('.groups .chips li')).map((li) =>
+      li.textContent?.trim(),
+    );
+    for (const partial of ['Wilton', 'Dixon', 'Clarksburg', 'Knights Landing', 'Rio Oso']) {
+      expect(chips).not.toContain(partial);
     }
+  });
+});
+
+describe('ServiceAreaComponent service area map', () => {
+  const section = (): HTMLElement =>
+    setup().nativeElement.querySelector('app-service-area-map section') as HTMLElement;
+
+  it('embeds only the public Google My Maps view, lazily, with an accessible title', () => {
+    const iframe = section().querySelector('iframe') as HTMLIFrameElement;
+    expect(iframe.getAttribute('src')).toBe(
+      'https://www.google.com/maps/d/embed?mid=1ng1VSm4xqVtoWQ-JoSgasdx6ww7p86g&ehbc=2E312F',
+    );
+    expect(iframe.getAttribute('src')).not.toContain('/edit');
+    expect(iframe.getAttribute('title')).toBe('Local Notary Signings by Mira service area map');
+    expect(iframe.getAttribute('loading')).toBe('lazy');
+    expect(iframe.hasAttribute('sandbox')).toBe(false);
+  });
+
+  it('never exposes the My Maps editor URL anywhere on the page', () => {
+    const html = setup().nativeElement.innerHTML as string;
+    expect(html).not.toMatch(/maps\/d\/edit|\/edit\?mid=/);
+  });
+
+  it('offers the map viewer and review actions from centralized config, opening safely', () => {
+    const links = Array.from(section().querySelectorAll('a')) as HTMLAnchorElement[];
+    const byLabel = Object.fromEntries(
+      links.map((a) => [a.textContent?.replace(/\(opens in a new tab\)/, '').trim(), a]),
+    );
+    expect(byLabel['Open Service Area Map'].getAttribute('href')).toBe(
+      'https://www.google.com/maps/d/viewer?mid=1ng1VSm4xqVtoWQ-JoSgasdx6ww7p86g',
+    );
+    expect(byLabel['Leave a Google Review'].getAttribute('href')).toBe(EXTERNAL_LINKS.googleReview);
+    for (const a of links) {
+      expect(a.getAttribute('target')).toBe('_blank');
+      expect(a.getAttribute('rel')).toBe('noopener noreferrer');
+    }
+  });
+
+  it('omits the Google Business Profile action while no verified URL is configured', () => {
+    expect(GOOGLE_BUSINESS_PROFILE_URL).toBeNull();
+    expect(section().textContent).not.toContain('View Google Business Profile');
+  });
+
+  it('uses the approved copy and never says "Google account"', () => {
+    const text = (section().textContent ?? '').replace(/\s+/g, ' ');
+    expect(text).toContain(
+      "View Mira's mobile notary service area across Sacramento and nearby communities. Locations near or outside the highlighted area may still be available upon request.",
+    );
+    expect(text).not.toMatch(/google account/i);
+  });
+
+  it('marks the map section so the contextual mobile CTA steps aside', () => {
+    expect(section().hasAttribute('appmobilectablocker')).toBe(true);
   });
 });

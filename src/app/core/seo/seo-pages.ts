@@ -56,7 +56,7 @@ export const SEO_PAGES: Readonly<Record<SeoPageKey, SeoPage>> = {
     path: '/',
     title: 'Mobile Notary in Sacramento | Local Notary Signings by Mira Derkach',
     description:
-      'Mobile notary and loan signing agent serving Sacramento County and confirmed nearby communities in Greater Sacramento. English, Ukrainian and Russian. Request an appointment online or call.',
+      'Mobile notary and loan signing agent serving Sacramento and nearby communities in Greater Sacramento. English, Ukrainian and Russian. Request an appointment online or call.',
     indexable: true,
     website: true,
     organization: true,
@@ -138,9 +138,9 @@ export const SEO_PAGES: Readonly<Record<SeoPageKey, SeoPage>> = {
   serviceArea: {
     key: 'serviceArea',
     path: '/service-area',
-    title: 'Mobile Notary Service Area | Sacramento County & Nearby Communities',
+    title: 'Mobile Notary Service Area | Sacramento & Nearby Communities',
     description:
-      'Mira travels throughout Sacramento County and confirmed nearby communities in Placer, Yolo and El Dorado counties. Check your ZIP code, or ask about an area not listed.',
+      'Mira travels to Sacramento, Elk Grove, Roseville, Folsom, Davis and nearby communities. See the service area map and check your ZIP code, or ask about other areas.',
     indexable: true,
   },
   faq: {

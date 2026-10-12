@@ -9,7 +9,7 @@ import { of } from 'rxjs';
 import { todayInBusinessZone, isSunday } from '../../../shared/appointment-timing';
 import { TurnstileComponent } from '../../shared/components/turnstile/turnstile.component';
 import { preferredDateValidator } from '../../shared/validators/form-validators';
-import { ContactComponent, OUTSIDE_AREA_NOTE } from './contact.component';
+import { ContactComponent, LIMITED_AREA_NOTE, OUTSIDE_AREA_NOTE } from './contact.component';
 
 function setup(query: Record<string, string> = {}): ComponentFixture<ContactComponent> {
   TestBed.configureTestingModule({
@@ -699,6 +699,43 @@ describe('ContactComponent', () => {
       const request = http.expectOne('/api/appointments');
       const payload = JSON.parse((request.request.body as FormData).get('payload') as string);
       expect(payload.locationZip).toBe('90210');
+      request.flush({ success: true });
+    });
+
+    it.each(['95602', '95757'])(
+      'shows the limited-area advisory for %s (not an error, not the outside note)',
+      (zip) => {
+        const fixture = setup();
+        enter(fixture, 'zip', zip);
+        expect(errorText(fixture, 'zip')).toBeNull();
+        expect(fixture.componentInstance['form'].controls.zip.valid).toBe(true);
+        expect(field(fixture, 'zip').getAttribute('aria-invalid')).toBeNull();
+        expect(field(fixture, 'zip').getAttribute('aria-describedby')).toBe('zip-note');
+        const element = note(fixture) as HTMLElement;
+        expect(element.textContent?.trim()).toBe(
+          'Limited service area — you can still submit your request. Mira & Team will confirm travel availability for your exact location.',
+        );
+        expect(LIMITED_AREA_NOTE).toBe(element.textContent?.trim());
+        expect(element.classList.contains('error')).toBe(false);
+        expect(element.getAttribute('role')).toBe('note');
+        expect(element.textContent).not.toContain('Outside standard service area');
+      },
+    );
+
+    it('allows submission for a limited-coverage ZIP', () => {
+      const fixture = setup();
+      const http = TestBed.inject(HttpTestingController);
+      fillValid(fixture);
+      set(fixture, 'zip', '95602');
+      fixture.detectChanges();
+      giveToken(fixture, 't');
+      expect(note(fixture)).not.toBeNull();
+      expect(submitButton(fixture).disabled).toBe(false);
+
+      submit(fixture);
+      const request = http.expectOne('/api/appointments');
+      const payload = JSON.parse((request.request.body as FormData).get('payload') as string);
+      expect(payload.locationZip).toBe('95602');
       request.flush({ success: true });
     });
   });
