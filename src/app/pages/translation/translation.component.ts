@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { EXTERNAL_LINKS } from '../../core/config/business.config';
 import { SEO_PAGES } from '../../core/seo/seo-pages';
 import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.component';
 
@@ -39,9 +40,26 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
             <li class="card pair">Russian ↔ English</li>
           </ul>
           <p class="network">
-            Mira also works with a professional translation network that can assist with more than
-            150 languages.
+            Need another language? Additional translation services are available through our
+            translation partner.
           </p>
+          <div class="partner">
+            <a class="partner-link" [href]="partnerUrl" target="_blank" rel="noopener sponsored">
+              <img
+                src="assets/referals/Translate-your-content-Language-translation-service-to-expand-your-business-4.webp"
+                width="728"
+                height="90"
+                alt="Idiomatic Translations — professional translation services"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="sr-only"> (opens in a new tab)</span>
+            </a>
+            <p class="disclosure">
+              If you order through this link, Mira may earn a commission at no additional cost to
+              you.
+            </p>
+          </div>
         </div>
 
         <div class="card quote">
@@ -93,6 +111,30 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
       color: var(--color-text-muted);
       border-left: 3px solid var(--color-gold);
     }
+    .partner {
+      margin-top: 1.25rem;
+    }
+    .partner-link {
+      display: block;
+      max-width: 728px;
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+    }
+    .partner-link:focus-visible {
+      outline: 2px solid var(--color-navy);
+      outline-offset: 2px;
+    }
+    .partner-link img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .disclosure {
+      margin-top: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--color-text-muted);
+    }
     .quote {
       padding: 1.75rem;
     }
@@ -119,4 +161,5 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
 })
 export class TranslationComponent {
   protected readonly crumbs = SEO_PAGES.translation.breadcrumbs;
+  protected readonly partnerUrl = EXTERNAL_LINKS.idiomaticReferral;
 }

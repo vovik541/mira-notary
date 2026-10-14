@@ -15,6 +15,8 @@ export const EXTERNAL_LINKS = {
    * 404 on 2026-10-12).
    */
   reiskraReferral: 'https://reiskra.com/',
+  /** Translation partner referral (commission link: rel="sponsored", no UTM — attribution is in the path). */
+  idiomaticReferral: 'https://idiomaticaffiliates.com/order-a-translation/ref/eo11r/',
 } as const;
 
 /**
