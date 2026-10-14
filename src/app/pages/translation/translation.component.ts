@@ -39,27 +39,6 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
             <li class="card pair">Ukrainian ↔ English</li>
             <li class="card pair">Russian ↔ English</li>
           </ul>
-          <p class="network">
-            Need another language? Additional translation services are available through our
-            translation partner.
-          </p>
-          <div class="partner">
-            <a class="partner-link" [href]="partnerUrl" target="_blank" rel="noopener sponsored">
-              <img
-                src="assets/referals/Translate-your-content-Language-translation-service-to-expand-your-business-4.webp"
-                width="728"
-                height="90"
-                alt="Idiomatic Translations — professional translation services"
-                loading="lazy"
-                decoding="async"
-              />
-              <span class="sr-only"> (opens in a new tab)</span>
-            </a>
-            <p class="disclosure">
-              If you order through this link, Mira may earn a commission at no additional cost to
-              you.
-            </p>
-          </div>
         </div>
 
         <div class="card quote">
@@ -76,6 +55,40 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
               >Request a Translation Quote</a
             >
           </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="partner-heading">
+      <div class="container">
+        <div class="partner">
+          <h2 id="partner-heading" class="partner-heading">More Language Options</h2>
+          <p class="network">
+            Need another language? More options are available through our affiliated business
+            partner, Idiomatic Language Services.
+          </p>
+          <a class="partner-link" [href]="partnerUrl" target="_blank" rel="noopener sponsored">
+            <picture>
+              <source
+                media="(max-width: 639px)"
+                srcset="
+                  assets/referals/Translate-your-content-and-transform-your-business-presence.-Language-translation-service.-We-have-been-doing-quality-translations-since-1996.-1.webp
+                "
+                width="320"
+                height="50"
+              />
+              <img
+                src="assets/referals/Translate-your-content-Language-translation-service-to-expand-your-business-4.webp"
+                width="728"
+                height="90"
+                alt="Idiomatic Language Services — professional translation services"
+                loading="lazy"
+                decoding="async"
+              />
+            </picture>
+            <span class="sr-only"> (opens in a new tab)</span>
+          </a>
+          <p class="disclosure">Mira may earn a commission from qualifying orders.</p>
         </div>
       </div>
     </section>
@@ -105,18 +118,18 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
       font-weight: 700;
       color: var(--color-navy);
     }
+    .partner-heading {
+      margin-bottom: 0.75rem;
+    }
     .network {
-      margin-top: 1.5rem;
+      margin-bottom: 1.25rem;
       padding-left: 1rem;
       color: var(--color-text-muted);
       border-left: 3px solid var(--color-gold);
     }
-    .partner {
-      margin-top: 1.25rem;
-    }
     .partner-link {
       display: block;
-      max-width: 728px;
+      max-width: 960px;
       overflow: hidden;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
@@ -129,6 +142,15 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
       display: block;
       width: 100%;
       height: auto;
+    }
+    /* The 320x50 mobile creative has a different ratio; avoid upscaling it past ~1.5x. */
+    @media (max-width: 639px) {
+      .partner-link {
+        max-width: 480px;
+      }
+      .partner-link img {
+        aspect-ratio: 320 / 50;
+      }
     }
     .disclosure {
       margin-top: 0.5rem;

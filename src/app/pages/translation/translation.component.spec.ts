@@ -5,8 +5,10 @@ import { organizationSchema, pageGraph, serviceSchema } from '../../core/seo/str
 import { TranslationComponent } from './translation.component';
 
 const REFERRAL = 'https://idiomaticaffiliates.com/order-a-translation/ref/eo11r/';
-const LOCAL_BANNER =
+const DESKTOP_BANNER =
   'assets/referals/Translate-your-content-Language-translation-service-to-expand-your-business-4.webp';
+const MOBILE_BANNER =
+  'assets/referals/Translate-your-content-and-transform-your-business-presence.-Language-translation-service.-We-have-been-doing-quality-translations-since-1996.-1.webp';
 
 function render(): HTMLElement {
   TestBed.configureTestingModule({
@@ -18,21 +20,31 @@ function render(): HTMLElement {
   return fixture.nativeElement as HTMLElement;
 }
 
+const flat = (value: string | null | undefined): string =>
+  (value ?? '').replace(/\s+/g, ' ').trim();
+
 describe('TranslationComponent partner banner', () => {
-  it('uses the local WebP banner, never a remote image, with sized dimensions and lazy loading', () => {
+  it('uses the local desktop WebP, sized and lazy, never a remote image', () => {
     const el = render();
-    const img = el.querySelector('.partner img') as HTMLImageElement;
-    expect(img.getAttribute('src')).toBe(LOCAL_BANNER);
-    expect(img.getAttribute('src')).toMatch(/\.webp$/);
+    const img = el.querySelector('.partner picture img') as HTMLImageElement;
+    expect(img.getAttribute('src')).toBe(DESKTOP_BANNER);
     expect(img.getAttribute('width')).toBe('728');
     expect(img.getAttribute('height')).toBe('90');
     expect(img.getAttribute('loading')).toBe('lazy');
     expect(img.getAttribute('alt')).toBe(
-      'Idiomatic Translations — professional translation services',
+      'Idiomatic Language Services — professional translation services',
     );
-    expect(el.innerHTML).not.toMatch(/src="https?:\/\//);
+    expect(el.innerHTML).not.toMatch(/(src|srcset)="\s*https?:\/\//);
     expect(el.innerHTML).not.toMatch(/\.png/i);
     expect(el.querySelectorAll('iframe, script')).toHaveLength(0);
+  });
+
+  it('switches to the local mobile WebP below the site’s 640px breakpoint via <picture>', () => {
+    const source = render().querySelector('.partner picture source') as HTMLSourceElement;
+    expect(source.getAttribute('media')).toBe('(max-width: 639px)');
+    expect(flat(source.getAttribute('srcset'))).toBe(MOBILE_BANNER);
+    expect(source.getAttribute('width')).toBe('320');
+    expect(source.getAttribute('height')).toBe('50');
   });
 
   it('makes the whole banner one sponsored external link with the exact referral URL', () => {
@@ -41,28 +53,27 @@ describe('TranslationComponent partner banner', () => {
     expect(link.getAttribute('href')).not.toContain('utm_');
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener sponsored');
-    expect(link.querySelector('img')).not.toBeNull();
+    expect(link.querySelector('picture')).not.toBeNull();
     expect(link.textContent).toContain('(opens in a new tab)');
   });
 
-  it('shows the affiliate disclosure directly under the banner as visible text', () => {
-    const partner = render().querySelector('.partner') as HTMLElement;
-    const disclosure = partner.querySelector('.disclosure') as HTMLElement;
-    expect(disclosure.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'If you order through this link, Mira may earn a commission at no additional cost to you.',
-    );
+  it('shows the short commission disclosure right under the banner as visible text', () => {
+    const el = render();
+    const disclosure = el.querySelector('.partner .disclosure') as HTMLElement;
+    expect(flat(disclosure.textContent)).toBe('Mira may earn a commission from qualifying orders.');
     expect(disclosure.previousElementSibling?.tagName).toBe('A');
     expect(disclosure.hasAttribute('hidden')).toBe(false);
     expect(disclosure.hasAttribute('title')).toBe(false);
+    expect(flat(el.textContent)).not.toContain('at no additional cost to you');
   });
 
-  it('introduces the partner as an option for other languages, outside the Mira quote card', () => {
+  it('names the affiliated partner as an option for other languages, outside the quote card', () => {
     const el = render();
-    const text = (el.textContent ?? '').replace(/\s+/g, ' ');
-    expect(text).toContain(
-      'Need another language? Additional translation services are available through our translation partner.',
+    expect(flat(el.textContent)).toContain(
+      'Need another language? More options are available through our affiliated business partner, Idiomatic Language Services.',
     );
     expect(el.querySelector('.quote .partner')).toBeNull();
+    expect(el.querySelector('.info .partner')).toBeNull();
     expect(el.querySelector('.quote a[href^="https://idiomatic"]')).toBeNull();
   });
 
@@ -73,8 +84,7 @@ describe('TranslationComponent partner banner', () => {
     const cta = el.querySelector('.quote a.btn--gold') as HTMLAnchorElement;
     expect(cta.textContent?.trim()).toBe('Request a Translation Quote');
     expect(cta.getAttribute('href')).toContain('/contact');
-    const text = (el.textContent ?? '').replace(/\s+/g, ' ');
-    expect(text).not.toMatch(/150|translation network/i);
+    expect(flat(el.textContent)).not.toMatch(/150|translation network/i);
   });
 });
 
