@@ -7,8 +7,6 @@ import { TranslationComponent } from './translation.component';
 const REFERRAL = 'https://idiomaticaffiliates.com/order-a-translation/ref/eo11r/';
 const DESKTOP_BANNER =
   'assets/referals/Translate-your-content-Language-translation-service-to-expand-your-business-4.webp';
-const MOBILE_BANNER =
-  'assets/referals/Translate-your-content-and-transform-your-business-presence.-Language-translation-service.-We-have-been-doing-quality-translations-since-1996.-1.webp';
 
 function render(): HTMLElement {
   TestBed.configureTestingModule({
@@ -26,7 +24,7 @@ const flat = (value: string | null | undefined): string =>
 describe('TranslationComponent partner banner', () => {
   it('uses the local desktop WebP, sized and lazy, never a remote image', () => {
     const el = render();
-    const img = el.querySelector('.partner picture img') as HTMLImageElement;
+    const img = el.querySelector('.partner img') as HTMLImageElement;
     expect(img.getAttribute('src')).toBe(DESKTOP_BANNER);
     expect(img.getAttribute('width')).toBe('728');
     expect(img.getAttribute('height')).toBe('90');
@@ -39,12 +37,11 @@ describe('TranslationComponent partner banner', () => {
     expect(el.querySelectorAll('iframe, script')).toHaveLength(0);
   });
 
-  it('switches to the local mobile WebP below the site’s 640px breakpoint via <picture>', () => {
-    const source = render().querySelector('.partner picture source') as HTMLSourceElement;
-    expect(source.getAttribute('media')).toBe('(max-width: 639px)');
-    expect(flat(source.getAttribute('srcset'))).toBe(MOBILE_BANNER);
-    expect(source.getAttribute('width')).toBe('320');
-    expect(source.getAttribute('height')).toBe('50');
+  it('uses the same wide banner on every viewport (no mobile-specific source)', () => {
+    const el = render();
+    expect(el.querySelectorAll('.partner img')).toHaveLength(1);
+    expect(el.querySelector('.partner picture, .partner source')).toBeNull();
+    expect(el.innerHTML).not.toContain('since-1996');
   });
 
   it('makes the whole banner one sponsored external link with the exact referral URL', () => {
@@ -53,7 +50,7 @@ describe('TranslationComponent partner banner', () => {
     expect(link.getAttribute('href')).not.toContain('utm_');
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener sponsored');
-    expect(link.querySelector('picture')).not.toBeNull();
+    expect(link.querySelector('img')).not.toBeNull();
     expect(link.textContent).toContain('(opens in a new tab)');
   });
 

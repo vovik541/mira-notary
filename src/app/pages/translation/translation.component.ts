@@ -68,24 +68,14 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
             partner, Idiomatic Language Services.
           </p>
           <a class="partner-link" [href]="partnerUrl" target="_blank" rel="noopener sponsored">
-            <picture>
-              <source
-                media="(max-width: 639px)"
-                srcset="
-                  assets/referals/Translate-your-content-and-transform-your-business-presence.-Language-translation-service.-We-have-been-doing-quality-translations-since-1996.-1.webp
-                "
-                width="320"
-                height="50"
-              />
-              <img
-                src="assets/referals/Translate-your-content-Language-translation-service-to-expand-your-business-4.webp"
-                width="728"
-                height="90"
-                alt="Idiomatic Language Services — professional translation services"
-                loading="lazy"
-                decoding="async"
-              />
-            </picture>
+            <img
+              src="assets/referals/Translate-your-content-Language-translation-service-to-expand-your-business-4.webp"
+              width="728"
+              height="90"
+              alt="Idiomatic Language Services — professional translation services"
+              loading="lazy"
+              decoding="async"
+            />
             <span class="sr-only"> (opens in a new tab)</span>
           </a>
           <p class="disclosure">Mira may earn a commission from qualifying orders.</p>
@@ -142,15 +132,6 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
       display: block;
       width: 100%;
       height: auto;
-    }
-    /* The 320x50 mobile creative has a different ratio; avoid upscaling it past ~1.5x. */
-    @media (max-width: 639px) {
-      .partner-link {
-        max-width: 480px;
-      }
-      .partner-link img {
-        aspect-ratio: 320 / 50;
-      }
     }
     .disclosure {
       margin-top: 0.5rem;
