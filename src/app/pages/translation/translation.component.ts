@@ -39,6 +39,23 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
             <li class="card pair">Ukrainian ↔ English</li>
             <li class="card pair">Russian ↔ English</li>
           </ul>
+          <p class="network">
+            Need another language? More options are available through our affiliated business
+            partner, Idiomatic Language Services.
+          </p>
+          <div class="partner">
+            <a class="partner-link" [href]="partnerUrl" target="_blank" rel="noopener sponsored">
+              <img
+                src="assets/referals/Translate-your-content-Language-translation-service-to-expand-your-business-4.webp"
+                width="728"
+                height="90"
+                alt="Idiomatic Language Services — professional translation services"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="sr-only"> (opens in a new tab)</span>
+            </a>
+          </div>
         </div>
 
         <div class="card quote">
@@ -55,30 +72,6 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
               >Request a Translation Quote</a
             >
           </p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" aria-labelledby="partner-heading">
-      <div class="container">
-        <div class="partner">
-          <h2 id="partner-heading" class="partner-heading">More Language Options</h2>
-          <p class="network">
-            Need another language? More options are available through our affiliated business
-            partner, Idiomatic Language Services.
-          </p>
-          <a class="partner-link" [href]="partnerUrl" target="_blank" rel="noopener sponsored">
-            <img
-              src="assets/referals/Translate-your-content-Language-translation-service-to-expand-your-business-4.webp"
-              width="728"
-              height="90"
-              alt="Idiomatic Language Services — professional translation services"
-              loading="lazy"
-              decoding="async"
-            />
-            <span class="sr-only"> (opens in a new tab)</span>
-          </a>
-          <p class="disclosure">Mira may earn a commission from qualifying orders.</p>
         </div>
       </div>
     </section>
@@ -108,18 +101,18 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
       font-weight: 700;
       color: var(--color-navy);
     }
-    .partner-heading {
-      margin-bottom: 0.75rem;
-    }
     .network {
-      margin-bottom: 1.25rem;
+      margin-top: 1.5rem;
       padding-left: 1rem;
       color: var(--color-text-muted);
       border-left: 3px solid var(--color-gold);
     }
+    .partner {
+      margin-top: 1.25rem;
+    }
     .partner-link {
       display: block;
-      max-width: 960px;
+      max-width: 728px;
       overflow: hidden;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
@@ -132,11 +125,6 @@ import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.c
       display: block;
       width: 100%;
       height: auto;
-    }
-    .disclosure {
-      margin-top: 0.5rem;
-      font-size: 0.875rem;
-      color: var(--color-text-muted);
     }
     .quote {
       padding: 1.75rem;

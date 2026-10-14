@@ -54,24 +54,32 @@ describe('TranslationComponent partner banner', () => {
     expect(link.textContent).toContain('(opens in a new tab)');
   });
 
-  it('shows the short commission disclosure right under the banner as visible text', () => {
+  it('shows no commission or referral disclosure anywhere on the page', () => {
     const el = render();
-    const disclosure = el.querySelector('.partner .disclosure') as HTMLElement;
-    expect(flat(disclosure.textContent)).toBe('Mira may earn a commission from qualifying orders.');
-    expect(disclosure.previousElementSibling?.tagName).toBe('A');
-    expect(disclosure.hasAttribute('hidden')).toBe(false);
-    expect(disclosure.hasAttribute('title')).toBe(false);
-    expect(flat(el.textContent)).not.toContain('at no additional cost to you');
+    const text = flat(el.textContent);
+    expect(text).not.toMatch(/commission|qualifying orders|no additional cost|affiliate notice/i);
+    expect(el.querySelector('.disclosure')).toBeNull();
+    expect(el.querySelector('[title]')).toBeNull();
   });
 
-  it('names the affiliated partner as an option for other languages, outside the quote card', () => {
+  it('puts the partner copy and banner under the language pairs in the LEFT column', () => {
     const el = render();
     expect(flat(el.textContent)).toContain(
       'Need another language? More options are available through our affiliated business partner, Idiomatic Language Services.',
     );
-    expect(el.querySelector('.quote .partner')).toBeNull();
-    expect(el.querySelector('.info .partner')).toBeNull();
-    expect(el.querySelector('.quote a[href^="https://idiomatic"]')).toBeNull();
+    const info = el.querySelector('.split > .info') as HTMLElement;
+    expect(info.querySelector('.pairs')).not.toBeNull();
+    expect(info.querySelector('.network')).not.toBeNull();
+    expect(
+      info.querySelector('.partner a[href^="https://idiomaticaffiliates.com"]'),
+    ).not.toBeNull();
+    expect(
+      info.querySelector('.pairs')?.compareDocumentPosition(info.querySelector('.partner') as Node),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(el.querySelector('.quote .partner, .quote .network')).toBeNull();
+    // No separate full-width partner section.
+    expect(el.querySelector('#partner-heading')).toBeNull();
+    expect(el.querySelectorAll('section')).toHaveLength(2);
   });
 
   it('keeps Mira’s own language pairs and quote CTA, and never claims she translates 150+ languages', () => {
