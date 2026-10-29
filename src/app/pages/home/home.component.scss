@@ -149,7 +149,8 @@
   font-family: var(--font-heading);
   font-size: 1.125rem;
   font-weight: 700;
-  color: #b8890a;
+  /* #946c06 keeps the gold feel while reaching 4.5:1 on the white card (was 3.2:1). */
+  color: #946c06;
 }
 
 /* ---- Reviews header ---- */

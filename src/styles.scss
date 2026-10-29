@@ -1,20 +1,21 @@
-/* The two fonts that size the above-the-fold text (Manrope 800 headings, Inter 400 body) are
-   self-hosted at stable URLs so index.html can preload them (a hashed build-output name cannot be
-   preloaded). Preloading removes the font-swap re-wrap of the H1 / lead that caused layout shift.
-   The other weights still come from @fontsource. */
+/* Two self-hosted VARIABLE fonts (latin subset) cover every weight the site uses — Manrope for
+   headings, Inter for body/UI — in 2 requests (~73 kB) instead of six static files (~114 kB). They sit
+   at stable URLs so index.html can preload them (a hashed build-output name cannot be preloaded).
+   font-display: optional keeps layout shift at zero: on a very slow first view the system font stays
+   for that page view instead of re-wrapping text late. */
 @font-face {
   font-family: 'Manrope';
   font-style: normal;
   font-display: optional;
-  font-weight: 800;
-  src: url('/fonts/manrope-latin-800-normal.woff2') format('woff2');
+  font-weight: 200 800;
+  src: url('/fonts/manrope-latin-wght-normal.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Inter';
   font-style: normal;
   font-display: optional;
-  font-weight: 400;
-  src: url('/fonts/inter-latin-400-normal.woff2') format('woff2');
+  font-weight: 100 900;
+  src: url('/fonts/inter-latin-wght-normal.woff2') format('woff2');
 }
 
 /* ==========================================================================

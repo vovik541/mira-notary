@@ -13,8 +13,8 @@ support future local SEO.
 - A small server-side API in the same Worker (`POST /api/appointments` → Resend)
 - Vitest (via `ng test`) for unit tests
 - No UI framework, no Tailwind, no carousel/icon libraries — plain SCSS with design tokens
-- Fonts (Inter, Manrope) are self-hosted via `@fontsource` (latin subset) and bundled by the build —
-  no requests to Google Fonts or any other third party at runtime
+- Fonts (Inter, Manrope) are two self-hosted variable WOFF2 files in `public/fonts/` (latin subset,
+  preloaded, `font-display: optional`) — no requests to Google Fonts or any other third party at runtime
 
 ## Prerequisites
 

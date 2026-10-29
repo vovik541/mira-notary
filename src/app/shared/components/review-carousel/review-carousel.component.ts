@@ -73,7 +73,6 @@ export function nearestPosition(positions: readonly number[], left: number): num
       [class.is-dragging]="isDragging()"
       [class.is-settling]="isSettling()"
       tabindex="0"
-      role="region"
       aria-label="Customer reviews"
       (scroll)="update()"
       (pointerdown)="onPointerDown($event)"

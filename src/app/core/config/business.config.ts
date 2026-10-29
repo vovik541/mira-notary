@@ -63,11 +63,18 @@ export const BUSINESS = {
   credentials: ['NNA Certified Signing Agent', 'Background Screened', '$1M E&O Insurance'],
   disclaimer:
     'I am not an attorney licensed to practice law in California and may not give legal advice or accept fees for legal advice.',
+  /** On-page logo: 2x of its largest rendered size (header/footer), kept small for load speed. */
   logo: {
+    src: 'assets/brand/local-notary-signings-logo-212.webp',
+    width: 212,
+    height: 88,
+    alt: 'Local Notary Signings by Mira Derkach',
+  },
+  /** Full-size logo referenced only by structured data (never loaded by pages). */
+  schemaLogo: {
     src: 'assets/brand/local-notary-signings-logo.webp',
     width: 800,
     height: 332,
-    alt: 'Local Notary Signings by Mira Derkach',
   },
 } as const;
 

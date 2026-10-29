@@ -15,16 +15,16 @@ import { IconComponent } from '../icon/icon.component';
       <div class="badges">
         <img
           src="assets/credentials/nna_certified_global.webp"
-          width="332"
-          height="303"
+          width="160"
+          height="146"
           alt="NNA Certified Notary Signing Agent badge"
           loading="lazy"
           decoding="async"
         />
         <img
           src="assets/credentials/national_notary_association.webp"
-          width="618"
-          height="522"
+          width="160"
+          height="135"
           alt="National Notary Association member badge"
           loading="lazy"
           decoding="async"

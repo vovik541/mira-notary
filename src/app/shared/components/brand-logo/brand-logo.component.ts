@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BUSINESS } from '../../../core/config/business.config';
 
@@ -7,7 +7,7 @@ import { BUSINESS } from '../../../core/config/business.config';
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <a class="brand" routerLink="/" [attr.aria-label]="business.name + ' — home'">
+    <a class="brand" routerLink="/" [attr.aria-label]="label()">
       <img
         class="logo"
         [src]="business.logo.src"
@@ -32,4 +32,11 @@ export class BrandLogoComponent {
   protected readonly business = BUSINESS;
   readonly showText = input(true);
   readonly priority = input(false);
+
+  /** Accessible name must contain the visible text (WCAG 2.5.3 Label in Name). */
+  protected readonly label = computed(() =>
+    this.showText()
+      ? `${this.business.ownerName} ${this.business.tagline} — home`
+      : `${this.business.name} — home`,
+  );
 }

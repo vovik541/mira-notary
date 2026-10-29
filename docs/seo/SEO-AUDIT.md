@@ -136,20 +136,13 @@ Mobile Lighthouse, simulated Slow 4G, local `wrangler dev` (no CDN, no compressi
 practices 100; FCP ≈ 2.3–2.7 s, LCP ≈ 3.1–3.8 s (LCP element is hero text, not an image), TBT ≈ 0, CLS
 0–0.004. Field data comes only from Search Console / CrUX after launch (**REQUIRES SEARCH CONSOLE DATA**).
 
-Font audit (above-the-fold usage measured in Chrome at 390 and 1440 px on 8 pages):
-
-| Font | Used above the fold | Preload? |
-|---|---|---|
-| Manrope 800 | H1 / H2 on 16/16 views | **Yes** — sizes the headline; self-hosted at `/fonts/manrope-latin-800-normal.woff2` |
-| Inter 400 | Body / hero lead on 16/16 views | **Yes** — sizes the lead text; `/fonts/inter-latin-400-normal.woff2` |
-| Inter 600 | Buttons / links on 12/16 | No (fontsource, `swap`) |
-| Manrope 700, Inter 500, Inter 700, Manrope 600 | Header / small UI text | No |
-
-Both preloaded faces use `font-display: optional`: on a normal connection the web font is used; on a
-very slow first view the system font stays for that page view instead of re-wrapping the text late
-(that late swap was the FAQ and service-page layout shift). Trade-off: a first, uncached view on a slow
-network may show system fonts. No preload warnings appear in Chrome. FAQ CLS: 0.27 → 0.005 (same Slow-4G
-method, repeated runs); FAQ hero link no longer uses a heavier font weight.
+Fonts (updated 2026-10-29): Inter and Manrope are now two self-hosted **variable** WOFF2 files
+(`public/fonts/inter-latin-wght-normal.woff2` 48 kB, `manrope-latin-wght-normal.woff2` 25 kB), both
+preloaded and declared `font-display: optional`. They replace six static weights (~114 kB, four of them
+loaded late from `@fontsource` with `swap`). On a normal connection the web font is used; on a very slow first
+view the system font stays for that page view instead of re-wrapping text late (the late swap was the
+FAQ and service-page layout shift). Measured CLS with the variable fonts (Slow 4G + 4x CPU, 8 pages at 390
+and 1440 px): 0 everywhere except 0.022 on desktop Service Area (map iframe, not fonts).
 
 ## 6. Decisions for the owner
 

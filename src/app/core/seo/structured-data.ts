@@ -83,9 +83,9 @@ export function organizationSchema(origin: string = base()): JsonLd {
       ? {
           logo: {
             '@type': 'ImageObject',
-            url: `${origin}/${BUSINESS.logo.src}`,
-            width: BUSINESS.logo.width,
-            height: BUSINESS.logo.height,
+            url: `${origin}/${BUSINESS.schemaLogo.src}`,
+            width: BUSINESS.schemaLogo.width,
+            height: BUSINESS.schemaLogo.height,
           },
         }
       : {}),
