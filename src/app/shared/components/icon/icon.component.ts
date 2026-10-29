@@ -6,6 +6,12 @@ interface IconDefinition {
   readonly viewBox?: string;
 }
 
+/*
+ * Icon sources. phone, document, building, flag, translate, chevron-down/left/right, menu, close,
+ * check, check-circle and star are Heroicons v1.0.6 (MIT, © Refactoring UI Inc.; notice in
+ * /third-party-licenses.txt). The remaining icons have no recorded source (see
+ * docs/compliance/COPYRIGHT-LICENSE-AUDIT.md). Record the source of any icon you add.
+ */
 const ICONS = {
   phone: {
     paths: [

@@ -9,6 +9,7 @@
     "test": "ng test",
     "format": "prettier --write \"src/**/*.{ts,html,scss}\"",
     "format:check": "prettier --check \"src/**/*.{ts,html,scss}\"",
+    "licenses": "node scripts/licenses/build-third-party-notices.mjs",
     "preview:cloudflare": "ng build && wrangler dev",
     "deploy": "ng build && wrangler deploy"
   },
